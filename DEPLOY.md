@@ -15,21 +15,25 @@ Architecture: **client** (static, Vercel) → **API** (Express, Vercel serverles
    ```
    (Seed refuses a weak `ADMIN_PASSWORD` in production. No demo account is created in prod.)
 
-## 2. API
-Set these env vars on the host (see `server/.env.production.example`):
-`NODE_ENV=production`, `DATABASE_URL` (pooled), `JWT_SECRET` (`openssl rand -hex 32`),
-`CLIENT_ORIGIN` (your Vercel URL), `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
+## 2. API (Vercel serverless — adapter already built)
+`server/api/index.ts` exports the Express app and `server/vercel.json` routes all requests to it;
+`prisma generate` runs on install (postinstall) and the schema targets the Vercel Linux runtime.
 
-- **Render/Railway (simplest):** new Web Service from this repo, root `server/`,
-  build `npm install && npx prisma generate && npm run build`, start `npm start`.
-- **Vercel serverless:** wrap `createApp()` in an `api/` function and add rewrites. (Ask me to
-  finish this adapter once the project exists — it needs verifying against the real deployment.)
+1. New Vercel project from this repo, **Root Directory: `server`**.
+2. Env vars (see `server/.env.production.example`): `NODE_ENV=production`,
+   `DATABASE_URL` (Supabase **pooled** string), `JWT_SECRET` (`openssl rand -hex 32`),
+   `CLIENT_ORIGIN` (the client's Vercel URL), `ADMIN_EMAIL`, `ADMIN_PASSWORD`,
+   and the `SUPABASE_*` storage vars below.
+3. Deploy. Health check: `https://<api>.vercel.app/api/health`.
 
-> **Image uploads in production:** the dev server stores uploaded photos on local disk, which
-> is **not persistent on serverless**. For prod, switch `server/src/lib/uploads.ts` to Supabase
-> Storage (bucket + signed upload). Seeded platters use hosted image URLs, so the site looks
-> right out of the box; wire Storage before relying on admin photo uploads. (I can do this once
-> Supabase is connected.)
+*(Prefer a long-running process? Render/Railway also work: root `server/`, build
+`npm install && npm run build`, start `npm start` — same env vars.)*
+
+### Image uploads — Supabase Storage
+Uploads use Supabase Storage when configured, else local disk (dev only — not persistent on serverless).
+1. Supabase → Storage → create a **public** bucket named `platter-images`.
+2. Set on the API host: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API), `SUPABASE_BUCKET=platter-images`.
+Seeded platters use hosted image URLs, so the site looks right even before this is set.
 
 ## 3. Client — Vercel
 1. Import the GitHub repo at https://vercel.com.

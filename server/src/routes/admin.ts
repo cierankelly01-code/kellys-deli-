@@ -15,7 +15,7 @@ import { parseDate, formatDate } from "../lib/capacity";
 import { buildPrepSheet, type PrepInputOrder } from "../lib/prep-sheet";
 import { summarizeOrders, rankPlattersByMargin, profitOf, type StatOrderInput } from "../lib/stats";
 import { notifyReviewRequest, notifyReferralOffer, notifyBlast } from "../lib/notify";
-import { imageUpload } from "../lib/uploads";
+import { imageUpload, persistUpload } from "../lib/uploads";
 
 export const adminRouter = Router();
 
@@ -260,10 +260,15 @@ adminRouter.post("/margin", (req, res) => {
 
 // Image upload — returns a URL to store as a platter/experience imageUrl.
 adminRouter.post("/upload", (req, res) => {
-  imageUpload.single("image")(req, res, (err) => {
+  imageUpload.single("image")(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: "No image uploaded" });
-    res.json({ url: `/uploads/${req.file.filename}` });
+    try {
+      res.json({ url: await persistUpload(req.file) });
+    } catch (e) {
+      console.error("[upload] failed", e);
+      res.status(500).json({ error: "Upload failed" });
+    }
   });
 });
 

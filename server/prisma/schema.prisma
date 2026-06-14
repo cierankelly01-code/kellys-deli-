@@ -1,6 +1,8 @@
 // Kelly's Deli — data model. See docs/SPEC.md + docs/SPEC-v2.md.
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // "native" for local dev; the rhel target is the AWS Lambda runtime Vercel uses.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
