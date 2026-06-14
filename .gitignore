@@ -1,0 +1,21 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+*.local
+.DS_Store
+coverage/
+.vercel
+# Dev logs + local editor/agent settings
+*.log
+*.tsbuildinfo
+.claude/settings.local.json
+# Prisma
+server/prisma/*.db
+# Embedded dev Postgres data
+server/.pgdata/
+# Uploaded images (dev disk storage)
+server/uploads/
+# Vite
+client/dist/

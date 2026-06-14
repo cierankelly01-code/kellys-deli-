@@ -1,0 +1,22 @@
+# Optional local Postgres for development (if you have Docker).
+# If you'd rather use Supabase, skip this and put the Supabase connection
+# string in server/.env as DATABASE_URL.
+#
+#   docker compose up -d
+#   # then in server/.env:  DATABASE_URL="postgresql://kelly:kelly@localhost:5432/kellysdeli?schema=public"
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: kellysdeli-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: kelly
+      POSTGRES_PASSWORD: kelly
+      POSTGRES_DB: kellysdeli
+    ports:
+      - "5432:5432"
+    volumes:
+      - kellysdeli_pgdata:/var/lib/postgresql/data
+
+volumes:
+  kellysdeli_pgdata:

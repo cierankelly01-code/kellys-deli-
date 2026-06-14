@@ -1,0 +1,131 @@
+// Kelly's Deli — data model. See docs/SPEC.md + docs/SPEC-v2.md.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Location {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  // Operative meaning: max catering orders per DAY at this location (see SPEC decision #2).
+  weeklyCapacity Int      @default(5)
+  active         Boolean  @default(true)
+  orders         Order[]
+  createdAt      DateTime @default(now())
+}
+
+model Platter {
+  id           String   @id @default(cuid())
+  category     String   @default("home") // home | events | seasonal
+  name         String
+  description  String
+  pricePerHead Decimal? @db.Decimal(10, 2) // null for fixed-price platters
+  fixedPrice   Decimal? @db.Decimal(10, 2) // null for per-head platters
+  cost         Decimal  @db.Decimal(10, 2) // owner's cost to produce one unit / per head — drives margin
+  serves       String? // display only, e.g. "15-20"
+  minHeadcount Int      @default(1)
+  items        Json // ordered array of { label: string, qtyPerUnit: number }
+  imageUrl     String?
+  active       Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  orders       Order[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([category])
+}
+
+model Experience {
+  id           String   @id @default(cuid())
+  name         String
+  description  String
+  pricePerHead Decimal  @db.Decimal(10, 2)
+  cost         Decimal  @default(0) @db.Decimal(10, 2)
+  capacity     Int      @default(12) // max guests per session = one (location, date)
+  imageUrl     String?
+  active       Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  orders       Order[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Order {
+  id                       String      @id @default(cuid())
+  ref                      String      @unique // e.g. KD-7F3K9Q
+  type                     String      @default("platter") // platter | gift | experience
+  platterId                String?
+  platter                  Platter?    @relation(fields: [platterId], references: [id])
+  experienceId             String?
+  experience               Experience? @relation(fields: [experienceId], references: [id])
+  headcount                Int
+  total                    Decimal     @db.Decimal(10, 2)
+  deposit                  Decimal     @db.Decimal(10, 2)
+  depositStatus            String      @default("pending") // pending | paid | refunded
+  // gift delivery
+  isGift                   Boolean     @default(false)
+  recipientName            String?
+  deliveryAddress          String?
+  giftMessage              String?
+  collectionOrDeliveryDate DateTime    @db.Date
+  locationId               String
+  location                 Location    @relation(fields: [locationId], references: [id])
+  customerName             String
+  phone                    String
+  email                    String
+  notes                    String?
+  freebie                  String? // first-order hook note, e.g. "FREE: box of sausage rolls"
+  status                   String      @default("new") // new | confirmed | in_prep | ready | completed | cancelled
+  src                      String      @default("direct") // direct | qr | instagram | referral
+  referralCodeUsed         String?
+  customerId               String?
+  customer                 Customer?   @relation(fields: [customerId], references: [id])
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
+
+  @@index([locationId, collectionOrDeliveryDate])
+  @@index([status])
+  @@index([src])
+  @@index([type])
+}
+
+model Customer {
+  id           String   @id @default(cuid())
+  name         String
+  phone        String   @unique
+  email        String
+  referralCode String   @unique // the customer's own code to share
+  lastOrderId  String?
+  isBigSpender Boolean  @default(false) // manual admin tag
+  orders       Order[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         String   @default("admin") // admin (staff). Customers do not log in.
+  createdAt    DateTime @default(now())
+}
+
+model Referral {
+  id        String   @id @default(cuid())
+  code      String // the referrer's code that was redeemed
+  orderId   String   @unique // the order that redeemed it
+  discount  Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  @@index([code])
+}
+
+model Setting {
+  key   String @id // e.g. "firstOrderHook", "firstOrderHookText"
+  value String
+}

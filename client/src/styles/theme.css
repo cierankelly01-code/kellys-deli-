@@ -1,0 +1,123 @@
+/* Kelly's Deli — deep blue + gold, premium family-deli. Mobile-first. */
+:root {
+  /* Palette — Kelly's Deli navy & gold */
+  --brick: #14365c;       /* deep navy blue — primary (var name kept for reuse) */
+  --brick-dark: #0e2742;  /* darker navy (hover/press) */
+  --mustard: #d39a16;     /* gold accent */
+  --cream: #f6f4ef;       /* soft off-white page background */
+  --card: #ffffff;
+  --ink: #1c2733;         /* cool near-black */
+  --ink-soft: #5a6675;
+  --line: #e2e3e1;
+  --good: #2e7d4f;
+  --good-bg: #e7f3ec;
+  --warn: #b4690e;
+  --warn-bg: #fdf0db;
+  --danger: #b3261e;
+  --danger-bg: #fbe9e7;
+
+  /* Type */
+  --font: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --serif: "Georgia", "Times New Roman", serif;
+
+  /* Shape */
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 6px 22px rgba(16, 40, 70, 0.14);
+  --shadow-sm: 0 2px 8px rgba(16, 40, 70, 0.10);
+  --maxw: 760px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.45;
+}
+
+h1, h2, h3 { font-family: var(--serif); color: var(--brick); line-height: 1.15; margin: 0 0 0.4em; }
+h1 { font-size: 1.9rem; }
+h2 { font-size: 1.4rem; }
+a { color: var(--brick); }
+
+/* Layout container — phone-width, centered */
+.app {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 16px 96px;
+}
+
+/* Buttons — big, clear, tappable */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 54px;
+  padding: 14px 20px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--brick);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.05s ease, background 0.15s ease, opacity 0.15s ease;
+}
+.btn:hover { background: var(--brick-dark); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-secondary { background: #fff; color: var(--brick); border: 2px solid var(--line); }
+.btn-secondary:hover { background: #fff; border-color: var(--brick); }
+.btn-ghost { background: transparent; color: var(--ink-soft); min-height: auto; width: auto; padding: 8px; font-weight: 600; }
+
+/* Cards */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+/* Inputs — big and finger-friendly */
+.field { margin-bottom: 16px; }
+.field label { display: block; font-weight: 600; margin-bottom: 6px; color: var(--ink); }
+.input, select.input, textarea.input {
+  width: 100%;
+  min-height: 50px;
+  padding: 12px 14px;
+  font-size: 1.05rem;
+  font-family: inherit;
+  color: var(--ink);
+  background: #fff;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.input:focus { outline: none; border-color: var(--mustard); }
+textarea.input { min-height: 90px; resize: vertical; }
+
+/* Pills / badges */
+.pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: var(--good-bg);
+  color: var(--good);
+}
+.pill.warn { background: var(--warn-bg); color: var(--warn); }
+.pill.danger { background: var(--danger-bg); color: var(--danger); }
+
+.muted { color: var(--ink-soft); }
+.center { text-align: center; }
+.stack > * + * { margin-top: 12px; }
+.row { display: flex; gap: 12px; align-items: center; }
+.spread { display: flex; justify-content: space-between; align-items: center; gap: 12px; }

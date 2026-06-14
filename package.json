@@ -1,0 +1,24 @@
+{
+  "name": "kellys-deli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Kelly's Deli — multi-location catering ordering & growth app",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "npm --workspace server run dev",
+    "dev:client": "npm --workspace client run dev",
+    "build": "npm --workspace server run build && npm --workspace client run build",
+    "db:migrate": "npm --workspace server run db:migrate",
+    "db:generate": "npm --workspace server run db:generate",
+    "db:seed": "npm --workspace server run db:seed",
+    "db:reset": "npm --workspace server run db:reset",
+    "test": "npm --workspace server run test && npm --workspace client run test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
