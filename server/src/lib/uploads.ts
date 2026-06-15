@@ -7,12 +7,20 @@ import fs from "node:fs";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 export const UPLOAD_DIR = path.join(process.cwd(), "uploads");
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const BUCKET = process.env.SUPABASE_BUCKET || "platter-images";
 export const useSupabaseStorage = !!(SUPABASE_URL && SUPABASE_KEY);
+
+// Only create a local upload dir when using disk storage — serverless filesystems are read-only.
+if (!useSupabaseStorage) {
+  try {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  } catch {
+    /* ignore — read-only FS */
+  }
+}
 
 let supabase: SupabaseClient | null = null;
 function client(): SupabaseClient {
