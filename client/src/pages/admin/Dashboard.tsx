@@ -94,6 +94,38 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
+
+      <WipeTestData />
+    </div>
+  );
+}
+
+function WipeTestData() {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  async function wipe() {
+    if (!window.confirm("Permanently delete ALL orders, bookings and customers?\n\nYour menu, prices, locations, settings and staff login are KEPT. This can't be undone.")) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await adminApi.wipeTestData();
+      setMsg(`Cleared ${r.orders} orders, ${r.customers} customers, ${r.referrals} referrals. Refresh the page to see the dashboard reset.`);
+    } catch (e: any) {
+      setMsg("Failed: " + e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="danger-zone">
+      <h2>Danger zone</h2>
+      <p className="muted" style={{ marginTop: -6 }}>
+        Going live? Clear out all the test orders &amp; customers. Your menu, prices, locations, settings and staff login stay.
+      </p>
+      {msg && <div className="notice good">{msg}</div>}
+      <button className="btn danger-btn" onClick={wipe} disabled={busy} style={{ width: "auto" }}>
+        {busy ? "Clearing…" : "Wipe all orders & customers"}
+      </button>
     </div>
   );
 }

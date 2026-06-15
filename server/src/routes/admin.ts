@@ -291,6 +291,15 @@ adminRouter.patch("/settings/:key", async (req, res) => {
   res.json({ key: updated.key, value: updated.value });
 });
 
+// Wipe all transactional/test data (orders, bookings, referrals, customers).
+// Keeps platters, experiences, locations, settings and admin users. Admin-only.
+adminRouter.post("/wipe-test-data", async (_req, res) => {
+  const referrals = await prisma.referral.deleteMany();
+  const orders = await prisma.order.deleteMany();
+  const customers = await prisma.customer.deleteMany();
+  res.json({ orders: orders.count, bookings: 0, customers: customers.count, referrals: referrals.count });
+});
+
 // =====================  SMS list + blast  =====================
 adminRouter.get("/customers", async (_req, res) => {
   const customers = await prisma.customer.findMany({ orderBy: { createdAt: "desc" } });
