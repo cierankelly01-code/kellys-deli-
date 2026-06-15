@@ -16,8 +16,7 @@
     "db:generate": "npm --workspace server run db:generate",
     "db:seed": "npm --workspace server run db:seed",
     "db:reset": "npm --workspace server run db:reset",
-    "test": "npm --workspace server run test && npm --workspace client run test",
-    "postinstall": "npm run db:generate --workspace server"
+    "test": "npm --workspace server run test && npm --workspace client run test"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
