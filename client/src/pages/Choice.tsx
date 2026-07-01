@@ -154,9 +154,27 @@ export default function Choice() {
                   <span className="shelf-card-price">From {gbp(platter.fixedPrice!)}</span>
                 </button>
               ))}
+              {boardCards.some((b) => b.boardType === "charcuterie") && (
+                <button className="shelf-card" onClick={() => go("/configure")}>
+                  <div
+                    className="shelf-card-img"
+                    style={{ backgroundImage: boardCards.find((b) => b.boardType === "charcuterie")?.platter.imageUrl ? `url(${boardCards.find((b) => b.boardType === "charcuterie")!.platter.imageUrl})` : undefined }}
+                  >
+                    <span className="badge gold shelf-card-badge">Build your own</span>
+                  </div>
+                  <span className="shelf-card-title">Configure your own</span>
+                  <span className="shelf-card-price">Pick your own extras</span>
+                </button>
+              )}
             </div>
           </section>
         )}
+
+        <section className="founder-note">
+          <p className="founder-eyebrow">A note from the deli counter</p>
+          <p className="founder-copy">{counts?.founderNote || DEFAULT_FOUNDER_NOTE}</p>
+          <p className="founder-sign">— Kelly</p>
+        </section>
 
         <div className="info-row">
           {hours && (
@@ -184,12 +202,6 @@ export default function Choice() {
             <span className="cs-badge">{clickCollectComingSoon ? "Coming soon" : ""}</span>
           </div>
         </div>
-
-        <section className="founder-note">
-          <p className="founder-eyebrow">A note from the deli counter</p>
-          <p className="founder-copy">{counts?.founderNote || DEFAULT_FOUNDER_NOTE}</p>
-          <p className="founder-sign">— Kelly</p>
-        </section>
 
         {catering && catering.length > 0 && (
           <section className="shelf">
