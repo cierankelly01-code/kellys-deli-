@@ -259,9 +259,10 @@ adminRouter.get("/board-components", async (_req, res) => {
 adminRouter.post("/board-components", async (req, res) => {
   const parsed = boardComponentUpsertSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid item" });
+  const d = parsed.data;
   const count = await prisma.boardComponent.count();
   const created = await prisma.boardComponent.create({
-    data: { ...parsed.data, imageUrl: parsed.data.imageUrl ?? null, active: parsed.data.active ?? true, sortOrder: parsed.data.sortOrder ?? count },
+    data: { category: d.category, label: d.label, imageUrl: d.imageUrl ?? null, active: d.active ?? true, sortOrder: d.sortOrder ?? count },
   });
   res.status(201).json(boardComponentDTO(created));
 });
@@ -269,11 +270,12 @@ adminRouter.post("/board-components", async (req, res) => {
 adminRouter.patch("/board-components/:id", async (req, res) => {
   const parsed = boardComponentUpsertSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid item" });
+  const d = parsed.data;
   const exists = await prisma.boardComponent.findUnique({ where: { id: req.params.id } });
   if (!exists) return res.status(404).json({ error: "Item not found" });
   const updated = await prisma.boardComponent.update({
     where: { id: req.params.id },
-    data: { ...parsed.data, imageUrl: parsed.data.imageUrl ?? null, active: parsed.data.active ?? exists.active, sortOrder: parsed.data.sortOrder ?? exists.sortOrder },
+    data: { category: d.category, label: d.label, imageUrl: d.imageUrl ?? null, active: d.active ?? exists.active, sortOrder: d.sortOrder ?? exists.sortOrder },
   });
   res.json(boardComponentDTO(updated));
 });
