@@ -95,7 +95,7 @@ export default function Choice() {
         setCounts({
           home: 1, events: 1, seasonal: 0, platters: 1, experiences: 1,
           tastingsComingSoon: true, clickCollectComingSoon: true, openingHours: null, aboutText: null,
-          heroImageUrl: null, missionTagline: null, founderNote: null,
+          heroImageUrl: null, missionTagline: null, founderNote: null, reviewRating: null, reviewCount: null,
         }),
       );
     api.platters("platters" as any).then(setBoards).catch(() => setBoards([]));
@@ -127,10 +127,14 @@ export default function Choice() {
               "Proper food from the people you know — grazing boards for delivery, platters for home and work."}
           </p>
           <button className="btn hero-cta" onClick={() => go("/platters")}>Order platters</button>
-          <div className="lh-trust">
-            <span className="stars" aria-hidden="true">★★★★★</span>
-            <span>Trusted by local families for years</span>
-          </div>
+          {counts?.reviewRating && (
+            <div className="lh-trust">
+              <span className="stars" aria-hidden="true">★</span>
+              <span>
+                {counts.reviewRating} {counts.reviewCount ? `· ${counts.reviewCount} Google reviews` : ""}
+              </span>
+            </div>
+          )}
         </div>
       </header>
 

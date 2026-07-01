@@ -15,6 +15,8 @@ export default function SiteSettings() {
   const [heroImageUrl, setHeroImageUrl] = useState("");
   const [missionTagline, setMissionTagline] = useState("");
   const [founderNote, setFounderNote] = useState("");
+  const [reviewRating, setReviewRating] = useState("");
+  const [reviewCount, setReviewCount] = useState("");
   const [clickCollectOpen, setClickCollectOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -27,6 +29,8 @@ export default function SiteSettings() {
       setHeroImageUrl(s.heroImageUrl ?? "");
       setMissionTagline(s.missionTagline ?? "");
       setFounderNote(s.founderNote ?? "");
+      setReviewRating(s.reviewRating ?? "");
+      setReviewCount(s.reviewCount ?? "");
       setClickCollectOpen(s.clickCollectComingSoon === "off");
     }).catch((e) => setError(e.message));
   }
@@ -40,6 +44,8 @@ export default function SiteSettings() {
       await adminApi.setSetting("heroImageUrl", heroImageUrl.trim());
       await adminApi.setSetting("missionTagline", missionTagline.trim());
       await adminApi.setSetting("founderNote", founderNote.trim());
+      await adminApi.setSetting("reviewRating", reviewRating.trim());
+      await adminApi.setSetting("reviewCount", reviewCount.trim());
       setMsg("Saved — live on the homepage now.");
       refresh();
     } catch (e: any) {
@@ -88,6 +94,14 @@ export default function SiteSettings() {
       <div className="field">
         <label>Note from the deli counter</label>
         <textarea className="input" rows={4} value={founderNote} onChange={(e) => setFounderNote(e.target.value)} placeholder="A personal note, signed off on the homepage." />
+      </div>
+      <div className="field">
+        <label>Review rating (e.g. from Google Business Profile)</label>
+        <input className="input" value={reviewRating} onChange={(e) => setReviewRating(e.target.value)} placeholder="e.g. 4.7" />
+      </div>
+      <div className="field">
+        <label>Review count</label>
+        <input className="input" value={reviewCount} onChange={(e) => setReviewCount(e.target.value)} placeholder="e.g. 47" />
       </div>
 
       <h2>Opening hours</h2>

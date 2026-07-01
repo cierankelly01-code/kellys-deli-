@@ -74,6 +74,8 @@ export interface CategoryCounts {
   heroImageUrl: string | null;
   missionTagline: string | null;
   founderNote: string | null;
+  reviewRating: string | null;
+  reviewCount: string | null;
 }
 
 export interface OpeningHours {

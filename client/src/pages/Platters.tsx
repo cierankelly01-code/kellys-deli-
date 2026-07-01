@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { api, type Platter, type BoardType, type BoardSize } from "../lib/api";
+import { api, type Platter, type BoardType, type BoardSize, type DayAvailability } from "../lib/api";
 import { gbp } from "../lib/format";
 import { Header } from "../components/Header";
 import { Faq } from "../components/Faq";
@@ -70,16 +70,40 @@ function BoardFeature({ boardType, sizes, onAdd, configureHref }: { boardType: B
   );
 }
 
+/** Real, verified scarcity only — pulls from actual delivery-slot capacity, not a fake countdown. */
+function urgencyMessage(days: DayAvailability[] | null): string | null {
+  if (!days) return null;
+  const tightest = days
+    .filter((d) => d.bookable)
+    .slice(0, 7)
+    .filter((d) => d.status === "limited")
+    .sort((a, b) => a.remaining - b.remaining)[0];
+  if (!tightest) return null;
+  const [y, m, dNum] = tightest.date.split("-").map(Number);
+  const label = new Date(Date.UTC(y, m - 1, dNum)).toLocaleDateString("en-GB", {
+    weekday: "long", day: "numeric", month: "short", timeZone: "UTC",
+  });
+  const slot = tightest.remaining === 1 ? "slot" : "slots";
+  return `Only ${tightest.remaining} delivery ${slot} left for ${label} — order soon.`;
+}
+
 export default function Platters() {
   const [platters, setPlatters] = useState<Platter[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [availability, setAvailability] = useState<DayAvailability[] | null>(null);
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const src = params.get("src");
 
   useEffect(() => {
     api.platters("platters" as any).then(setPlatters).catch((e) => setError(e.message));
+    api.locations()
+      .then((ls) => (ls[0] ? api.availability(ls[0].id) : null))
+      .then((r) => r && setAvailability(r.days))
+      .catch(() => {});
   }, []);
+
+  const urgency = urgencyMessage(availability);
 
   function addToOrder(platterId: string, qty: number, customItems?: string[]) {
     const q = new URLSearchParams({ platter: platterId, category: "platters", quantity: String(qty) });
@@ -95,6 +119,7 @@ export default function Platters() {
       <section className="hero platters-hero">
         <h1>Platters</h1>
         <p className="muted">Grazing boards for delivery — pick a size, or build your own charcuterie board.</p>
+        {urgency && <p className="scarcity-note">{urgency}</p>}
       </section>
 
       {error && <div className="notice danger">{error}</div>}

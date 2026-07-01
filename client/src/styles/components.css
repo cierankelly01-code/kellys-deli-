@@ -317,6 +317,7 @@
 .buy-bar-qty span { min-width: 14px; text-align: center; font-weight: 700; }
 .buy-bar-add.btn { flex: 1; width: auto; white-space: nowrap; }
 .buy-reassure { text-align: center; font-size: 0.78rem; color: var(--ink-soft); margin-top: 8px; }
+.scarcity-note { text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--mustard-dark, var(--mustard)); margin-top: 10px; }
 
 /* Configure-your-own board */
 .configurator { margin-top: 20px; padding: 18px; }

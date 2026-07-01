@@ -95,6 +95,8 @@ publicRouter.get("/categories", async (_req, res) => {
     heroImageUrl: (await getSetting("heroImageUrl")) ?? null,
     missionTagline: (await getSetting("missionTagline")) ?? null,
     founderNote: (await getSetting("founderNote")) ?? null,
+    reviewRating: (await getSetting("reviewRating")) ?? null,
+    reviewCount: (await getSetting("reviewCount")) ?? null,
   });
 });
 
