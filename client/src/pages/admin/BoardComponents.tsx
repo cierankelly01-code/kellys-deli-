@@ -2,14 +2,16 @@ import { useEffect, useState } from "react";
 import { adminApi } from "../../lib/admin";
 import { type BoardComponent, type BoardComponentCategory } from "../../lib/api";
 
-const CATEGORIES: BoardComponentCategory[] = ["cheese", "meat", "savoury", "extra"];
+const CATEGORIES: BoardComponentCategory[] = ["cheese", "meat", "savoury", "cracker", "jam"];
 const CATEGORY_LABEL: Record<BoardComponentCategory, string> = {
-  cheese: "Cheeses", meat: "Meats", savoury: "Savoury extras", extra: "Always-included extras",
+  cheese: "Cheeses", meat: "Meats", savoury: "Standard extras (pre-picked, swappable)",
+  cracker: "Crackers (customer picks one — first is the default)",
+  jam: "Chutney / jam (customer picks one — first is the default)",
 };
 
 export default function BoardComponents() {
   const [items, setItems] = useState<BoardComponent[]>([]);
-  const [drafts, setDrafts] = useState<Record<BoardComponentCategory, string>>({ cheese: "", meat: "", savoury: "", extra: "" });
+  const [drafts, setDrafts] = useState<Record<BoardComponentCategory, string>>({ cheese: "", meat: "", savoury: "", cracker: "", jam: "" });
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -71,7 +73,7 @@ export default function BoardComponents() {
           <div className="row" style={{ marginTop: 8 }}>
             <input
               className="input"
-              placeholder={`Add a ${cat === "extra" ? "extra" : cat}…`}
+              placeholder={`Add a ${cat}…`}
               value={drafts[cat]}
               onChange={(e) => setDrafts((d) => ({ ...d, [cat]: e.target.value }))}
               onKeyDown={(e) => { if (e.key === "Enter") addItem(cat); }}

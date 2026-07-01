@@ -10,7 +10,7 @@ export interface PlatterItem {
 export type Category = "home" | "events" | "seasonal" | "platters";
 export type BoardType = "charcuterie" | "savoury" | "cheese" | "salmon";
 export type BoardSize = "small" | "medium" | "large";
-export type BoardComponentCategory = "cheese" | "meat" | "savoury" | "extra";
+export type BoardComponentCategory = "cheese" | "meat" | "savoury" | "cracker" | "jam";
 
 export interface Platter {
   id: string;

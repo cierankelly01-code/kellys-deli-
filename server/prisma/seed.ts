@@ -250,8 +250,14 @@ async function main() {
     { id: "bc-peppers", category: "savoury", label: "Stuffed Peppers", sortOrder: 2 },
     { id: "bc-olives", category: "savoury", label: "Mixed Olives", sortOrder: 3 },
     { id: "bc-onions", category: "savoury", label: "Balsamic Onions", sortOrder: 4 },
-    { id: "bc-crackers", category: "extra", label: "Crackers", sortOrder: 1 },
-    { id: "bc-chutney", category: "extra", label: "Chutney / Jam", sortOrder: 2 },
+    // Crackers/jam are always included — this is a real choice of which one, not whether. Sort order
+    // 1 is the default that comes pre-picked. PLACEHOLDER labels — edit in admin Board Ingredients to match real stock.
+    { id: "bc-crackers", category: "cracker", label: "Table Water Crackers", sortOrder: 1 },
+    { id: "bc-crackers-seeded", category: "cracker", label: "Seeded Crackers", sortOrder: 2 },
+    { id: "bc-crackers-gf", category: "cracker", label: "Gluten-Free Crackers", sortOrder: 3 },
+    { id: "bc-chutney", category: "jam", label: "Red Onion Chutney", sortOrder: 1 },
+    { id: "bc-jam-fig", category: "jam", label: "Fig Chutney", sortOrder: 2 },
+    { id: "bc-jam-apricot", category: "jam", label: "Apricot Jam", sortOrder: 3 },
   ];
   for (const c of boardComponents) {
     await prisma.boardComponent.upsert({ where: { id: c.id }, update: c, create: { ...c, active: true } });

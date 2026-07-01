@@ -96,7 +96,7 @@ export type PlatterUpsertInput = z.infer<typeof platterUpsertSchema>;
 
 // Build-your-own ingredient picker (admin-managed).
 export const boardComponentUpsertSchema = z.object({
-  category: z.enum(["cheese", "meat", "savoury", "extra"]),
+  category: z.enum(["cheese", "meat", "savoury", "cracker", "jam"]),
   label: z.string().min(1).max(80),
   imageUrl: z.string().max(500).nullable().optional(),
   active: z.boolean().optional(),
