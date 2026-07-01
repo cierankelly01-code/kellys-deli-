@@ -143,6 +143,48 @@
 }
 .stars { color: var(--mustard); letter-spacing: 2px; font-size: 0.9rem; }
 
+/* Mission band — full-bleed statement strip beneath the hero */
+.mission-band {
+  background: var(--ink); color: #fff; text-align: center; padding: 22px 24px;
+  margin: -22px 0 26px;
+}
+.mission-band p {
+  font-family: var(--serif); font-style: italic; font-size: 1.15rem; max-width: 32ch;
+  margin: 0 auto; line-height: 1.5; color: rgba(255,255,255,0.94);
+}
+
+/* Shelf — horizontal-scrolling product shelf (homepage "Shop by board") */
+.shelf { margin: 8px 0 30px; }
+.shelf-head { margin-bottom: 14px; }
+.shelf-scroll {
+  display: flex; gap: 12px; overflow-x: auto; margin: 0 -16px; padding: 0 16px 6px;
+  scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+}
+.shelf-card {
+  flex: 0 0 auto; width: 62vw; max-width: 220px; scroll-snap-align: start;
+  display: flex; flex-direction: column; gap: 4px; text-align: left; background: none;
+  border: none; padding: 0; font-family: inherit; cursor: pointer; color: var(--ink);
+}
+.shelf-card-img {
+  position: relative; width: 100%; height: 140px; border-radius: var(--radius-sm);
+  background-size: cover; background-position: center; background-color: var(--line); margin-bottom: 4px;
+}
+.shelf-card-badge { position: absolute; top: 8px; left: 8px; font-size: 0.6rem; padding: 4px 9px; }
+.shelf-card-title { font-family: var(--serif); font-size: 1.05rem; }
+.shelf-card-price { color: var(--ink-soft); font-size: 0.85rem; }
+
+/* Opening hours + Click & Collect paired row */
+.info-row { display: flex; flex-direction: column; gap: 12px; margin-bottom: 4px; }
+
+/* Founder note — personal, letter-style section */
+.founder-note {
+  text-align: center; padding: 30px 12px; margin: 30px 0; border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.founder-eyebrow { font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mustard); font-weight: 700; margin: 0 0 12px; }
+.founder-copy { font-size: 1.05rem; line-height: 1.6; max-width: 42ch; margin: 0 auto; color: var(--ink); }
+.founder-sign { font-family: var(--serif); font-style: italic; font-size: 1.3rem; margin: 14px 0 0; color: var(--ink); }
+
 .choice-h { font-size: 1.25rem; margin: 4px 0 14px; }
 .choice-grid { display: grid; gap: 14px; grid-template-columns: 1fr; }
 @media (min-width: 560px) { .choice-grid { grid-template-columns: 1fr 1fr; } }
@@ -154,6 +196,9 @@
 }
 .choice-card:hover { border-color: var(--ink); }
 .choice-card:active { transform: translateY(1px); }
+.choice-card.photo { padding: 0 0 16px; overflow: hidden; }
+.choice-card-img { width: 100%; height: 130px; background-size: cover; background-position: center; margin-bottom: 12px; }
+.choice-card.photo .choice-title, .choice-card.photo .choice-sub, .choice-card.photo .choice-go { padding: 0 18px; }
 .choice-title { font-family: var(--serif); font-size: 1.4rem; color: var(--ink); font-weight: 500; }
 .choice-sub { color: var(--ink-soft); font-size: 0.95rem; }
 .choice-go { margin-top: 8px; color: var(--mustard); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }

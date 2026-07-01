@@ -70,7 +70,7 @@ async function main() {
       id: "platter-big-spread", category: "events", name: "The Big Spread", sortOrder: 1, active: true,
       description: "The full event spread for up to 20 — everything the table needs.",
       pricePerHead: null, fixedPrice: 195, cost: 88, serves: "up to 20", minHeadcount: 1,
-      imageUrl: "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?auto=format&fit=crop&w=800&q=60",
+      imageUrl: "https://images.unsplash.com/photo-1672826979217-7156a305acf5?auto=format&fit=crop&w=800&q=60",
       items: [
         { label: "Gourmet sandwiches", qtyPerUnit: 45 },
         { label: "Sausage rolls", qtyPerUnit: 30 },
