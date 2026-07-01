@@ -282,6 +282,9 @@ async function main() {
     { key: "clickCollectComingSoon", value: "on" }, // click & collect isn't built yet
     { key: "openingHours", value: defaultHours }, // PLACEHOLDER — edit in Site Settings
     { key: "aboutText", value: "Proper food from the people you know — local produce, made fresh, the same way we've always done it." },
+    { key: "heroImageUrl", value: "https://images.unsplash.com/photo-1695606392727-d8b959879721?auto=format&fit=crop&w=1400&q=70" },
+    { key: "missionTagline", value: "The deli your grandparents would recognise — local produce, no shortcuts, boards built the same way every time." },
+    { key: "founderNote", value: "We've been doing this the same way for years — proper local produce, boards built by hand, nothing rushed. Every order that goes out the door is one we'd be happy to serve our own family." },
   ];
   for (const s of settings) {
     await prisma.setting.upsert({ where: { key: s.key }, update: {}, create: s });

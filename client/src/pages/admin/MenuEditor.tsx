@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useState } from "react";
 import {
   adminApi,
   type AdminPlatter,
@@ -8,45 +8,12 @@ import {
 } from "../../lib/admin";
 import { type LocationT, type PlatterItem, type Category, type BoardType, type BoardSize } from "../../lib/api";
 import { MarginMeter } from "../../components/MarginMeter";
+import { ImageUpload } from "../../components/ImageUpload";
 
 type PricingType = "perHead" | "fixed";
 const CATEGORY_LABEL: Record<Category, string> = { home: "At Home", events: "Events & Office", seasonal: "Seasonal", platters: "Platters (Boards)" };
 const BOARD_TYPE_LABEL: Record<BoardType, string> = { charcuterie: "Charcuterie", savoury: "Savoury", cheese: "Cheese", salmon: "Smoked Salmon" };
 const BOARD_SIZE_LABEL: Record<BoardSize, string> = { small: "Small", medium: "Medium", large: "Large" };
-
-function ImageUpload({ value, onChange }: { value: string; onChange: (url: string) => void }) {
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  async function pick(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setBusy(true);
-    setErr(null);
-    try {
-      const { url } = await adminApi.uploadImage(file);
-      onChange(url);
-    } catch (ex: any) {
-      setErr(ex.message);
-    } finally {
-      setBusy(false);
-      e.target.value = "";
-    }
-  }
-  return (
-    <div className="field">
-      <label>Photo</label>
-      {value && <div className="img-preview" style={{ backgroundImage: `url(${value})` }} />}
-      <div className="row">
-        <label className="btn btn-secondary file-btn" style={{ width: "auto" }}>
-          {busy ? "Uploading…" : value ? "Replace photo" : "📷 Upload photo"}
-          <input type="file" accept="image/*" onChange={pick} hidden />
-        </label>
-        {value && <button className="btn-ghost" type="button" onClick={() => onChange("")}>Remove</button>}
-      </div>
-      {err && <p className="danger" style={{ marginTop: 6 }}>{err}</p>}
-    </div>
-  );
-}
 
 interface Draft {
   id: string | null;

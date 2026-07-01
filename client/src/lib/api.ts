@@ -71,6 +71,9 @@ export interface CategoryCounts {
   clickCollectComingSoon: boolean;
   openingHours: string | null;
   aboutText: string | null;
+  heroImageUrl: string | null;
+  missionTagline: string | null;
+  founderNote: string | null;
 }
 
 export interface OpeningHours {

@@ -28,7 +28,9 @@ const BOARD_BADGE: Record<BoardType, string> = {
   salmon: "Light & elegant",
 };
 
-const HERO_IMG = "https://images.unsplash.com/photo-1695606392727-d8b959879721?auto=format&fit=crop&w=1400&q=70";
+const DEFAULT_HERO_IMG = "https://images.unsplash.com/photo-1695606392727-d8b959879721?auto=format&fit=crop&w=1400&q=70";
+const DEFAULT_MISSION = "The deli your grandparents would recognise — local produce, no shortcuts, boards built the same way every time.";
+const DEFAULT_FOUNDER_NOTE = "We've been doing this the same way for years — proper local produce, boards built by hand, nothing rushed. Every order that goes out the door is one we'd be happy to serve our own family.";
 
 function parseHours(raw: string | null): OpeningHours | null {
   if (!raw) return null;
@@ -39,10 +41,46 @@ function parseHours(raw: string | null): OpeningHours | null {
   }
 }
 
+function toMinutes(t: string): number | null {
+  const m = t.trim().match(/^(\d{1,2}):(\d{2})$/);
+  return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : null;
+}
+function parseRange(str: string | undefined): [number, number] | null {
+  if (!str || /closed/i.test(str)) return null;
+  const [a, b] = str.split("-").map((s) => s.trim());
+  const start = a ? toMinutes(a) : null;
+  const end = b ? toMinutes(b) : null;
+  return start != null && end != null ? [start, end] : null;
+}
+function fmtMinutes(mins: number): string {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${h}:${String(m).padStart(2, "0")}`;
+}
+
+function computeOpenStatus(hours: OpeningHours): { open: boolean; text: string } {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const dayIdx = (now.getDay() + 6) % 7;
+  const todayRange = parseRange(hours[DAY_LABELS[dayIdx].key]);
+  if (todayRange && nowMin >= todayRange[0] && nowMin < todayRange[1]) {
+    return { open: true, text: `Open now · closes ${fmtMinutes(todayRange[1])}` };
+  }
+  for (let i = 0; i <= 7; i++) {
+    const idx = (dayIdx + i) % 7;
+    const range = parseRange(hours[DAY_LABELS[idx].key]);
+    if (!range) continue;
+    if (i === 0 && nowMin < range[0]) return { open: false, text: `Closed · opens today ${fmtMinutes(range[0])}` };
+    if (i > 0) return { open: false, text: `Closed · opens ${DAY_LABELS[idx].label} ${fmtMinutes(range[0])}` };
+  }
+  return { open: false, text: "Closed" };
+}
+
 export default function Choice() {
   const [counts, setCounts] = useState<CategoryCounts | null>(null);
   const [boards, setBoards] = useState<Platter[] | null>(null);
   const [catering, setCatering] = useState<Platter[] | null>(null);
+  const [showHours, setShowHours] = useState(false);
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const src = params.get("src");
@@ -56,6 +94,7 @@ export default function Choice() {
         setCounts({
           home: 1, events: 1, seasonal: 0, platters: 1, experiences: 1,
           tastingsComingSoon: true, clickCollectComingSoon: true, openingHours: null, aboutText: null,
+          heroImageUrl: null, missionTagline: null, founderNote: null,
         }),
       );
     api.platters("platters" as any).then(setBoards).catch(() => setBoards([]));
@@ -78,7 +117,7 @@ export default function Choice() {
   return (
     <div className="choice">
       <Ticker />
-      <header className="landing-hero" style={{ backgroundImage: `url(${HERO_IMG})` }}>
+      <header className="landing-hero" style={{ backgroundImage: `url(${counts?.heroImageUrl || DEFAULT_HERO_IMG})` }}>
         <div className="lh-scrim">
           <p className="lh-eyebrow">Independent · family-run</p>
           <h1 className="lh-mark">Kelly&apos;s Deli</h1>
@@ -95,7 +134,7 @@ export default function Choice() {
       </header>
 
       <div className="mission-band">
-        <p>The deli your grandparents would recognise — local produce, no shortcuts, boards built the same way every time.</p>
+        <p>{counts?.missionTagline || DEFAULT_MISSION}</p>
       </div>
 
       <div className="app">
@@ -122,18 +161,21 @@ export default function Choice() {
         <div className="info-row">
           {hours && (
             <div className="card hours-card">
-              <div className="spread">
-                <h2 className="hours-h">Opening hours</h2>
-                {hours[today.key] && <span className="pill">Today · {hours[today.key]}</span>}
-              </div>
-              <div className="hours-grid">
-                {DAY_LABELS.map((d) => (
-                  <div key={d.key} className={`hours-row${d.key === today.key ? " is-today" : ""}`}>
-                    <span className="hours-day">{d.label}</span>
-                    <span className="hours-time">{hours[d.key]}</span>
-                  </div>
-                ))}
-              </div>
+              <button className="hours-status" onClick={() => setShowHours((s) => !s)}>
+                <span className={`status-dot ${computeOpenStatus(hours).open ? "open" : "closed"}`} aria-hidden="true" />
+                <span className="hours-status-text">{computeOpenStatus(hours).text}</span>
+                <span className="hours-toggle">{showHours ? "Hide hours ▲" : "Full hours ▼"}</span>
+              </button>
+              {showHours && (
+                <div className="hours-grid">
+                  {DAY_LABELS.map((d) => (
+                    <div key={d.key} className={`hours-row${d.key === today.key ? " is-today" : ""}`}>
+                      <span className="hours-day">{d.label}</span>
+                      <span className="hours-time">{hours[d.key]}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -145,10 +187,7 @@ export default function Choice() {
 
         <section className="founder-note">
           <p className="founder-eyebrow">A note from the deli counter</p>
-          <p className="founder-copy">
-            We&apos;ve been doing this the same way for years — proper local produce, boards built by hand,
-            nothing rushed. Every order that goes out the door is one we&apos;d be happy to serve our own family.
-          </p>
+          <p className="founder-copy">{counts?.founderNote || DEFAULT_FOUNDER_NOTE}</p>
           <p className="founder-sign">— Kelly</p>
         </section>
 

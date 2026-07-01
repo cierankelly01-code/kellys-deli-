@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { adminApi } from "../../lib/admin";
 import { type OpeningHours } from "../../lib/api";
+import { ImageUpload } from "../../components/ImageUpload";
 
 const DAYS: Array<{ key: keyof OpeningHours; label: string }> = [
   { key: "mon", label: "Monday" }, { key: "tue", label: "Tuesday" }, { key: "wed", label: "Wednesday" },
@@ -11,6 +12,9 @@ const DEFAULT_HOURS: OpeningHours = { mon: "9:00 - 17:00", tue: "9:00 - 17:00", 
 export default function SiteSettings() {
   const [hours, setHours] = useState<OpeningHours>(DEFAULT_HOURS);
   const [about, setAbout] = useState("");
+  const [heroImageUrl, setHeroImageUrl] = useState("");
+  const [missionTagline, setMissionTagline] = useState("");
+  const [founderNote, setFounderNote] = useState("");
   const [clickCollectOpen, setClickCollectOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -20,16 +24,22 @@ export default function SiteSettings() {
     adminApi.settings().then((s) => {
       try { setHours(s.openingHours ? JSON.parse(s.openingHours) : DEFAULT_HOURS); } catch { setHours(DEFAULT_HOURS); }
       setAbout(s.aboutText ?? "");
+      setHeroImageUrl(s.heroImageUrl ?? "");
+      setMissionTagline(s.missionTagline ?? "");
+      setFounderNote(s.founderNote ?? "");
       setClickCollectOpen(s.clickCollectComingSoon === "off");
     }).catch((e) => setError(e.message));
   }
   useEffect(refresh, []);
 
-  async function saveHoursAndAbout() {
+  async function saveAll() {
     setSaving(true); setError(null); setMsg(null);
     try {
       await adminApi.setSetting("openingHours", JSON.stringify(hours));
       await adminApi.setSetting("aboutText", about.trim());
+      await adminApi.setSetting("heroImageUrl", heroImageUrl.trim());
+      await adminApi.setSetting("missionTagline", missionTagline.trim());
+      await adminApi.setSetting("founderNote", founderNote.trim());
       setMsg("Saved — live on the homepage now.");
       refresh();
     } catch (e: any) {
@@ -65,9 +75,19 @@ export default function SiteSettings() {
         </label>
       </div>
 
-      <h2>About text</h2>
+      <h2>Homepage hero</h2>
+      <ImageUpload value={heroImageUrl} onChange={setHeroImageUrl} label="Hero photo" />
       <div className="field">
+        <label>About text (under the hero heading)</label>
         <textarea className="input" rows={3} value={about} onChange={(e) => setAbout(e.target.value)} placeholder="A line or two about the business, shown on the homepage." />
+      </div>
+      <div className="field">
+        <label>Mission tagline (dark band under the hero)</label>
+        <textarea className="input" rows={2} value={missionTagline} onChange={(e) => setMissionTagline(e.target.value)} placeholder="A short statement about what makes you different." />
+      </div>
+      <div className="field">
+        <label>Note from the deli counter</label>
+        <textarea className="input" rows={4} value={founderNote} onChange={(e) => setFounderNote(e.target.value)} placeholder="A personal note, signed off on the homepage." />
       </div>
 
       <h2>Opening hours</h2>
@@ -79,7 +99,7 @@ export default function SiteSettings() {
       ))}
 
       <div className="nav-row">
-        <button className="btn" onClick={saveHoursAndAbout} disabled={saving}>{saving ? "Saving…" : "Save hours & about"}</button>
+        <button className="btn" onClick={saveAll} disabled={saving}>{saving ? "Saving…" : "Save all"}</button>
       </div>
     </div>
   );

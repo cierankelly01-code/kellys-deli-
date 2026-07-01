@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import Choice from "./pages/Choice";
 import Menu from "./pages/Menu";
 import Platters from "./pages/Platters";
+import ConfigureBoard from "./pages/ConfigureBoard";
 import PlatterDetail from "./pages/PlatterDetail";
 import Tastings from "./pages/Tastings";
 import Order from "./pages/Order";
@@ -25,6 +26,7 @@ export default function App() {
       <Route path="/" element={<Choice />} />
       <Route path="/menu/:category" element={<Menu />} />
       <Route path="/platters" element={<Platters />} />
+      <Route path="/configure" element={<ConfigureBoard />} />
       <Route path="/platter/:id" element={<PlatterDetail />} />
       <Route path="/tastings" element={<Tastings />} />
       <Route path="/order" element={<Order />} />

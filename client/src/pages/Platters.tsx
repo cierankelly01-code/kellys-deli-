@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { api, type Platter, type BoardType, type BoardSize } from "../lib/api";
 import { gbp } from "../lib/format";
 import { Header } from "../components/Header";
-import { BoardConfigurator } from "../components/BoardConfigurator";
 
 const BOARD_ORDER: BoardType[] = ["charcuterie", "savoury", "cheese", "salmon"];
 const BOARD_TITLES: Record<BoardType, string> = {
@@ -21,7 +20,7 @@ const BOARD_BADGE: Record<BoardType, string> = {
 const SIZE_ORDER: BoardSize[] = ["small", "medium", "large"];
 const SIZE_LABEL: Record<BoardSize, string> = { small: "Small", medium: "Medium", large: "Large" };
 
-function BoardFeature({ boardType, sizes, onAdd }: { boardType: BoardType; sizes: Platter[]; onAdd: (platterId: string, qty: number) => void }) {
+function BoardFeature({ boardType, sizes, onAdd, configureHref }: { boardType: BoardType; sizes: Platter[]; onAdd: (platterId: string, qty: number) => void; configureHref?: string }) {
   const [size, setSize] = useState<BoardSize>(sizes.find((p) => p.size === "medium")?.size ?? (sizes[0].size as BoardSize));
   const [qty, setQty] = useState(1);
   const platter = sizes.find((p) => p.size === size) ?? sizes[0];
@@ -58,6 +57,12 @@ function BoardFeature({ boardType, sizes, onAdd }: { boardType: BoardType; sizes
             Add · {gbp(platter.fixedPrice! * qty)}
           </button>
         </div>
+
+        {configureHref && (
+          <Link to={configureHref} className="configure-cta">
+            Or configure your own board →
+          </Link>
+        )}
       </div>
     </section>
   );
@@ -98,20 +103,16 @@ export default function Platters() {
           .map((size) => platters.find((p) => p.boardType === boardType && p.size === size && !p.name.includes("Build Your Own")))
           .filter((p): p is Platter => !!p);
         if (sizes.length === 0) return null;
-        const customPlatters = SIZE_ORDER
-          .map((size) => platters.find((p) => p.boardType === boardType && p.size === size && p.name.includes("Build Your Own")))
-          .filter((p): p is Platter => !!p);
+        const hasCustom = boardType === "charcuterie" && platters.some((p) => p.boardType === boardType && p.name.includes("Build Your Own"));
 
         return (
-          <div key={boardType}>
-            <BoardFeature boardType={boardType} sizes={sizes} onAdd={addToOrder} />
-            {customPlatters.length > 0 && (
-              <BoardConfigurator
-                customPlatters={customPlatters}
-                onAdd={(platterId, qty, customItems) => addToOrder(platterId, qty, customItems)}
-              />
-            )}
-          </div>
+          <BoardFeature
+            key={boardType}
+            boardType={boardType}
+            sizes={sizes}
+            onAdd={addToOrder}
+            configureHref={hasCustom ? `/configure${src ? `?src=${src}` : ""}` : undefined}
+          />
         );
       })}
     </div>

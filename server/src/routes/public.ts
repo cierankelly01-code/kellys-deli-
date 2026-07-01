@@ -92,6 +92,9 @@ publicRouter.get("/categories", async (_req, res) => {
     clickCollectComingSoon: (await getSetting("clickCollectComingSoon")) !== "off",
     openingHours: (await getSetting("openingHours")) ?? null,
     aboutText: (await getSetting("aboutText")) ?? null,
+    heroImageUrl: (await getSetting("heroImageUrl")) ?? null,
+    missionTagline: (await getSetting("missionTagline")) ?? null,
+    founderNote: (await getSetting("founderNote")) ?? null,
   });
 });
 
