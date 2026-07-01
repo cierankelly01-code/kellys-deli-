@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { api, type Platter, type BoardType, type BoardSize } from "../lib/api";
 import { gbp } from "../lib/format";
 import { Header } from "../components/Header";
+import { Faq } from "../components/Faq";
 
 const BOARD_ORDER: BoardType[] = ["charcuterie", "savoury", "cheese", "salmon"];
 const BOARD_TITLES: Record<BoardType, string> = {
@@ -57,6 +58,7 @@ function BoardFeature({ boardType, sizes, onAdd, configureHref }: { boardType: B
             Add · {gbp(platter.fixedPrice! * qty)}
           </button>
         </div>
+        <p className="buy-reassure">Just £25 today · balance on delivery · 48hrs notice</p>
 
         {configureHref && (
           <Link to={configureHref} className="configure-cta">
@@ -115,6 +117,8 @@ export default function Platters() {
           />
         );
       })}
+
+      {platters && <Faq />}
     </div>
   );
 }

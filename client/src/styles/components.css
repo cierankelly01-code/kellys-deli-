@@ -176,6 +176,14 @@
 /* Opening hours + Click & Collect paired row */
 .info-row { display: flex; flex-direction: column; gap: 12px; margin-bottom: 4px; }
 
+/* Referral program teaser (homepage) */
+.referral-teaser {
+  display: flex; flex-direction: column; gap: 4px; text-align: center;
+  padding: 16px 18px; margin: 24px 0 18px; border: 1px dashed var(--mustard);
+  border-radius: var(--radius); background: var(--warn-bg);
+}
+.referral-teaser-title { font-weight: 700; color: var(--ink); }
+
 /* Founder note — personal, letter-style section */
 .founder-note {
   text-align: center; padding: 30px 12px; margin: 30px 0; border-top: 1px solid var(--line);
@@ -255,6 +263,19 @@
 .items li.more { background: transparent; border: none; color: var(--mustard); font-weight: 700; }
 .view-cta { display: inline-block; margin-top: 4px; color: var(--mustard); font-weight: 700; }
 
+/* FAQ accordion */
+.faq { margin: 30px 0; }
+.faq-item {
+  border-bottom: 1px solid var(--line); padding: 14px 0;
+}
+.faq-item summary {
+  cursor: pointer; font-weight: 700; list-style: none; display: flex; justify-content: space-between; align-items: center;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after { content: "+"; font-size: 1.2rem; color: var(--mustard); font-weight: 400; }
+.faq-item[open] summary::after { content: "−"; }
+.faq-item p { margin: 10px 0 0; color: var(--ink-soft); line-height: 1.55; }
+
 /* Platters page */
 .platters-hero { padding-top: 12px; }
 .platters-page .back { margin-top: 14px; }
@@ -295,6 +316,7 @@
 .buy-bar-qty button { background: none; border: none; font-size: 1.2rem; color: var(--ink); cursor: pointer; padding: 4px; line-height: 1; }
 .buy-bar-qty span { min-width: 14px; text-align: center; font-weight: 700; }
 .buy-bar-add.btn { flex: 1; width: auto; white-space: nowrap; }
+.buy-reassure { text-align: center; font-size: 0.78rem; color: var(--ink-soft); margin-top: 8px; }
 
 /* Configure-your-own board */
 .configurator { margin-top: 20px; padding: 18px; }
@@ -319,6 +341,15 @@
   background: #fff; border: 2px dashed var(--good); border-radius: var(--radius-sm);
   padding: 10px; margin: 12px 0;
 }
+
+/* Persistent bottom order CTA */
+.sticky-cta {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  display: flex; justify-content: center;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--cream) 60%, rgba(248, 244, 234, 0));
+}
+.sticky-cta .btn { box-shadow: 0 6px 20px rgba(36, 31, 26, 0.22); max-width: 480px; }
 
 /* Bottom nav row (sticky on mobile) */
 .nav-row {

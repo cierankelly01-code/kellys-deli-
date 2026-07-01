@@ -107,6 +107,7 @@ export function BoardConfigurator({
           Add · {gbp(platter.fixedPrice! * qty)}
         </button>
       </div>
+      <p className="buy-reassure">Just £25 today · balance on delivery · 48hrs notice</p>
     </div>
   );
 }

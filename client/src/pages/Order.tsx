@@ -5,11 +5,13 @@ import { gbp, formatDate } from "../lib/format";
 import { Header } from "../components/Header";
 import { CapacityCalendar } from "../components/CapacityCalendar";
 
-type StepKey = "platter" | "headcount" | "fulfilment" | "location" | "date" | "contact" | "review";
+type StepKey = "platter" | "headcount" | "fulfilment" | "location" | "date" | "delivery" | "contact" | "review";
 const CATERING_STEPS: StepKey[] = ["platter", "headcount", "fulfilment", "location", "date", "contact", "review"];
 // Board configurator orders: single shop, delivery-only (click & collect isn't live yet), so
-// "location" is skipped (auto-selected) — see homepage/SPEC decision to run one shop for now.
-const BOARD_STEPS: StepKey[] = ["platter", "headcount", "fulfilment", "date", "contact", "review"];
+// "location" is skipped (auto-selected), and delivery address + date are combined onto one
+// screen — cuts the flow to 5 steps instead of 7, since checkout length is the single biggest
+// evidence-backed cause of drop-off (Baymard Institute checkout research).
+const BOARD_STEPS: StepKey[] = ["platter", "headcount", "delivery", "contact", "review"];
 
 const BOARD_DEPOSIT = 25;
 
@@ -105,10 +107,11 @@ export default function Order() {
       case "platter": return !!platterId;
       case "headcount": return !!platter && headcount >= platter.minHeadcount;
       case "fulfilment":
-        if (isBoard) return deliveryAddress.trim().length > 5 && (!sendAsGift || recipientName.trim().length > 0);
         return !isGift || (recipientName.trim().length > 0 && deliveryAddress.trim().length > 5);
       case "location": return !!locationId;
       case "date": return !!date;
+      case "delivery":
+        return deliveryAddress.trim().length > 5 && (!sendAsGift || recipientName.trim().length > 0) && !!date;
       case "contact": return customerName.trim().length > 0 && phone.trim().length >= 5 && /\S+@\S+\.\S+/.test(email);
       default: return true;
     }
@@ -128,7 +131,7 @@ export default function Order() {
       setLocationId(r.locationId);
       setNotes(r.notes ?? "");
       setReorderInfo(`Re-ordering your usual — ${r.platterName} for ${r.headcount} at ${r.locationName}. Just pick your date and pop your details in.`);
-      setStepIdx(STEPS.indexOf("date"));
+      setStepIdx(STEPS.indexOf(isBoard ? "delivery" : "date"));
     } catch (e: any) {
       setError(e.message || "Couldn't find a previous order");
     } finally {
@@ -235,8 +238,9 @@ export default function Order() {
         </section>
       )}
 
-      {/* STEP: fulfilment — board orders are delivery-only (click & collect coming soon) */}
-      {step === "fulfilment" && isBoard && (
+      {/* STEP: delivery — board orders only. Address + gift + date combined onto one screen
+          instead of two separate steps, to cut checkout length (see BOARD_STEPS comment). */}
+      {step === "delivery" && (
         <section>
           <h1>Delivery details</h1>
           <p className="muted">Click &amp; Collect isn&apos;t live yet, so every board is delivered.</p>
@@ -251,9 +255,15 @@ export default function Order() {
               <div className="field"><label>Gift message (optional)</label><textarea className="input" value={giftMessage} onChange={(e) => setGiftMessage(e.target.value)} placeholder="Happy birthday! Enjoy x" /></div>
             </div>
           )}
+          <h2 style={{ marginTop: 28 }}>Pick a delivery date</h2>
+          <p className="muted">{locName} · 48 hours&apos; notice needed. Grab a slot before it fills.</p>
+          {!availability && <p className="muted center">Checking availability…</p>}
+          {availability && <CapacityCalendar days={availability} selected={date} onSelect={setDate} />}
         </section>
       )}
-      {step === "fulfilment" && !isBoard && (
+
+      {/* STEP: fulfilment — catering only (board orders use the combined "delivery" step above) */}
+      {step === "fulfilment" && (
         <section>
           <h1>Collection or a gift?</h1>
           <div className="stack">
@@ -332,7 +342,7 @@ export default function Order() {
             <Row label="Total" value={gbp(pricing.total)} strong />
             <Row label={isBoard ? "Deposit due now" : "Deposit due now (25%)"} value={gbp(pricing.deposit)} strong accent />
           </div>
-          <p className="muted center footnote">Your {gbp(pricing.deposit)} deposit secures the order. Balance on delivery. No card is charged in this demo — the deposit is captured as pending.</p>
+          <p className="muted center footnote">Your {gbp(pricing.deposit)} deposit secures the order — we&apos;ll be in touch by text or email to confirm and take payment. Balance due on delivery.</p>
         </section>
       )}
 

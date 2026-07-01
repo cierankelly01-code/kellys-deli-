@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, type CategoryCounts, type OpeningHours, type Platter, type BoardType } from "../lib/api";
 import { gbp } from "../lib/format";
 import { Ticker } from "../components/Header";
+import { StickyCta } from "../components/StickyCta";
 
 const DAY_LABELS: Array<{ key: keyof OpeningHours; label: string }> = [
   { key: "mon", label: "Mon" },
@@ -247,10 +248,16 @@ export default function Choice() {
           )
         )}
 
+        <div className="referral-teaser">
+          <span className="referral-teaser-title">Refer a friend, you both get £15 off</span>
+          <span className="muted">Every order gives you a code to share — turns up on your confirmation page.</span>
+        </div>
+
         <p className="center muted footnote">
           Order in under a minute · £25 deposit secures a platter order · we confirm by text &amp; email
         </p>
       </div>
+      <StickyCta label="Order platters" to={`/platters${suffix}`} />
     </div>
   );
 }
