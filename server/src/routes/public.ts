@@ -11,7 +11,7 @@ import { buildAvailability, canBook, getDayAvailability, meetsNotice, parseDate,
 import { genRef, randomReferralCode } from "../lib/ref";
 import { captureDepositIntent } from "../lib/payments";
 import { notifyOrderReceived } from "../lib/notify";
-import { platterDTO, experienceDTO, locationDTO, orderDTO } from "../lib/serialize";
+import { platterDTO, experienceDTO, locationDTO, orderDTO, boardComponentDTO } from "../lib/serialize";
 
 export const publicRouter = Router();
 
@@ -61,6 +61,15 @@ publicRouter.get("/locations", async (_req, res) => {
   res.json(locations.map(locationDTO));
 });
 
+// Build-your-own board ingredients, grouped by category.
+publicRouter.get("/board-components", async (_req, res) => {
+  const rows = await prisma.boardComponent.findMany({
+    where: { active: true },
+    orderBy: [{ category: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+  res.json(rows.map(boardComponentDTO));
+});
+
 // Which categories should the choice screen show? (those with ≥1 active platter)
 publicRouter.get("/categories", async (_req, res) => {
   const rows = await prisma.platter.groupBy({
@@ -75,9 +84,14 @@ publicRouter.get("/categories", async (_req, res) => {
     home: counts.home ?? 0,
     events: counts.events ?? 0,
     seasonal: counts.seasonal ?? 0,
+    platters: counts.platters ?? 0,
     experiences,
     // Tastings show as "coming soon" (not bookable) unless explicitly switched on.
     tastingsComingSoon: (await getSetting("tastingsComingSoon")) !== "off",
+    // Click & Collect isn't built yet — always "coming soon" until a real toggle is added.
+    clickCollectComingSoon: (await getSetting("clickCollectComingSoon")) !== "off",
+    openingHours: (await getSetting("openingHours")) ?? null,
+    aboutText: (await getSetting("aboutText")) ?? null,
   });
 });
 
@@ -193,10 +207,24 @@ publicRouter.post("/orders", async (req, res) => {
     if (referrer && referrer.phone !== input.phone) referrerCode = input.referralCodeUsed;
   }
 
+  const isBoardOrder = platter.category === "platters";
+  const quantity = isBoardOrder ? input.quantity ?? 1 : undefined;
+
+  // "Build your own" — validate chosen ingredients are real, active BoardComponent labels.
+  let customItems: string[] | null = null;
+  if (isBoardOrder && input.customItems && input.customItems.length > 0) {
+    const active = await prisma.boardComponent.findMany({ where: { active: true }, select: { label: true } });
+    const validLabels = new Set(active.map((c) => c.label));
+    const chosen = input.customItems.filter((l) => validLabels.has(l));
+    if (chosen.length === 0) return res.status(400).json({ error: "Chosen board items are no longer available" });
+    customItems = chosen;
+  }
+
   const pricing = priceOrder(
     { pricePerHead: platter.pricePerHead ? Number(platter.pricePerHead) : null, fixedPrice: platter.fixedPrice ? Number(platter.fixedPrice) : null },
     input.headcount,
     referrerCode != null,
+    { isBoardOrder, quantity },
   );
 
   // First-order hook: free item for a customer's first catering order, if enabled.
@@ -226,6 +254,8 @@ publicRouter.post("/orders", async (req, res) => {
           type: input.isGift ? "gift" : "platter",
           platterId: input.platterId,
           headcount: input.headcount,
+          quantity: quantity ?? null,
+          customItems: customItems ?? undefined,
           total: pricing.total,
           deposit: pricing.deposit,
           depositStatus: "pending",

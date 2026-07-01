@@ -59,6 +59,7 @@ export default function Confirm() {
 
   const isExperience = order.type === "experience";
   const isGift = order.isGift;
+  const isBoard = order.quantity != null; // board configurator orders always set quantity
   const lineName = isExperience ? order.experienceName : order.platterName;
   const dateLabel = isExperience ? "Date" : isGift ? "Delivery" : "Collection";
 
@@ -67,7 +68,7 @@ export default function Confirm() {
       <Header />
       <div className="confirm-hero center">
         <div className="tick">✓</div>
-        <h1>{isExperience ? "You're booked in!" : isGift ? "Gift on its way!" : "You're booked in!"}</h1>
+        <h1>{isBoard ? "Order on its way!" : isExperience ? "You're booked in!" : isGift ? "Gift on its way!" : "You're booked in!"}</h1>
         <p className="muted">We&apos;ve sent a confirmation to {order.phone} and {order.email}.</p>
         <div className="ref-badge">Order reference<strong>{order.ref}</strong></div>
       </div>
@@ -77,11 +78,14 @@ export default function Confirm() {
       )}
 
       <div className="card review">
-        <div className="review-row"><span className="muted">{isExperience ? "Experience" : "Platter"}</span><span>{lineName}</span></div>
-        <div className="review-row"><span className="muted">For</span><span>{order.headcount} {isExperience ? "guests" : "people"}</span></div>
+        <div className="review-row"><span className="muted">{isExperience ? "Experience" : isBoard ? "Board" : "Platter"}</span><span>{lineName}</span></div>
+        <div className="review-row"><span className="muted">{isBoard ? "Boards" : "For"}</span><span>{isBoard ? order.quantity : order.headcount}{!isBoard && ` ${isExperience ? "guests" : "people"}`}</span></div>
+        {isBoard && order.customItems && order.customItems.length > 0 && (
+          <div className="review-row"><span className="muted">Your selection</span><span>{order.customItems.join(", ")}</span></div>
+        )}
         <div className="review-row"><span className="muted">{dateLabel}</span><span>{formatDateLong(order.collectionOrDeliveryDate)}</span></div>
-        <div className="review-row"><span className="muted">{isGift ? "From shop" : "Location"}</span><span>{order.locationName}</span></div>
-        {isGift && <div className="review-row"><span className="muted">Send to</span><span>{order.recipientName}</span></div>}
+        {!isBoard && <div className="review-row"><span className="muted">{isGift ? "From shop" : "Location"}</span><span>{order.locationName}</span></div>}
+        {isGift && <div className="review-row"><span className="muted">{isBoard ? "Deliver to" : "Send to"}</span><span>{order.recipientName}</span></div>}
         {isGift && order.deliveryAddress && <div className="review-row"><span className="muted">Address</span><span>{order.deliveryAddress}</span></div>}
         {isGift && order.giftMessage && <div className="review-row"><span className="muted">Message</span><span>{order.giftMessage}</span></div>}
         <hr />

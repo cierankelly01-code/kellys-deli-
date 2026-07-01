@@ -42,6 +42,22 @@ describe("buildPrepSheet", () => {
     expect(sheet.lines.find((l) => l.label === "Crusty cobs")!.quantity).toBe(15);
   });
 
+  it("scales fixed board orders by quantity (board configurator)", () => {
+    const board: PrepInputOrder = {
+      ref: "KD-D",
+      platterName: "Charcuterie Board — Medium",
+      isFixed: true,
+      headcount: 1,
+      quantity: 3,
+      items: [{ label: "Cheese selection", qtyPerUnit: 1 }, { label: "Crackers", qtyPerUnit: 1 }],
+    };
+    const sheet = buildPrepSheet([board]);
+    expect(sheet.lines).toEqual([
+      { label: "Cheese selection", quantity: 3 },
+      { label: "Crackers", quantity: 3 },
+    ]);
+  });
+
   it("rounds fractional sandwich totals UP", () => {
     // 1.5 * 23 = 34.5 -> 35
     const sheet = buildPrepSheet([office("KD-C", 23)]);

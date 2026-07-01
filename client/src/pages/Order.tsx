@@ -6,7 +6,12 @@ import { Header } from "../components/Header";
 import { CapacityCalendar } from "../components/CapacityCalendar";
 
 type StepKey = "platter" | "headcount" | "fulfilment" | "location" | "date" | "contact" | "review";
-const STEPS: StepKey[] = ["platter", "headcount", "fulfilment", "location", "date", "contact", "review"];
+const CATERING_STEPS: StepKey[] = ["platter", "headcount", "fulfilment", "location", "date", "contact", "review"];
+// Board configurator orders: single shop, delivery-only (click & collect isn't live yet), so
+// "location" is skipped (auto-selected) — see homepage/SPEC decision to run one shop for now.
+const BOARD_STEPS: StepKey[] = ["platter", "headcount", "fulfilment", "date", "contact", "review"];
+
+const BOARD_DEPOSIT = 25;
 
 function round2(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
@@ -23,10 +28,22 @@ export default function Order() {
   const referralCode = params.get("referral") || undefined;
   const src = referralCode ? "referral" : params.get("src") || "direct";
   const category = (params.get("category") as Category | null) || null;
+  const isBoard = category === "platters";
+  const STEPS = isBoard ? BOARD_STEPS : CATERING_STEPS;
+
+  // Build-your-own selections, chosen on the /platters configurator and carried via the URL.
+  const [customItems] = useState<string[]>(() => {
+    const raw = params.get("customItems");
+    return raw ? raw.split(",").map((s) => s.trim()).filter(Boolean) : [];
+  });
 
   const [platterId, setPlatterId] = useState<string>(params.get("platter") || "");
-  const [headcount, setHeadcount] = useState<number>(10);
+  const [headcount, setHeadcount] = useState<number>(() => {
+    const qty = params.get("quantity");
+    return qty ? Math.max(1, parseInt(qty, 10) || 1) : 10;
+  });
   const [isGift, setIsGift] = useState(false);
+  const [sendAsGift, setSendAsGift] = useState(false); // board orders only: "gift for someone else"
   const [recipientName, setRecipientName] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [giftMessage, setGiftMessage] = useState("");
@@ -55,9 +72,10 @@ export default function Order() {
         setPlatters(ps);
         setLocations(ls);
         setLoaded(true);
+        if (isBoard && ls.length) setLocationId(ls[0].id); // single shop — no picker needed
         const pre = ps.find((p) => p.id === params.get("platter"));
         if (pre) {
-          setHeadcount(pre.minHeadcount > 1 ? pre.minHeadcount : pre.isFixed ? 2 : 10);
+          if (!isBoard) setHeadcount(pre.minHeadcount > 1 ? pre.minHeadcount : pre.isFixed ? 2 : 10);
           setStepIdx(1);
         }
       })
@@ -73,11 +91,12 @@ export default function Order() {
 
   const pricing = useMemo(() => {
     if (!platter) return null;
-    const base = platter.isFixed ? platter.fixedPrice! : platter.pricePerHead! * headcount;
+    const base = platter.isFixed ? platter.fixedPrice! * (isBoard ? headcount : 1) : platter.pricePerHead! * headcount;
     const discount = referralCode ? Math.min(15, base) : 0;
     const total = round2(Math.max(0, base - discount));
-    return { base: round2(base), discount: round2(discount), total, deposit: round2(total * 0.25) };
-  }, [platter, headcount, referralCode]);
+    const deposit = isBoard ? round2(Math.min(BOARD_DEPOSIT, total)) : round2(total * 0.25);
+    return { base: round2(base), discount: round2(discount), total, deposit };
+  }, [platter, headcount, referralCode, isBoard]);
 
   const step = STEPS[stepIdx];
 
@@ -85,7 +104,9 @@ export default function Order() {
     switch (step) {
       case "platter": return !!platterId;
       case "headcount": return !!platter && headcount >= platter.minHeadcount;
-      case "fulfilment": return !isGift || (recipientName.trim().length > 0 && deliveryAddress.trim().length > 5);
+      case "fulfilment":
+        if (isBoard) return deliveryAddress.trim().length > 5 && (!sendAsGift || recipientName.trim().length > 0);
+        return !isGift || (recipientName.trim().length > 0 && deliveryAddress.trim().length > 5);
       case "location": return !!locationId;
       case "date": return !!date;
       case "contact": return customerName.trim().length > 0 && phone.trim().length >= 5 && /\S+@\S+\.\S+/.test(email);
@@ -119,6 +140,11 @@ export default function Order() {
     if (!platter) return;
     setSubmitting(true);
     setError(null);
+
+    const effectiveIsGift = isBoard ? true : isGift;
+    const effectiveRecipientName = isBoard ? (sendAsGift ? recipientName.trim() : customerName.trim()) : recipientName.trim();
+    const effectiveGiftMessage = isBoard ? (sendAsGift ? giftMessage.trim() : "") : giftMessage.trim();
+
     const body: CreateOrderInput = {
       platterId,
       headcount,
@@ -130,10 +156,12 @@ export default function Order() {
       notes: notes.trim() || undefined,
       src,
       referralCodeUsed: referralCode,
-      isGift,
-      recipientName: isGift ? recipientName.trim() : undefined,
-      deliveryAddress: isGift ? deliveryAddress.trim() : undefined,
-      giftMessage: isGift && giftMessage.trim() ? giftMessage.trim() : undefined,
+      isGift: effectiveIsGift,
+      recipientName: effectiveIsGift ? effectiveRecipientName : undefined,
+      deliveryAddress: effectiveIsGift ? deliveryAddress.trim() : undefined,
+      giftMessage: effectiveIsGift && effectiveGiftMessage ? effectiveGiftMessage : undefined,
+      quantity: isBoard ? headcount : undefined,
+      customItems: isBoard && customItems.length ? customItems : undefined,
     };
     try {
       const { order } = await api.createOrder(body);
@@ -150,12 +178,13 @@ export default function Order() {
 
   const progress = Math.round(((stepIdx + 1) / STEPS.length) * 100);
   const locName = locations.find((l) => l.id === locationId)?.name;
-  const dateLabel = isGift ? "Delivery" : "Collection";
+  const dateLabel = isBoard || isGift ? "Delivery" : "Collection";
+  const backHref = category === "platters" ? `/platters${src ? `?src=${src}` : ""}` : category ? `/menu/${category}` : "/";
 
   return (
     <div className="app">
       <Header />
-      <Link to={category ? `/menu/${category}` : "/"} className="btn-ghost back">← Back to menu</Link>
+      <Link to={backHref} className="btn-ghost back">← Back</Link>
       <div className="progress"><div className="progress-bar" style={{ width: `${progress}%` }} /></div>
 
       {referralCode && <div className="notice good">£15 referral discount will be applied 🎉</div>}
@@ -178,7 +207,7 @@ export default function Order() {
           <div className="stack">
             {shownPlatters.map((p) => (
               <button key={p.id} className={`select-card ${platterId === p.id ? "selected" : ""}`}
-                onClick={() => { setPlatterId(p.id); setHeadcount(p.minHeadcount > 1 ? p.minHeadcount : p.isFixed ? 2 : 10); }}>
+                onClick={() => { setPlatterId(p.id); if (!isBoard) setHeadcount(p.minHeadcount > 1 ? p.minHeadcount : p.isFixed ? 2 : 10); }}>
                 <span className="spread"><strong>{p.name}</strong><span>{p.isFixed ? gbp(p.fixedPrice!) : `${gbp(p.pricePerHead!)}/head`}</span></span>
                 <span className="muted">{p.serves ? `Serves ${p.serves}` : ""}</span>
               </button>
@@ -187,25 +216,44 @@ export default function Order() {
         </section>
       )}
 
-      {/* STEP: headcount */}
+      {/* STEP: headcount (boards: "how many?") */}
       {step === "headcount" && platter && (
         <section>
-          <h1>{platter.isFixed ? "How many guests?" : "How many people?"}</h1>
+          <h1>{isBoard ? "How many boards?" : platter.isFixed ? "How many guests?" : "How many people?"}</h1>
           <p className="muted">
-            {platter.name}{platter.isFixed ? ` is a fixed platter (${gbp(platter.fixedPrice!)}), serving ${platter.serves}.` : ` is ${gbp(platter.pricePerHead!)} per head, minimum ${platter.minHeadcount}.`}
+            {isBoard
+              ? `${platter.name} — ${gbp(platter.fixedPrice!)} each, serving ${platter.serves}.`
+              : platter.isFixed ? `${platter.name} is a fixed platter (${gbp(platter.fixedPrice!)}), serving ${platter.serves}.` : `${platter.name} is ${gbp(platter.pricePerHead!)} per head, minimum ${platter.minHeadcount}.`}
           </p>
           <div className="stepper-input">
             <button className="round" onClick={() => setHeadcount((h) => Math.max(platter.minHeadcount, h - 1))} aria-label="fewer">−</button>
             <input className="input headcount" type="number" min={platter.minHeadcount} value={headcount} onChange={(e) => setHeadcount(Math.max(1, Number(e.target.value) || 0))} />
             <button className="round" onClick={() => setHeadcount((h) => h + 1)} aria-label="more">＋</button>
           </div>
-          {!platter.isFixed && pricing && <p className="center estimate">Estimated total <strong>{gbp(pricing.base)}</strong></p>}
+          {((isBoard && platter.isFixed) || !platter.isFixed) && pricing && <p className="center estimate">Estimated total <strong>{gbp(pricing.base)}</strong></p>}
           {headcount < platter.minHeadcount && <p className="center danger">Minimum {platter.minHeadcount} for this platter.</p>}
         </section>
       )}
 
-      {/* STEP: fulfilment (collection or gift) */}
-      {step === "fulfilment" && (
+      {/* STEP: fulfilment — board orders are delivery-only (click & collect coming soon) */}
+      {step === "fulfilment" && isBoard && (
+        <section>
+          <h1>Delivery details</h1>
+          <p className="muted">Click &amp; Collect isn&apos;t live yet, so every board is delivered.</p>
+          <div className="field"><label>Delivery address</label><textarea className="input" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="House, street, town, postcode" /></div>
+          <label className="toggle inline" style={{ marginTop: 8 }}>
+            <input type="checkbox" checked={sendAsGift} onChange={(e) => setSendAsGift(e.target.checked)} />
+            <span>This is a gift for someone else</span>
+          </label>
+          {sendAsGift && (
+            <div style={{ marginTop: 16 }}>
+              <div className="field"><label>Recipient name</label><input className="input" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} /></div>
+              <div className="field"><label>Gift message (optional)</label><textarea className="input" value={giftMessage} onChange={(e) => setGiftMessage(e.target.value)} placeholder="Happy birthday! Enjoy x" /></div>
+            </div>
+          )}
+        </section>
+      )}
+      {step === "fulfilment" && !isBoard && (
         <section>
           <h1>Collection or a gift?</h1>
           <div className="stack">
@@ -228,7 +276,7 @@ export default function Order() {
         </section>
       )}
 
-      {/* STEP: location */}
+      {/* STEP: location (catering only — board orders auto-select the one shop) */}
       {step === "location" && (
         <section>
           <h1>Which shop?</h1>
@@ -270,20 +318,21 @@ export default function Order() {
           <h1>Confirm your order</h1>
           <div className="card review">
             <Row label="Platter" value={platter.name} />
-            <Row label={platter.isFixed ? "Guests" : "People"} value={String(headcount)} />
+            <Row label={isBoard ? "Boards" : platter.isFixed ? "Guests" : "People"} value={String(headcount)} />
+            {isBoard && customItems.length > 0 && <Row label="Your selection" value={customItems.join(", ")} />}
             <Row label={dateLabel} value={date ? formatDate(date) : "—"} />
-            {isGift && <Row label="Send to" value={recipientName} />}
-            {isGift && <Row label="Address" value={deliveryAddress} />}
-            {isGift && giftMessage && <Row label="Message" value={giftMessage} />}
-            <Row label="Shop" value={locName ?? "—"} />
+            {isBoard && <Row label="Deliver to" value={sendAsGift ? recipientName : customerName} />}
+            <Row label="Address" value={deliveryAddress} />
+            {((isBoard && sendAsGift) || (!isBoard && isGift)) && giftMessage && <Row label="Message" value={giftMessage} />}
+            {!isBoard && <Row label="Shop" value={locName ?? "—"} />}
             <Row label="You" value={`${customerName} · ${phone}`} />
             {notes && <Row label="Notes" value={notes} />}
             <hr />
             {pricing.discount > 0 && (<><Row label="Subtotal" value={gbp(pricing.base)} /><Row label="Referral discount" value={`− ${gbp(pricing.discount)}`} /></>)}
             <Row label="Total" value={gbp(pricing.total)} strong />
-            <Row label="Deposit due now (25%)" value={gbp(pricing.deposit)} strong accent />
+            <Row label={isBoard ? "Deposit due now" : "Deposit due now (25%)"} value={gbp(pricing.deposit)} strong accent />
           </div>
-          <p className="muted center footnote">Your {gbp(pricing.deposit)} deposit secures the date. Balance on {isGift ? "delivery" : "collection"}. No card is charged in this demo — the deposit is captured as pending.</p>
+          <p className="muted center footnote">Your {gbp(pricing.deposit)} deposit secures the order. Balance on delivery. No card is charged in this demo — the deposit is captured as pending.</p>
         </section>
       )}
 

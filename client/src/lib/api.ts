@@ -7,7 +7,10 @@ export interface PlatterItem {
   qtyPerUnit: number;
 }
 
-export type Category = "home" | "events" | "seasonal";
+export type Category = "home" | "events" | "seasonal" | "platters";
+export type BoardType = "charcuterie" | "savoury" | "cheese" | "salmon";
+export type BoardSize = "small" | "medium" | "large";
+export type BoardComponentCategory = "cheese" | "meat" | "savoury" | "extra";
 
 export interface Platter {
   id: string;
@@ -24,7 +27,18 @@ export interface Platter {
   sortOrder: number;
   isFixed: boolean;
   fromPrice: number;
+  boardType: BoardType | null;
+  size: BoardSize | null;
   cost?: number; // admin only
+}
+
+export interface BoardComponent {
+  id: string;
+  category: BoardComponentCategory;
+  label: string;
+  imageUrl: string | null;
+  active: boolean;
+  sortOrder: number;
 }
 
 export interface Experience {
@@ -51,8 +65,16 @@ export interface CategoryCounts {
   home: number;
   events: number;
   seasonal: number;
+  platters: number;
   experiences: number;
   tastingsComingSoon: boolean;
+  clickCollectComingSoon: boolean;
+  openingHours: string | null;
+  aboutText: string | null;
+}
+
+export interface OpeningHours {
+  mon: string; tue: string; wed: string; thu: string; fri: string; sat: string; sun: string;
 }
 
 export type DayStatus = "open" | "limited" | "full" | "closed";
@@ -88,6 +110,8 @@ export interface OrderDTO {
   experienceId: string | null;
   experienceName: string | null;
   headcount: number;
+  quantity: number | null;
+  customItems: string[] | null;
   total: number;
   deposit: number;
   depositStatus: string;
@@ -134,6 +158,8 @@ export interface CreateOrderInput {
   recipientName?: string;
   deliveryAddress?: string;
   giftMessage?: string;
+  quantity?: number;
+  customItems?: string[];
 }
 
 export interface CreateBookingInput {
@@ -182,6 +208,7 @@ export const api = {
   experiences: () => req<Experience[]>("/api/experiences"),
   categories: () => req<CategoryCounts>("/api/categories"),
   locations: () => req<LocationT[]>("/api/locations"),
+  boardComponents: () => req<BoardComponent[]>("/api/board-components"),
   availability: (locationId: string, from?: string, days = 21) => {
     const q = new URLSearchParams({ locationId, days: String(days) });
     if (from) q.set("from", from);

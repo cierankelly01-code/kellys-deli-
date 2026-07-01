@@ -139,6 +139,24 @@
 .choice-strip.coming-soon { cursor: default; color: var(--ink-soft); background: var(--cream); box-shadow: none; }
 .cs-badge { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; background: var(--brick); color: #fff; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
 
+/* Homepage — Order Platters CTA */
+.platters-cta {
+  display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: left;
+  padding: 22px; margin-top: 18px; border-radius: var(--radius); border: none; cursor: pointer;
+  background: linear-gradient(120deg, var(--mustard) 0%, #c98a1f 100%); color: #fff;
+  font-family: inherit; box-shadow: var(--shadow);
+}
+.pc-eyebrow { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.85; }
+.pc-title { font-family: var(--serif); font-size: 1.6rem; font-weight: 700; }
+.pc-sub { font-size: 0.92rem; opacity: 0.92; max-width: 42ch; }
+
+/* Homepage — opening hours */
+.hours-card { margin-top: 18px; padding: 16px 18px; }
+.hours-h { font-size: 1.05rem; margin: 0 0 10px; color: var(--brick); }
+.hours-grid { display: grid; gap: 4px; }
+.hours-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 0.95rem; }
+.hours-day { font-weight: 700; color: var(--ink-soft); }
+
 /* Coming-soon banner (tastings) */
 .comingsoon-banner {
   display: flex; flex-direction: column; gap: 10px; align-items: flex-start;
@@ -165,6 +183,33 @@
 .clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .items li.more { background: transparent; border: none; color: var(--mustard); font-weight: 700; }
 .view-cta { display: inline-block; margin-top: 4px; color: var(--mustard); font-weight: 700; }
+
+/* Platters page — board sections & tiles */
+.board-section { margin: 28px 0; }
+.board-section-h { font-family: var(--serif); font-size: 1.4rem; color: var(--brick); margin-bottom: 2px; }
+.board-tile-grid { display: grid; gap: 12px; grid-template-columns: 1fr; margin-top: 14px; }
+@media (min-width: 560px) { .board-tile-grid { grid-template-columns: repeat(3, 1fr); } }
+.board-tile {
+  border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
+  background: #fff; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;
+}
+.board-tile-img { width: 100%; height: 120px; background-size: cover; background-position: center; }
+.board-tile-body { padding: 14px; display: flex; flex-direction: column; gap: 4px; }
+.board-tile-size { font-weight: 700; font-family: var(--serif); font-size: 1.1rem; }
+.board-tile-price { font-size: 1.2rem; color: var(--brick); font-weight: 700; }
+.board-tile-serves { font-size: 0.85rem; }
+.board-tile .stepper-input.compact { margin: 6px 0; gap: 10px; }
+.board-tile .btn { margin-top: 4px; }
+
+/* Compact quantity stepper (tiles + configurator) */
+.stepper-input.compact { justify-content: flex-start; }
+.stepper-input.compact .round { width: 40px; height: 40px; font-size: 1.2rem; }
+.qty-value { min-width: 28px; text-align: center; font-weight: 700; font-size: 1.1rem; }
+
+/* Configure-your-own board */
+.configurator { margin-top: 20px; padding: 18px; }
+.configurator-h { font-family: var(--serif); font-size: 1.2rem; color: var(--brick); margin: 0 0 2px; }
+.chip-select { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 
 /* Platter detail */
 .detail-photo { width: 100%; height: 260px; background-size: cover; background-position: center; border-radius: var(--radius); box-shadow: var(--shadow-sm); }

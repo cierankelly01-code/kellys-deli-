@@ -3,11 +3,13 @@ import {
   toMoney,
   calcTotal,
   calcDeposit,
+  calcBoardDeposit,
   applyReferral,
   calcMargin,
   orderProfit,
   priceOrder,
   REFERRAL_DISCOUNT,
+  BOARD_DEPOSIT,
 } from "../src/lib/money";
 
 describe("toMoney", () => {
@@ -32,6 +34,23 @@ describe("calcTotal", () => {
   });
   it("throws when neither price is set", () => {
     expect(() => calcTotal({ pricePerHead: null, fixedPrice: null }, 10)).toThrow();
+  });
+  it("multiplies fixed price by quantity (board configurator)", () => {
+    expect(calcTotal({ pricePerHead: null, fixedPrice: 45 }, 1, 2)).toBe(90);
+    expect(calcTotal({ pricePerHead: null, fixedPrice: 45 }, 1, 1)).toBe(45);
+  });
+  it("ignores quantity for per-head platters", () => {
+    expect(calcTotal({ pricePerHead: 8.5, fixedPrice: null }, 10, 3)).toBe(85);
+  });
+});
+
+describe("calcBoardDeposit", () => {
+  it("is a flat £25 regardless of order size", () => {
+    expect(calcBoardDeposit(45)).toBe(BOARD_DEPOSIT);
+    expect(calcBoardDeposit(120)).toBe(BOARD_DEPOSIT);
+  });
+  it("caps at the order total for small orders", () => {
+    expect(calcBoardDeposit(10)).toBe(10);
   });
 });
 
@@ -86,6 +105,14 @@ describe("priceOrder", () => {
       discount: 15,
       total: 160,
       deposit: 40,
+    });
+  });
+  it("board orders take a flat £25 deposit and scale by quantity", () => {
+    expect(priceOrder({ pricePerHead: null, fixedPrice: 45 }, 1, false, { isBoardOrder: true, quantity: 2 })).toEqual({
+      base: 90,
+      discount: 0,
+      total: 90,
+      deposit: 25,
     });
   });
 });

@@ -6,11 +6,13 @@ import {
   type PlatterUpsertInput,
   type ExperienceUpsertInput,
 } from "../../lib/admin";
-import { type LocationT, type PlatterItem, type Category } from "../../lib/api";
+import { type LocationT, type PlatterItem, type Category, type BoardType, type BoardSize } from "../../lib/api";
 import { MarginMeter } from "../../components/MarginMeter";
 
 type PricingType = "perHead" | "fixed";
-const CATEGORY_LABEL: Record<Category, string> = { home: "At Home", events: "Events & Office", seasonal: "Seasonal" };
+const CATEGORY_LABEL: Record<Category, string> = { home: "At Home", events: "Events & Office", seasonal: "Seasonal", platters: "Platters (Boards)" };
+const BOARD_TYPE_LABEL: Record<BoardType, string> = { charcuterie: "Charcuterie", savoury: "Savoury", cheese: "Cheese", salmon: "Smoked Salmon" };
+const BOARD_SIZE_LABEL: Record<BoardSize, string> = { small: "Small", medium: "Medium", large: "Large" };
 
 function ImageUpload({ value, onChange }: { value: string; onChange: (url: string) => void }) {
   const [busy, setBusy] = useState(false);
@@ -59,6 +61,8 @@ interface Draft {
   items: PlatterItem[];
   imageUrl: string;
   active: boolean;
+  boardType: BoardType | "";
+  size: BoardSize | "";
 }
 
 function toDraft(p: AdminPlatter): Draft {
@@ -68,10 +72,15 @@ function toDraft(p: AdminPlatter): Draft {
     price: String(pricingType === "fixed" ? p.fixedPrice : p.pricePerHead),
     cost: String(p.cost), serves: p.serves ?? "", minHeadcount: String(p.minHeadcount),
     items: p.items.map((i) => ({ ...i })), imageUrl: p.imageUrl ?? "", active: p.active,
+    boardType: p.boardType ?? "", size: p.size ?? "",
   };
 }
 function blankDraft(category: Category = "home"): Draft {
-  return { id: null, category, name: "", description: "", pricingType: "fixed", price: "", cost: "", serves: "", minHeadcount: "1", items: [{ label: "", qtyPerUnit: 1 }], imageUrl: "", active: true };
+  return {
+    id: null, category, name: "", description: "", pricingType: "fixed", price: "", cost: "", serves: "",
+    minHeadcount: "1", items: [{ label: "", qtyPerUnit: 1 }], imageUrl: "", active: true,
+    boardType: category === "platters" ? "charcuterie" : "", size: category === "platters" ? "medium" : "",
+  };
 }
 
 export default function MenuEditor() {
@@ -113,6 +122,8 @@ export default function MenuEditor() {
       items: cleanItems.map((i) => ({ label: i.label.trim(), qtyPerUnit: Number(i.qtyPerUnit) || 0 })),
       imageUrl: draft.imageUrl.trim() || null,
       active: draft.active,
+      boardType: draft.category === "platters" ? (draft.boardType || null) : null,
+      size: draft.category === "platters" ? (draft.size || null) : null,
     };
     setSaving(true); setError(null); setMsg(null);
     try {
@@ -134,7 +145,7 @@ export default function MenuEditor() {
     set("items", items);
   }
 
-  const grouped: Record<Category, AdminPlatter[]> = { home: [], events: [], seasonal: [] };
+  const grouped: Record<Category, AdminPlatter[]> = { home: [], events: [], seasonal: [], platters: [] };
   for (const p of platters) grouped[p.category]?.push(p);
 
   return (
@@ -145,7 +156,7 @@ export default function MenuEditor() {
 
       <FirstOrderHook settings={settings} onSaved={refresh} />
 
-      {(["home", "events", "seasonal"] as Category[]).map((cat) => (
+      {(["platters", "home", "events", "seasonal"] as Category[]).map((cat) => (
         <div key={cat}>
           <h2>{CATEGORY_LABEL[cat]}{cat === "seasonal" ? " (switch on by season)" : ""}</h2>
           <div className="menu-chips">
@@ -166,11 +177,31 @@ export default function MenuEditor() {
           <div className="field">
             <label>Category</label>
             <div className="seg wide">
-              {(["home", "events", "seasonal"] as Category[]).map((c) => (
+              {(["platters", "home", "events", "seasonal"] as Category[]).map((c) => (
                 <button key={c} className={draft.category === c ? "active" : ""} onClick={() => set("category", c)}>{CATEGORY_LABEL[c]}</button>
               ))}
             </div>
           </div>
+          {draft.category === "platters" && (
+            <div className="price-row">
+              <div className="field">
+                <label>Board type</label>
+                <div className="seg wide">
+                  {(Object.keys(BOARD_TYPE_LABEL) as BoardType[]).map((bt) => (
+                    <button key={bt} className={draft.boardType === bt ? "active" : ""} onClick={() => set("boardType", bt)}>{BOARD_TYPE_LABEL[bt]}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="field">
+                <label>Size</label>
+                <div className="seg wide">
+                  {(Object.keys(BOARD_SIZE_LABEL) as BoardSize[]).map((sz) => (
+                    <button key={sz} className={draft.size === sz ? "active" : ""} onClick={() => set("size", sz)}>{BOARD_SIZE_LABEL[sz]}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
           <div className="field"><label>Name</label><input className="input" value={draft.name} onChange={(e) => set("name", e.target.value)} /></div>
           <div className="field"><label>Description</label><textarea className="input" value={draft.description} onChange={(e) => set("description", e.target.value)} /></div>
           <div className="field">

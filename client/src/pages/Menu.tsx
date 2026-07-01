@@ -8,6 +8,7 @@ const TITLES: Record<Category, { title: string; blurb: string }> = {
   home: { title: "At Home", blurb: "Dinner, date night, family & friends — sorted." },
   events: { title: "Events & Office", blurb: "Work lunches, parties and larger groups." },
   seasonal: { title: "Seasonal Spreads", blurb: "Limited-time platters for the season." },
+  platters: { title: "Platters", blurb: "Grazing boards for delivery." },
 };
 
 export default function Menu() {

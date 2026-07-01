@@ -2,13 +2,14 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { env } from "../lib/env";
-import { orderDTO, platterDTO, experienceDTO, locationDTO, type PlatterItem } from "../lib/serialize";
+import { orderDTO, platterDTO, experienceDTO, locationDTO, boardComponentDTO, type PlatterItem } from "../lib/serialize";
 import {
   platterUpsertSchema,
   experienceUpsertSchema,
   locationUpdateSchema,
   settingSchema,
   blastSchema,
+  boardComponentUpsertSchema,
 } from "../lib/validation";
 import { calcMargin } from "../lib/money";
 import { parseDate, formatDate } from "../lib/capacity";
@@ -105,13 +106,22 @@ adminRouter.get("/prep-sheet", async (req, res) => {
 
   const input: PrepInputOrder[] = orders
     .filter((o) => o.platter)
-    .map((o) => ({
-      ref: o.ref,
-      platterName: o.platter!.name,
-      isFixed: o.platter!.fixedPrice != null,
-      headcount: o.headcount,
-      items: (o.platter!.items as unknown as PlatterItem[]) ?? [],
-    }));
+    .map((o) => {
+      const customItems = o.customItems as unknown as string[] | null;
+      // Build-your-own boards: prep from the customer's chosen ingredients, one unit each,
+      // scaled by quantity. Otherwise use the platter's own item list as normal.
+      const items: PlatterItem[] = customItems?.length
+        ? customItems.map((label) => ({ label, qtyPerUnit: 1 }))
+        : ((o.platter!.items as unknown as PlatterItem[]) ?? []);
+      return {
+        ref: o.ref,
+        platterName: o.platter!.name,
+        isFixed: o.platter!.fixedPrice != null,
+        headcount: o.headcount,
+        quantity: o.quantity ?? undefined,
+        items,
+      };
+    });
 
   res.json({
     location: { id: location.id, name: location.name },
@@ -185,6 +195,8 @@ function platterData(d: import("../lib/validation").PlatterUpsertInput, fallback
     imageUrl: d.imageUrl ?? null,
     active: d.active ?? fallback?.active ?? true,
     sortOrder: d.sortOrder ?? fallback?.sortOrder ?? 0,
+    boardType: d.boardType ?? null,
+    size: d.size ?? null,
   };
 }
 
@@ -236,6 +248,34 @@ adminRouter.patch("/experiences/:id", async (req, res) => {
     data: { name: d.name, description: d.description, pricePerHead: d.pricePerHead, cost: d.cost, capacity: d.capacity, imageUrl: d.imageUrl ?? null, active: d.active ?? exists.active, sortOrder: d.sortOrder ?? exists.sortOrder },
   });
   res.json(experienceDTO(updated, { includeCost: true }));
+});
+
+// =====================  Board components (build-your-own ingredients)  =====================
+adminRouter.get("/board-components", async (_req, res) => {
+  const rows = await prisma.boardComponent.findMany({ orderBy: [{ category: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }] });
+  res.json(rows.map(boardComponentDTO));
+});
+
+adminRouter.post("/board-components", async (req, res) => {
+  const parsed = boardComponentUpsertSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid item" });
+  const count = await prisma.boardComponent.count();
+  const created = await prisma.boardComponent.create({
+    data: { ...parsed.data, imageUrl: parsed.data.imageUrl ?? null, active: parsed.data.active ?? true, sortOrder: parsed.data.sortOrder ?? count },
+  });
+  res.status(201).json(boardComponentDTO(created));
+});
+
+adminRouter.patch("/board-components/:id", async (req, res) => {
+  const parsed = boardComponentUpsertSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid item" });
+  const exists = await prisma.boardComponent.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Item not found" });
+  const updated = await prisma.boardComponent.update({
+    where: { id: req.params.id },
+    data: { ...parsed.data, imageUrl: parsed.data.imageUrl ?? null, active: parsed.data.active ?? exists.active, sortOrder: parsed.data.sortOrder ?? exists.sortOrder },
+  });
+  res.json(boardComponentDTO(updated));
 });
 
 // =====================  Locations  =====================

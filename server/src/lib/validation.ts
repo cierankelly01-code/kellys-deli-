@@ -2,6 +2,8 @@ import { z } from "zod";
 
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD");
 
+const boardComponentLabel = z.string().min(1).max(80);
+
 // Platter order (collection) or gift delivery.
 export const createOrderSchema = z
   .object({
@@ -20,6 +22,9 @@ export const createOrderSchema = z
     recipientName: z.string().max(120).optional(),
     deliveryAddress: z.string().max(500).optional(),
     giftMessage: z.string().max(500).optional(),
+    // board configurator only (category = "platters")
+    quantity: z.number().int().positive().max(50).optional(),
+    customItems: z.array(boardComponentLabel).max(30).optional(),
   })
   .refine((d) => !d.isGift || (!!d.recipientName?.trim() && !!d.deliveryAddress?.trim()), {
     message: "Gifts need a recipient name and delivery address",
@@ -66,7 +71,7 @@ const platterItemSchema = z.object({
 // Full platter payload (the editor sends the whole object on Save).
 export const platterUpsertSchema = z
   .object({
-    category: z.enum(["home", "events", "seasonal"]).default("home"),
+    category: z.enum(["home", "events", "seasonal", "platters"]).default("home"),
     name: z.string().min(1).max(120),
     description: z.string().max(2000),
     pricePerHead: z.number().positive().nullable().optional(),
@@ -78,6 +83,9 @@ export const platterUpsertSchema = z
     imageUrl: z.string().max(500).nullable().optional(), // absolute URL or /uploads/... path
     active: z.boolean().optional(),
     sortOrder: z.number().int().optional(),
+    // Board configurator only (category = "platters").
+    boardType: z.enum(["charcuterie", "savoury", "cheese", "salmon"]).nullable().optional(),
+    size: z.enum(["small", "medium", "large"]).nullable().optional(),
   })
   .refine((d) => (d.pricePerHead != null) !== (d.fixedPrice != null), {
     message: "Set either a per-head price OR a fixed price (not both, not neither)",
@@ -85,6 +93,17 @@ export const platterUpsertSchema = z
   });
 
 export type PlatterUpsertInput = z.infer<typeof platterUpsertSchema>;
+
+// Build-your-own ingredient picker (admin-managed).
+export const boardComponentUpsertSchema = z.object({
+  category: z.enum(["cheese", "meat", "savoury", "extra"]),
+  label: z.string().min(1).max(80),
+  imageUrl: z.string().max(500).nullable().optional(),
+  active: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+});
+
+export type BoardComponentUpsertInput = z.infer<typeof boardComponentUpsertSchema>;
 
 // Experience editor payload.
 export const experienceUpsertSchema = z.object({

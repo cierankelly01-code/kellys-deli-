@@ -1,6 +1,6 @@
 // Convert Prisma rows (with Decimal/Date types) into plain JSON-friendly DTOs
 // with numbers and 'YYYY-MM-DD' date strings, so the client never deals with Decimal.
-import type { Platter, Location, Order, Customer, Experience } from "@prisma/client";
+import type { Platter, Location, Order, Customer, Experience, BoardComponent } from "@prisma/client";
 import { formatDate } from "./capacity";
 
 const num = (d: unknown): number | null => (d == null ? null : Number(d));
@@ -27,9 +27,22 @@ export function platterDTO(p: Platter, opts: { includeCost?: boolean } = {}) {
     isFixed: p.fixedPrice != null,
     // From-price for display: fixed price, or per-head * minHeadcount.
     fromPrice: p.fixedPrice != null ? Number(p.fixedPrice) : Number(p.pricePerHead) * p.minHeadcount,
+    boardType: p.boardType,
+    size: p.size,
   };
   if (opts.includeCost) return { ...dto, cost: Number(p.cost) };
   return dto;
+}
+
+export function boardComponentDTO(c: BoardComponent) {
+  return {
+    id: c.id,
+    category: c.category,
+    label: c.label,
+    imageUrl: c.imageUrl,
+    active: c.active,
+    sortOrder: c.sortOrder,
+  };
 }
 
 export function experienceDTO(e: Experience, opts: { includeCost?: boolean } = {}) {
@@ -75,6 +88,8 @@ export function orderDTO(
     experienceId: o.experienceId,
     experienceName: o.experience?.name ?? null,
     headcount: o.headcount,
+    quantity: o.quantity,
+    customItems: (o.customItems as unknown as string[] | null) ?? null,
     total: Number(o.total),
     deposit: Number(o.deposit),
     depositStatus: o.depositStatus,

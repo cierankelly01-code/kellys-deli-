@@ -3,7 +3,9 @@
 //
 // Scaling rule (matches pricing/SPEC):
 //   - per-head platter (isFixed=false): each item qty = qtyPerUnit * headcount
-//   - fixed platter   (isFixed=true):  each item qty = qtyPerUnit * 1 (one platter per order)
+//   - fixed platter   (isFixed=true):  each item qty = qtyPerUnit * quantity (default 1 —
+//     one platter per order for catering platters; board-configurator orders set quantity
+//     to the number of boards bought)
 // Item totals are summed across all orders by label, then rounded UP (you can't make
 // half a sandwich), preserving the order in which labels were first seen.
 
@@ -17,6 +19,7 @@ export interface PrepInputOrder {
   platterName: string;
   isFixed: boolean;
   headcount: number;
+  quantity?: number;
   items: PrepInputItem[];
 }
 
@@ -45,7 +48,7 @@ export function buildPrepSheet(orders: PrepInputOrder[]): PrepSheet {
   let totalHeadcount = 0;
 
   for (const o of orders) {
-    const scale = o.isFixed ? 1 : o.headcount;
+    const scale = o.isFixed ? o.quantity ?? 1 : o.headcount;
     totalHeadcount += o.headcount;
 
     for (const item of o.items) {

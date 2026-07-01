@@ -1,5 +1,5 @@
 // Admin API client + JWT token storage.
-import { ApiError, type OrderDTO, type Platter, type PlatterItem, type LocationT, type Experience, type Category } from "./api";
+import { ApiError, type OrderDTO, type Platter, type PlatterItem, type LocationT, type Experience, type Category, type BoardComponent, type BoardComponentCategory, type BoardType, type BoardSize } from "./api";
 
 const BASE = import.meta.env.VITE_API_URL || "";
 const TOKEN_KEY = "kd_admin_token";
@@ -122,6 +122,16 @@ export interface PlatterUpsertInput {
   imageUrl: string | null;
   active?: boolean;
   sortOrder?: number;
+  boardType?: BoardType | null;
+  size?: BoardSize | null;
+}
+
+export interface BoardComponentUpsertInput {
+  category: BoardComponentCategory;
+  label: string;
+  imageUrl?: string | null;
+  active?: boolean;
+  sortOrder?: number;
 }
 
 export type AdminExperience = Experience & { cost: number };
@@ -191,6 +201,13 @@ export const adminApi = {
   locations: () => authedReq<LocationT[]>(`/api/admin/locations`),
   updateLocation: (id: string, patch: { name?: string; weeklyCapacity?: number; active?: boolean }) =>
     authedReq<LocationT>(`/api/admin/locations/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+
+  // Build-your-own board ingredients
+  boardComponents: () => authedReq<BoardComponent[]>(`/api/admin/board-components`),
+  createBoardComponent: (input: BoardComponentUpsertInput) =>
+    authedReq<BoardComponent>(`/api/admin/board-components`, { method: "POST", body: JSON.stringify(input) }),
+  updateBoardComponent: (id: string, input: BoardComponentUpsertInput) =>
+    authedReq<BoardComponent>(`/api/admin/board-components/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
 
   // Experiences
   experiences: () => authedReq<AdminExperience[]>(`/api/admin/experiences`),

@@ -133,6 +133,126 @@ async function main() {
     await prisma.platter.upsert({ where: { id: p.id }, update: data, create: { id: p.id, ...data } });
   }
 
+  // --- Board configurator (category "platters") — PLACEHOLDER prices/costs/images ---
+  // Each boardType has a Small/Medium/Large fixedPrice tile. "Charcuterie" also gets a
+  // "build your own" variant (same sizes) that the customer customises with BoardComponent picks.
+  const PLACEHOLDER_IMG = "https://images.unsplash.com/photo-1626200419199-391ae4be7a41?auto=format&fit=crop&w=800&q=60";
+  type BoardSize = "small" | "medium" | "large";
+  const SIZES: Array<{ size: BoardSize; label: string; serves: string }> = [
+    { size: "small", label: "Small", serves: "4-6" },
+    { size: "medium", label: "Medium", serves: "8-10" },
+    { size: "large", label: "Large", serves: "12-15" },
+  ];
+
+  interface BoardDef {
+    boardType: string;
+    name: string;
+    description: string;
+    items: { label: string; qtyPerUnit: number }[];
+    prices: Record<BoardSize, { price: number; cost: number }>;
+    buildYourOwn?: boolean;
+  }
+
+  const boards: BoardDef[] = [
+    {
+      boardType: "charcuterie",
+      name: "Charcuterie Board",
+      description: "Three local cheeses, salami, stuffed peppers, olives & balsamic onions, with crackers and a jar of chutney.",
+      items: [
+        { label: "Three cheeses", qtyPerUnit: 1 },
+        { label: "Salami", qtyPerUnit: 1 },
+        { label: "Stuffed peppers", qtyPerUnit: 1 },
+        { label: "Mixed olives", qtyPerUnit: 1 },
+        { label: "Balsamic onions", qtyPerUnit: 1 },
+        { label: "Crackers", qtyPerUnit: 1 },
+        { label: "Chutney", qtyPerUnit: 1 },
+      ],
+      prices: { small: { price: 28, cost: 11 }, medium: { price: 48, cost: 19 }, large: { price: 75, cost: 30 } },
+      buildYourOwn: true,
+    },
+    {
+      boardType: "savoury",
+      name: "Savoury Board",
+      description: "Sausage rolls, scotch eggs, quiches, samosas, vegetable & chicken kievs — all the hot favourites, served cold.",
+      items: [
+        { label: "Sausage rolls", qtyPerUnit: 1 },
+        { label: "Scotch eggs", qtyPerUnit: 1 },
+        { label: "Mini quiches", qtyPerUnit: 1 },
+        { label: "Samosas", qtyPerUnit: 1 },
+        { label: "Vegetable kievs", qtyPerUnit: 1 },
+        { label: "Chicken kievs", qtyPerUnit: 1 },
+      ],
+      prices: { small: { price: 22, cost: 9 }, medium: { price: 38, cost: 15 }, large: { price: 60, cost: 24 } },
+    },
+    {
+      boardType: "cheese",
+      name: "Cheese Board",
+      description: "A generous spread of local cheeses with grapes, olives and fresh fig.",
+      items: [
+        { label: "Selection of cheeses", qtyPerUnit: 1 },
+        { label: "Grapes", qtyPerUnit: 1 },
+        { label: "Mixed olives", qtyPerUnit: 1 },
+        { label: "Fresh fig", qtyPerUnit: 1 },
+      ],
+      prices: { small: { price: 26, cost: 10 }, medium: { price: 45, cost: 18 }, large: { price: 70, cost: 28 } },
+    },
+    {
+      boardType: "salmon",
+      name: "Smoked Salmon Board",
+      description: "Smoked salmon with blinis and crostinis — simple, fresh and always a favourite.",
+      items: [
+        { label: "Smoked salmon", qtyPerUnit: 1 },
+        { label: "Blinis", qtyPerUnit: 1 },
+        { label: "Crostinis", qtyPerUnit: 1 },
+      ],
+      prices: { small: { price: 30, cost: 13 }, medium: { price: 52, cost: 22 }, large: { price: 80, cost: 34 } },
+    },
+  ];
+
+  let boardCount = 0;
+  for (const b of boards) {
+    for (const s of SIZES) {
+      const { price, cost } = b.prices[s.size];
+      const id = `platter-${b.boardType}-${s.size}`;
+      const data = {
+        category: "platters", name: `${b.name} — ${s.label}`, description: b.description,
+        pricePerHead: null, fixedPrice: price, cost, serves: s.serves, minHeadcount: 1,
+        items: b.items, imageUrl: PLACEHOLDER_IMG, active: true, sortOrder: boardCount,
+        boardType: b.boardType, size: s.size,
+      };
+      await prisma.platter.upsert({ where: { id }, update: data, create: { id, ...data } });
+      boardCount++;
+
+      if (b.buildYourOwn) {
+        const customId = `platter-${b.boardType}-${s.size}-custom`;
+        const customData = { ...data, name: `${b.name} — ${s.label} (Build Your Own)`, sortOrder: boardCount };
+        // (customItems chosen by the customer at order time; this row just carries size/price/image)
+        await prisma.platter.upsert({ where: { id: customId }, update: customData, create: { id: customId, ...customData } });
+        boardCount++;
+      }
+    }
+  }
+
+  // --- Build-your-own board ingredients (BoardComponent) ---
+  const boardComponents = [
+    { id: "bc-brie", category: "cheese", label: "Brie", sortOrder: 1 },
+    { id: "bc-cheddar", category: "cheese", label: "Mature Cheddar", sortOrder: 2 },
+    { id: "bc-red-leicester", category: "cheese", label: "Red Leicester", sortOrder: 3 },
+    { id: "bc-stilton", category: "cheese", label: "Blue Stilton", sortOrder: 4 },
+    { id: "bc-goats", category: "cheese", label: "Goats Cheese", sortOrder: 5 },
+    { id: "bc-ham", category: "meat", label: "Sliced Ham", sortOrder: 1 },
+    { id: "bc-turkey", category: "meat", label: "Sliced Turkey", sortOrder: 2 },
+    { id: "bc-salami", category: "savoury", label: "Salami", sortOrder: 1 },
+    { id: "bc-peppers", category: "savoury", label: "Stuffed Peppers", sortOrder: 2 },
+    { id: "bc-olives", category: "savoury", label: "Mixed Olives", sortOrder: 3 },
+    { id: "bc-onions", category: "savoury", label: "Balsamic Onions", sortOrder: 4 },
+    { id: "bc-crackers", category: "extra", label: "Crackers", sortOrder: 1 },
+    { id: "bc-chutney", category: "extra", label: "Chutney / Jam", sortOrder: 2 },
+  ];
+  for (const c of boardComponents) {
+    await prisma.boardComponent.upsert({ where: { id: c.id }, update: c, create: { ...c, active: true } });
+  }
+
   // --- Experiences (bookable tastings) — PLACEHOLDER price/cost ---
   const experiences = [
     {
@@ -147,10 +267,17 @@ async function main() {
   }
 
   // --- Settings (global admin toggles) ---
+  const defaultHours = JSON.stringify({
+    mon: "9:00 - 17:00", tue: "9:00 - 17:00", wed: "9:00 - 17:00", thu: "9:00 - 17:00",
+    fri: "9:00 - 17:00", sat: "9:00 - 16:00", sun: "Closed",
+  });
   const settings = [
     { key: "firstOrderHook", value: "off" },
     { key: "firstOrderHookText", value: "FREE: box of sausage rolls" },
     { key: "tastingsComingSoon", value: "on" }, // not set up for bookings yet
+    { key: "clickCollectComingSoon", value: "on" }, // click & collect isn't built yet
+    { key: "openingHours", value: defaultHours }, // PLACEHOLDER — edit in Site Settings
+    { key: "aboutText", value: "Proper food from the people you know — local produce, made fresh, the same way we've always done it." },
   ];
   for (const s of settings) {
     await prisma.setting.upsert({ where: { key: s.key }, update: {}, create: s });
@@ -186,7 +313,7 @@ async function main() {
     create: { name: "Demo Customer", phone: "07700900123", email: "demo@example.com", referralCode: randomReferralCode() },
   });
 
-  console.log(`Seeded ${locations.length} locations, ${platters.length} platters, ${experiences.length} experience(s), ${settings.length} settings, admin <${email}> + demo.`);
+  console.log(`Seeded ${locations.length} locations, ${platters.length} platters, ${boardCount} board tiles, ${boardComponents.length} board components, ${experiences.length} experience(s), ${settings.length} settings, admin <${email}> + demo.`);
 }
 
 main()

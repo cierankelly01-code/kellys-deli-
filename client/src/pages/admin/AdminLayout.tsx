@@ -6,6 +6,8 @@ const NAV = [
   { to: "/admin/orders", label: "Orders" },
   { to: "/admin/prep", label: "Prep Sheet" },
   { to: "/admin/menu", label: "Menu & Pricing" },
+  { to: "/admin/board-components", label: "Board Ingredients" },
+  { to: "/admin/settings", label: "Site Settings" },
   { to: "/admin/sms", label: "SMS List" },
   { to: "/admin/fill-slots", label: "Fill Slots" },
 ];

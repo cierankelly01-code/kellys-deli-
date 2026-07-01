@@ -23,7 +23,7 @@ model Location {
 
 model Platter {
   id           String   @id @default(cuid())
-  category     String   @default("home") // home | events | seasonal
+  category     String   @default("home") // home | events | seasonal | platters
   name         String
   description  String
   pricePerHead Decimal? @db.Decimal(10, 2) // null for fixed-price platters
@@ -35,9 +35,27 @@ model Platter {
   imageUrl     String?
   active       Boolean  @default(true)
   sortOrder    Int      @default(0)
+  // Board configurator (category = "platters" only). Null for regular catering platters.
+  boardType    String? // charcuterie | savoury | cheese | salmon
+  size         String? // small | medium | large
   orders       Order[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@index([category])
+  @@index([boardType])
+}
+
+// Admin-managed ingredient picker for the "build your own" charcuterie board.
+model BoardComponent {
+  id        String   @id @default(cuid())
+  category  String // cheese | meat | savoury | extra
+  label     String
+  imageUrl  String?
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([category])
 }
@@ -66,6 +84,11 @@ model Order {
   experienceId             String?
   experience               Experience? @relation(fields: [experienceId], references: [id])
   headcount                Int
+  // Board configurator only: quantity of boards ordered (fixedPrice x quantity) and,
+  // for "build your own", the customer's chosen BoardComponent labels (overrides platter.items
+  // for prep-sheet purposes). Null for regular catering platters/experiences.
+  quantity                 Int?
+  customItems              Json?
   total                    Decimal     @db.Decimal(10, 2)
   deposit                  Decimal     @db.Decimal(10, 2)
   depositStatus            String      @default("pending") // pending | paid | refunded

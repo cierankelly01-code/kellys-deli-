@@ -9,6 +9,10 @@ export function toMoney(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
+// Board configurator orders (category "platters") take a flat deposit instead of 25% —
+// a small, low-friction amount so it doesn't feel like a full online payment (no Stripe in v1).
+export const BOARD_DEPOSIT = 25;
+
 export interface PlatterPricing {
   pricePerHead: number | null;
   fixedPrice: number | null;
@@ -19,9 +23,9 @@ export function isFixed(p: PlatterPricing): boolean {
   return p.fixedPrice != null;
 }
 
-/** Order subtotal before any discount. */
-export function calcTotal(p: PlatterPricing, headcount: number): number {
-  if (p.fixedPrice != null) return toMoney(p.fixedPrice);
+/** Order subtotal before any discount. `quantity` only applies to fixed-price board orders (default 1). */
+export function calcTotal(p: PlatterPricing, headcount: number, quantity = 1): number {
+  if (p.fixedPrice != null) return toMoney(p.fixedPrice * quantity);
   if (p.pricePerHead != null) return toMoney(p.pricePerHead * headcount);
   throw new Error("Platter has neither fixedPrice nor pricePerHead");
 }
@@ -37,19 +41,29 @@ export function calcDeposit(total: number): number {
   return toMoney(total * DEPOSIT_RATE);
 }
 
+/** Flat £25 deposit for board-configurator orders, capped at the order total. */
+export function calcBoardDeposit(total: number): number {
+  return toMoney(Math.min(BOARD_DEPOSIT, total));
+}
+
 export interface PricedOrder {
   base: number; // subtotal before discount
   discount: number; // referral discount applied
   total: number; // what the customer owes
-  deposit: number; // 25% of total
+  deposit: number; // 25% of total (flat £25 for board orders)
 }
 
-/** Full pricing for an order in one call. */
-export function priceOrder(p: PlatterPricing, headcount: number, hasValidReferral: boolean): PricedOrder {
-  const base = calcTotal(p, headcount);
+/** Full pricing for an order in one call. Pass `isBoardOrder` + `quantity` for the platter configurator. */
+export function priceOrder(
+  p: PlatterPricing,
+  headcount: number,
+  hasValidReferral: boolean,
+  opts: { isBoardOrder?: boolean; quantity?: number } = {},
+): PricedOrder {
+  const base = calcTotal(p, headcount, opts.quantity ?? 1);
   const total = applyReferral(base, hasValidReferral);
   const discount = toMoney(base - total);
-  const deposit = calcDeposit(total);
+  const deposit = opts.isBoardOrder ? calcBoardDeposit(total) : calcDeposit(total);
   return { base, discount, total, deposit };
 }
 

@@ -19,3 +19,4 @@ server/.pgdata/
 server/uploads/
 # Vite
 client/dist/
+.env*
