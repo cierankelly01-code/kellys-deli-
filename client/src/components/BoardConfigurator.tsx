@@ -55,10 +55,15 @@ export function BoardConfigurator({
 
       <div className="field">
         <label>Board size</label>
-        <div className="seg wide">
-          {SIZE_ORDER.filter((s) => customPlatters.some((p) => p.size === s)).map((s) => (
-            <button key={s} className={size === s ? "active" : ""} onClick={() => setSize(s)}>{SIZE_LABEL[s]}</button>
-          ))}
+        <div className="size-select">
+          {SIZE_ORDER.filter((s) => customPlatters.some((p) => p.size === s)).map((s) => {
+            const p = customPlatters.find((x) => x.size === s)!;
+            return (
+              <button key={s} className={`chip ${size === s ? "selected" : ""}`} onClick={() => setSize(s)}>
+                {SIZE_LABEL[s]} <span className="chip-price">{gbp(p.fixedPrice!)}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -86,21 +91,20 @@ export function BoardConfigurator({
         );
       })}
 
-      <div className="stepper-input compact">
-        <button className="round" onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="fewer">−</button>
-        <span className="qty-value">{qty}</span>
-        <button className="round" onClick={() => setQty((q) => q + 1)} aria-label="more">＋</button>
-      </div>
-      <p className="center estimate">{gbp(platter.fixedPrice!)} each · estimated total <strong>{gbp(platter.fixedPrice! * qty)}</strong></p>
-      {!hasCheese && <p className="center muted" style={{ fontSize: "0.85rem" }}>Pick at least one cheese to continue.</p>}
+      {!hasCheese && <p className="muted" style={{ fontSize: "0.85rem" }}>Pick at least one cheese to continue.</p>}
 
-      <div className="nav-row" style={{ position: "static", background: "none" }}>
+      <div className="buy-bar">
+        <div className="buy-bar-qty">
+          <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="fewer">−</button>
+          <span>{qty}</span>
+          <button onClick={() => setQty((q) => q + 1)} aria-label="more">＋</button>
+        </div>
         <button
-          className="btn"
+          className="btn buy-bar-add"
           disabled={!hasCheese}
           onClick={() => onAdd(platter.id, qty, [...selected])}
         >
-          Add to order
+          Add · {gbp(platter.fixedPrice! * qty)}
         </button>
       </div>
     </div>

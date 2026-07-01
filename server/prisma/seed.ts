@@ -136,7 +136,6 @@ async function main() {
   // --- Board configurator (category "platters") — PLACEHOLDER prices/costs/images ---
   // Each boardType has a Small/Medium/Large fixedPrice tile. "Charcuterie" also gets a
   // "build your own" variant (same sizes) that the customer customises with BoardComponent picks.
-  const PLACEHOLDER_IMG = "https://images.unsplash.com/photo-1626200419199-391ae4be7a41?auto=format&fit=crop&w=800&q=60";
   type BoardSize = "small" | "medium" | "large";
   const SIZES: Array<{ size: BoardSize; label: string; serves: string }> = [
     { size: "small", label: "Small", serves: "4-6" },
@@ -148,6 +147,7 @@ async function main() {
     boardType: string;
     name: string;
     description: string;
+    image: string;
     items: { label: string; qtyPerUnit: number }[];
     prices: Record<BoardSize, { price: number; cost: number }>;
     buildYourOwn?: boolean;
@@ -157,6 +157,7 @@ async function main() {
     {
       boardType: "charcuterie",
       name: "Charcuterie Board",
+      image: "https://images.unsplash.com/photo-1678572823447-45fc146df43c?auto=format&fit=crop&w=900&q=70",
       description: "Three local cheeses, salami, stuffed peppers, olives & balsamic onions, with crackers and a jar of chutney.",
       items: [
         { label: "Three cheeses", qtyPerUnit: 1 },
@@ -173,6 +174,7 @@ async function main() {
     {
       boardType: "savoury",
       name: "Savoury Board",
+      image: "https://images.unsplash.com/photo-1673960782730-ab13fc062d6d?auto=format&fit=crop&w=900&q=70",
       description: "Sausage rolls, scotch eggs, quiches, samosas, vegetable & chicken kievs — all the hot favourites, served cold.",
       items: [
         { label: "Sausage rolls", qtyPerUnit: 1 },
@@ -187,6 +189,7 @@ async function main() {
     {
       boardType: "cheese",
       name: "Cheese Board",
+      image: "https://images.unsplash.com/photo-1517093602195-b40af9688b46?auto=format&fit=crop&w=900&q=70",
       description: "A generous spread of local cheeses with grapes, olives and fresh fig.",
       items: [
         { label: "Selection of cheeses", qtyPerUnit: 1 },
@@ -199,6 +202,7 @@ async function main() {
     {
       boardType: "salmon",
       name: "Smoked Salmon Board",
+      image: "https://images.unsplash.com/photo-1577906096429-f73c2c312435?auto=format&fit=crop&w=900&q=70",
       description: "Smoked salmon with blinis and crostinis — simple, fresh and always a favourite.",
       items: [
         { label: "Smoked salmon", qtyPerUnit: 1 },
@@ -217,7 +221,7 @@ async function main() {
       const data = {
         category: "platters", name: `${b.name} — ${s.label}`, description: b.description,
         pricePerHead: null, fixedPrice: price, cost, serves: s.serves, minHeadcount: 1,
-        items: b.items, imageUrl: PLACEHOLDER_IMG, active: true, sortOrder: boardCount,
+        items: b.items, imageUrl: b.image, active: true, sortOrder: boardCount,
         boardType: b.boardType, size: s.size,
       };
       await prisma.platter.upsert({ where: { id }, update: data, create: { id, ...data } });

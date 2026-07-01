@@ -1,11 +1,30 @@
 /* Component styles for customer + admin screens. */
 
+/* Announcement ticker — full-bleed scrolling strip above the header */
+.ticker {
+  background: var(--ink); color: #fff; overflow: hidden; white-space: nowrap;
+  width: 100vw; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw);
+  padding: 9px 0;
+}
+.ticker-track { display: inline-flex; animation: ticker-scroll 28s linear infinite; }
+.ticker-item {
+  display: inline-block; padding: 0 28px; font-size: 0.72rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.92);
+}
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track { animation: none; overflow-x: auto; }
+}
+
 /* Header / brand */
-.hdr { padding: 18px 0 10px; }
+.hdr { padding: 16px 0 10px; }
 .brand { display: flex; align-items: baseline; gap: 10px; text-decoration: none; }
-.brand-mark { font-family: var(--serif); font-size: 1.5rem; font-weight: 700; color: var(--brick); }
+.brand-mark { font-family: var(--serif); font-size: 1.5rem; font-weight: 500; color: var(--ink); }
 .brand-sub {
-  font-size: 0.7rem; letter-spacing: 0.22em; text-transform: uppercase;
+  font-size: 0.66rem; letter-spacing: 0.2em; text-transform: uppercase;
   color: var(--mustard); font-weight: 700;
 }
 
@@ -101,17 +120,28 @@
 }
 .ref-badge strong { font-size: 1.6rem; letter-spacing: 0.08em; color: var(--brick); }
 
-/* Landing hero (choice screen) — bespoke navy banner */
+/* Landing hero (choice screen) — full-bleed photography with a dark scrim */
 .choice { padding-top: 0; }
 .landing-hero {
-  margin: 0 -16px 22px; padding: 44px 24px 38px; text-align: center;
-  background: radial-gradient(120% 140% at 50% 0%, #1c4675 0%, var(--brick) 55%, var(--brick-dark) 100%);
-  color: #fff; border-radius: 0 0 28px 28px;
+  margin: 0 0 22px; padding: 0; text-align: center;
+  background-size: cover; background-position: center;
+  min-height: 62vh; display: flex; align-items: flex-end;
 }
-.lh-eyebrow { margin: 0 0 14px; font-size: 0.66rem; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.7); }
-.lh-mark { font-family: var(--serif); font-size: 2.7rem; line-height: 1; margin: 0; color: #fff; }
-.lh-rule { display: block; width: 56px; height: 3px; border-radius: 2px; background: var(--mustard); margin: 16px auto; }
-.lh-tag { max-width: 34ch; margin: 0 auto; color: rgba(255,255,255,0.88); font-size: 1.02rem; line-height: 1.5; }
+.lh-scrim {
+  width: 100%; padding: 40px 24px 34px;
+  background: linear-gradient(180deg, rgba(36,31,26,0) 0%, rgba(24,20,17,0.55) 40%, rgba(20,17,14,0.88) 100%);
+  color: #fff;
+}
+.lh-eyebrow { margin: 0 0 10px; font-size: 0.66rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.75); }
+.lh-mark { font-family: var(--serif); font-size: 2.9rem; line-height: 1; margin: 0 0 12px; color: #fff; font-weight: 500; }
+.lh-tag { max-width: 36ch; margin: 0 auto 20px; color: rgba(255,255,255,0.9); font-size: 1rem; line-height: 1.55; }
+.hero-cta { width: auto; padding: 14px 32px; background: #fff; color: var(--ink); margin: 0 auto; }
+.hero-cta:hover { background: var(--cream); }
+.lh-trust {
+  display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 18px;
+  font-size: 0.8rem; color: rgba(255,255,255,0.85);
+}
+.stars { color: var(--mustard); letter-spacing: 2px; font-size: 0.9rem; }
 
 .choice-h { font-size: 1.25rem; margin: 4px 0 14px; }
 .choice-grid { display: grid; gap: 14px; grid-template-columns: 1fr; }
@@ -120,42 +150,31 @@
   display: flex; flex-direction: column; align-items: flex-start; gap: 5px;
   padding: 22px; border-radius: var(--radius); border: 1px solid var(--line); cursor: pointer;
   background: var(--card); text-align: left; font-family: inherit; color: var(--ink);
-  box-shadow: var(--shadow-sm); transition: transform 0.06s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease;
 }
-.choice-card:hover { border-color: var(--brick); box-shadow: var(--shadow); }
+.choice-card:hover { border-color: var(--ink); }
 .choice-card:active { transform: translateY(1px); }
-.choice-emoji { font-size: 2rem; }
-.choice-title { font-family: var(--serif); font-size: 1.45rem; color: var(--brick); font-weight: 700; }
+.choice-title { font-family: var(--serif); font-size: 1.4rem; color: var(--ink); font-weight: 500; }
 .choice-sub { color: var(--ink-soft); font-size: 0.95rem; }
-.choice-go { margin-top: 8px; color: var(--mustard); font-weight: 700; font-size: 0.9rem; }
+.choice-go { margin-top: 8px; color: var(--mustard); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .choice-strip {
   display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%;
   margin-top: 14px; padding: 16px 18px; border-radius: var(--radius-sm); border: 1px solid var(--line);
-  background: #fff; cursor: pointer; font-family: inherit; font-weight: 700; color: var(--ink); font-size: 0.96rem;
-  box-shadow: var(--shadow-sm);
+  background: #fff; cursor: pointer; font-family: inherit; font-weight: 600; color: var(--ink); font-size: 0.94rem;
 }
 .choice-strip.seasonal { border-color: var(--mustard); background: var(--warn-bg); color: var(--warn); }
-.choice-strip .arrow { color: var(--brick); }
-.choice-strip.coming-soon { cursor: default; color: var(--ink-soft); background: var(--cream); box-shadow: none; }
-.cs-badge { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; background: var(--brick); color: #fff; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
-
-/* Homepage — Order Platters CTA */
-.platters-cta {
-  display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: left;
-  padding: 22px; margin-top: 18px; border-radius: var(--radius); border: none; cursor: pointer;
-  background: linear-gradient(120deg, var(--mustard) 0%, #c98a1f 100%); color: #fff;
-  font-family: inherit; box-shadow: var(--shadow);
-}
-.pc-eyebrow { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.85; }
-.pc-title { font-family: var(--serif); font-size: 1.6rem; font-weight: 700; }
-.pc-sub { font-size: 0.92rem; opacity: 0.92; max-width: 42ch; }
+.choice-strip .arrow { color: var(--ink); }
+.choice-strip.coming-soon { cursor: default; color: var(--ink-soft); background: var(--cream); }
+.cs-badge { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; background: var(--brick); color: #fff; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
 
 /* Homepage — opening hours */
 .hours-card { margin-top: 18px; padding: 16px 18px; }
-.hours-h { font-size: 1.05rem; margin: 0 0 10px; color: var(--brick); }
-.hours-grid { display: grid; gap: 4px; }
-.hours-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 0.95rem; }
+.hours-h { font-size: 1.05rem; margin: 0; color: var(--ink); }
+.hours-grid { display: grid; gap: 4px; margin-top: 10px; }
+.hours-row { display: flex; justify-content: space-between; padding: 4px 6px; font-size: 0.95rem; border-radius: 6px; }
+.hours-row.is-today { background: var(--cream); font-weight: 700; }
 .hours-day { font-weight: 700; color: var(--ink-soft); }
+.hours-row.is-today .hours-day { color: var(--ink); }
 
 /* Coming-soon banner (tastings) */
 .comingsoon-banner {
@@ -184,31 +203,44 @@
 .items li.more { background: transparent; border: none; color: var(--mustard); font-weight: 700; }
 .view-cta { display: inline-block; margin-top: 4px; color: var(--mustard); font-weight: 700; }
 
-/* Platters page — board sections & tiles */
-.board-section { margin: 28px 0; }
-.board-section-h { font-family: var(--serif); font-size: 1.4rem; color: var(--brick); margin-bottom: 2px; }
-.board-tile-grid { display: grid; gap: 12px; grid-template-columns: 1fr; margin-top: 14px; }
-@media (min-width: 560px) { .board-tile-grid { grid-template-columns: repeat(3, 1fr); } }
-.board-tile {
-  border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
-  background: #fff; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;
-}
-.board-tile-img { width: 100%; height: 120px; background-size: cover; background-position: center; }
-.board-tile-body { padding: 14px; display: flex; flex-direction: column; gap: 4px; }
-.board-tile-size { font-weight: 700; font-family: var(--serif); font-size: 1.1rem; }
-.board-tile-price { font-size: 1.2rem; color: var(--brick); font-weight: 700; }
-.board-tile-serves { font-size: 0.85rem; }
-.board-tile .stepper-input.compact { margin: 6px 0; gap: 10px; }
-.board-tile .btn { margin-top: 4px; }
+/* Platters page */
+.platters-hero { padding-top: 12px; }
+.platters-page .back { margin-top: 14px; }
 
-/* Compact quantity stepper (tiles + configurator) */
-.stepper-input.compact { justify-content: flex-start; }
-.stepper-input.compact .round { width: 40px; height: 40px; font-size: 1.2rem; }
-.qty-value { min-width: 28px; text-align: center; font-weight: 700; font-size: 1.1rem; }
+/* Board feature block — one per board type, size is a variant selector (Grape & Fig pattern) */
+.board-feature { margin: 30px 0; padding-bottom: 30px; border-bottom: 1px solid var(--line); }
+.board-feature:last-of-type { border-bottom: none; }
+.board-feature-img {
+  position: relative; width: 100%; height: 240px; background-size: cover; background-position: center;
+  background-color: var(--line); border-radius: var(--radius); overflow: hidden;
+}
+.board-feature-badge {
+  position: absolute; top: 12px; left: 12px;
+}
+.board-feature-badge.badge-2 { top: 46px; }
+.board-feature-body { padding-top: 16px; }
+.board-feature-h { font-size: 1.5rem; margin-bottom: 6px; }
+.board-feature-desc { font-size: 0.98rem; line-height: 1.55; max-width: 48ch; }
+.board-feature-serves { font-size: 0.85rem; margin: 8px 0 0; }
+
+/* Size variant selector */
+.size-select { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.size-select .chip { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 16px; min-width: 84px; }
+.chip-price { font-size: 0.78rem; opacity: 0.75; font-weight: 600; }
+
+/* Unified quantity + add-to-order control (Grape & Fig's buy-box pattern) */
+.buy-bar { display: flex; gap: 10px; margin-top: 18px; }
+.buy-bar-qty {
+  display: flex; align-items: center; gap: 10px; padding: 0 12px; height: 54px;
+  border: 1.5px solid var(--ink); border-radius: var(--radius-sm); flex: 0 0 auto;
+}
+.buy-bar-qty button { background: none; border: none; font-size: 1.2rem; color: var(--ink); cursor: pointer; padding: 4px; line-height: 1; }
+.buy-bar-qty span { min-width: 14px; text-align: center; font-weight: 700; }
+.buy-bar-add.btn { flex: 1; width: auto; white-space: nowrap; }
 
 /* Configure-your-own board */
 .configurator { margin-top: 20px; padding: 18px; }
-.configurator-h { font-family: var(--serif); font-size: 1.2rem; color: var(--brick); margin: 0 0 2px; }
+.configurator-h { font-family: var(--serif); font-size: 1.2rem; color: var(--ink); margin: 0 0 2px; }
 .chip-select { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 
 /* Platter detail */

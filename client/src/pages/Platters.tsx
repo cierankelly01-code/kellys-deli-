@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { api, type Platter, type BoardType } from "../lib/api";
+import { api, type Platter, type BoardType, type BoardSize } from "../lib/api";
 import { gbp } from "../lib/format";
 import { Header } from "../components/Header";
 import { BoardConfigurator } from "../components/BoardConfigurator";
@@ -12,26 +12,54 @@ const BOARD_TITLES: Record<BoardType, string> = {
   cheese: "Cheese Board",
   salmon: "Smoked Salmon Board",
 };
-const SIZE_ORDER = ["small", "medium", "large"] as const;
-const SIZE_LABEL: Record<string, string> = { small: "Small", medium: "Medium", large: "Large" };
+const BOARD_BADGE: Record<BoardType, string> = {
+  charcuterie: "Bestseller",
+  savoury: "Crowd favourite",
+  cheese: "Simple & fresh",
+  salmon: "Light & elegant",
+};
+const SIZE_ORDER: BoardSize[] = ["small", "medium", "large"];
+const SIZE_LABEL: Record<BoardSize, string> = { small: "Small", medium: "Medium", large: "Large" };
 
-function BoardTile({ platter, onAdd }: { platter: Platter; onAdd: (qty: number) => void }) {
+function BoardFeature({ boardType, sizes, onAdd }: { boardType: BoardType; sizes: Platter[]; onAdd: (platterId: string, qty: number) => void }) {
+  const [size, setSize] = useState<BoardSize>(sizes.find((p) => p.size === "medium")?.size ?? (sizes[0].size as BoardSize));
   const [qty, setQty] = useState(1);
+  const platter = sizes.find((p) => p.size === size) ?? sizes[0];
+
   return (
-    <div className="board-tile">
-      {platter.imageUrl && <div className="board-tile-img" style={{ backgroundImage: `url(${platter.imageUrl})` }} />}
-      <div className="board-tile-body">
-        <span className="board-tile-size">{SIZE_LABEL[platter.size ?? ""] ?? platter.size}</span>
-        <span className="board-tile-price">{gbp(platter.fixedPrice!)}</span>
-        <span className="muted board-tile-serves">Serves {platter.serves}</span>
-        <div className="stepper-input compact">
-          <button className="round" onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="fewer">−</button>
-          <span className="qty-value">{qty}</span>
-          <button className="round" onClick={() => setQty((q) => q + 1)} aria-label="more">＋</button>
-        </div>
-        <button className="btn" onClick={() => onAdd(qty)}>Add to order</button>
+    <section className="board-feature">
+      <div className="board-feature-img" style={{ backgroundImage: platter.imageUrl ? `url(${platter.imageUrl})` : undefined }}>
+        <span className="badge dark board-feature-badge">{BOARD_BADGE[boardType]}</span>
+        {boardType === "charcuterie" && <span className="badge gold board-feature-badge badge-2">Customisable</span>}
       </div>
-    </div>
+      <div className="board-feature-body">
+        <h2 className="board-feature-h">{BOARD_TITLES[boardType]}</h2>
+        <p className="muted board-feature-desc">{platter.description}</p>
+
+        <div className="size-select" role="group" aria-label="Board size">
+          {SIZE_ORDER.filter((s) => sizes.some((p) => p.size === s)).map((s) => {
+            const p = sizes.find((x) => x.size === s)!;
+            return (
+              <button key={s} className={`chip ${size === s ? "selected" : ""}`} onClick={() => setSize(s)}>
+                {SIZE_LABEL[s]} <span className="chip-price">{gbp(p.fixedPrice!)}</span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="muted board-feature-serves">Serves {platter.serves}</p>
+
+        <div className="buy-bar">
+          <div className="buy-bar-qty">
+            <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="fewer">−</button>
+            <span>{qty}</span>
+            <button onClick={() => setQty((q) => q + 1)} aria-label="more">＋</button>
+          </div>
+          <button className="btn buy-bar-add" onClick={() => onAdd(platter.id, qty)}>
+            Add · {gbp(platter.fixedPrice! * qty)}
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -54,10 +82,10 @@ export default function Platters() {
   }
 
   return (
-    <div className="app">
+    <div className="app platters-page">
       <Header />
       <Link to={src ? `/?src=${src}` : "/"} className="btn-ghost back">← Back</Link>
-      <section className="hero">
+      <section className="hero platters-hero">
         <h1>Platters</h1>
         <p className="muted">Grazing boards for delivery — pick a size, or build your own charcuterie board.</p>
       </section>
@@ -66,31 +94,24 @@ export default function Platters() {
       {!platters && !error && <p className="muted center">Loading…</p>}
 
       {platters && BOARD_ORDER.map((boardType) => {
-        const presets = SIZE_ORDER
+        const sizes = SIZE_ORDER
           .map((size) => platters.find((p) => p.boardType === boardType && p.size === size && !p.name.includes("Build Your Own")))
           .filter((p): p is Platter => !!p);
-        if (presets.length === 0) return null;
+        if (sizes.length === 0) return null;
         const customPlatters = SIZE_ORDER
           .map((size) => platters.find((p) => p.boardType === boardType && p.size === size && p.name.includes("Build Your Own")))
           .filter((p): p is Platter => !!p);
 
         return (
-          <section key={boardType} className="board-section">
-            <h2 className="board-section-h">{BOARD_TITLES[boardType]}</h2>
-            <p className="muted clamp-2">{presets[0].description}</p>
-            <div className="board-tile-grid">
-              {presets.map((p) => (
-                <BoardTile key={p.id} platter={p} onAdd={(qty) => addToOrder(p.id, qty)} />
-              ))}
-            </div>
-
+          <div key={boardType}>
+            <BoardFeature boardType={boardType} sizes={sizes} onAdd={addToOrder} />
             {customPlatters.length > 0 && (
               <BoardConfigurator
                 customPlatters={customPlatters}
                 onAdd={(platterId, qty, customItems) => addToOrder(platterId, qty, customItems)}
               />
             )}
-          </section>
+          </div>
         );
       })}
     </div>
