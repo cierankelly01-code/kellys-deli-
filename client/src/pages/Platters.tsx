@@ -4,6 +4,7 @@ import { api, type Platter, type BoardType, type BoardSize, type DayAvailability
 import { gbp } from "../lib/format";
 import { Header } from "../components/Header";
 import { Faq } from "../components/Faq";
+import { usePageTitle } from "../lib/title";
 
 const BOARD_ORDER: BoardType[] = ["charcuterie", "savoury", "cheese", "salmon"];
 const BOARD_TITLES: Record<BoardType, string> = {
@@ -88,6 +89,7 @@ function urgencyMessage(days: DayAvailability[] | null): string | null {
 }
 
 export default function Platters() {
+  usePageTitle("Grazing Boards for Delivery");
   const [platters, setPlatters] = useState<Platter[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [availability, setAvailability] = useState<DayAvailability[] | null>(null);

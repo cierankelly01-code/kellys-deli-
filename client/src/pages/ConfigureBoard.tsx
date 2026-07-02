@@ -3,8 +3,10 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { api, type Platter } from "../lib/api";
 import { Header } from "../components/Header";
 import { BoardConfigurator } from "../components/BoardConfigurator";
+import { usePageTitle } from "../lib/title";
 
 export default function ConfigureBoard() {
+  usePageTitle("Build Your Own Charcuterie Board");
   const [platters, setPlatters] = useState<Platter[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [params] = useSearchParams();

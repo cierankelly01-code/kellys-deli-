@@ -319,6 +319,9 @@
 .buy-reassure { text-align: center; font-size: 0.78rem; color: var(--ink-soft); margin-top: 8px; }
 .scarcity-note { text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--mustard-dark, var(--mustard)); margin-top: 10px; }
 
+/* Skip rendering below-fold sections until scrolled near (perf). */
+.board-feature, .faq { content-visibility: auto; contain-intrinsic-size: auto 520px; }
+
 /* Configure-your-own board */
 .configurator { margin-top: 20px; padding: 18px; }
 .configurator-h { font-family: var(--serif); font-size: 1.2rem; color: var(--ink); margin: 0 0 2px; }

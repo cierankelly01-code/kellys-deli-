@@ -69,7 +69,7 @@ export default function Confirm() {
       <div className="confirm-hero center">
         <div className="tick">✓</div>
         <h1>{isBoard ? "Order on its way!" : isExperience ? "You're booked in!" : isGift ? "Gift on its way!" : "You're booked in!"}</h1>
-        <p className="muted">We&apos;ve sent a confirmation to {order.phone} and {order.email}.</p>
+        <p className="muted">Your order is in — we&apos;ll be in touch on {order.phone} or {order.email} to confirm.</p>
         <div className="ref-badge">Order reference<strong>{order.ref}</strong></div>
       </div>
 

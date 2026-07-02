@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, type Platter, type Category } from "../lib/api";
 import { gbp } from "../lib/format";
 import { Header } from "../components/Header";
+import { usePageTitle } from "../lib/title";
 
 const TITLES: Record<Category, { title: string; blurb: string }> = {
   home: { title: "At Home", blurb: "Dinner, date night, family & friends — sorted." },
@@ -14,6 +15,7 @@ const TITLES: Record<Category, { title: string; blurb: string }> = {
 export default function Menu() {
   const { category } = useParams<{ category: Category }>();
   const cat = (category ?? "home") as Category;
+  usePageTitle(`${TITLES[cat]?.title ?? "Menu"} Catering Platters`);
   const [platters, setPlatters] = useState<Platter[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [params] = useSearchParams();

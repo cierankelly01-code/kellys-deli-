@@ -1,5 +1,6 @@
-// Notification stub. SMS/email are not sent in v1 — payloads are logged so you can
-// see exactly what would go out. Swap sendSms/sendEmail bodies for Twilio/Resend later.
+// Notifications. Email sends for real via Resend when RESEND_API_KEY is set;
+// otherwise payloads are logged so you can see exactly what would go out.
+// SMS is still a logged stub — swap sendSms for Twilio when ready.
 
 export interface NotifyTarget {
   name: string;
@@ -7,12 +8,30 @@ export interface NotifyTarget {
   email: string;
 }
 
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+// Resend only delivers from a verified domain; until one is verified, use their sandbox sender.
+const EMAIL_FROM = process.env.EMAIL_FROM || "Kelly's Deli <onboarding@resend.dev>";
+
 async function sendSms(to: string, body: string): Promise<void> {
   console.log(`[notify:sms] -> ${to}\n  ${body}`);
 }
 
 async function sendEmail(to: string, subject: string, body: string): Promise<void> {
-  console.log(`[notify:email] -> ${to} | ${subject}\n  ${body}`);
+  if (!RESEND_API_KEY) {
+    console.log(`[notify:email] -> ${to} | ${subject}\n  ${body}`);
+    return;
+  }
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, text: body }),
+    });
+    if (!res.ok) console.error(`[notify:email] Resend ${res.status}: ${await res.text()}`);
+  } catch (e) {
+    // Never let a failed notification break order placement.
+    console.error("[notify:email] send failed:", e);
+  }
 }
 
 /** Sent when an order is placed. */
