@@ -7,6 +7,20 @@ import { Header } from "../components/Header";
 function ReferralShare({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
   const link = `${window.location.origin}/order?referral=${code}`;
+  const message = `Kelly's Deli do proper grazing boards — order with my link and we both get £15 off: ${link}`;
+
+  async function share() {
+    // Native share sheet where available (most phones); the customer picks WhatsApp/SMS/etc.
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "£15 off at Kelly's Deli", text: message });
+        return;
+      } catch {
+        /* dismissed — fall through to copy */
+      }
+    }
+    copy();
+  }
   async function copy() {
     try {
       await navigator.clipboard.writeText(link);
@@ -21,9 +35,49 @@ function ReferralShare({ code }: { code: string }) {
       <h3 style={{ marginTop: 0 }}>Know an office that needs lunch?</h3>
       <p className="muted">Share your link — you both get £15 off your next order.</p>
       <div className="referral-code">{code}</div>
-      <button className="btn" onClick={copy}>{copied ? "Copied!" : "Copy your share link"}</button>
+      <div className="share-row">
+        <a
+          className="btn whatsapp-btn"
+          href={`https://wa.me/?text=${encodeURIComponent(message)}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Share on WhatsApp
+        </a>
+        <button className="btn btn-secondary" onClick={share}>{copied ? "Copied!" : "Copy link"}</button>
+      </div>
     </div>
   );
+}
+
+/** Build a one-day calendar event for the delivery/collection date — no libraries needed. */
+function downloadIcs(order: OrderDTO, label: string): void {
+  const esc = (s: string) => s.replace(/([,;\\])/g, "\\$1");
+  const day = order.collectionOrDeliveryDate.replace(/-/g, "");
+  const [y, m, d] = order.collectionOrDeliveryDate.split("-").map(Number);
+  const nextDay = new Date(Date.UTC(y, m - 1, d) + 86_400_000).toISOString().slice(0, 10).replace(/-/g, "");
+  const name = order.platterName ?? order.experienceName ?? "Order";
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Kelly's Deli//Orders//EN",
+    "BEGIN:VEVENT",
+    `UID:${order.ref}@kellysdeli`,
+    `DTSTART;VALUE=DATE:${day}`,
+    `DTEND;VALUE=DATE:${nextDay}`,
+    `SUMMARY:${esc(`Kelly's Deli — ${name} ${label.toLowerCase()}`)}`,
+    `DESCRIPTION:${esc(`Order ${order.ref}. Balance due on ${label.toLowerCase()}.`)}`,
+    ...(order.deliveryAddress ? [`LOCATION:${esc(order.deliveryAddress)}`] : []),
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ];
+  const blob = new Blob([lines.join("\r\n")], { type: "text/calendar" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `kellys-deli-${order.ref}.ics`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function Confirm() {
@@ -71,6 +125,10 @@ export default function Confirm() {
         <h1>{isBoard ? "Order on its way!" : isExperience ? "You're booked in!" : isGift ? "Gift on its way!" : "You're booked in!"}</h1>
         <p className="muted">Your order is in — we&apos;ll be in touch on {order.phone} or {order.email} to confirm.</p>
         <div className="ref-badge">Order reference<strong>{order.ref}</strong></div>
+        <p className="muted save-hint">Screenshot or bookmark this page — your order lives at this link.</p>
+        <button className="btn btn-secondary cal-btn" onClick={() => downloadIcs(order, dateLabel)}>
+          Add {dateLabel.toLowerCase()} to my calendar
+        </button>
       </div>
 
       {order.freebie && (

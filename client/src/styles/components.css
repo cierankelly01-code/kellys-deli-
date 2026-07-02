@@ -326,6 +326,14 @@
 .field-hint { font-size: 0.8rem; color: #a4552e; margin: 6px 0 0; }
 .field-hint.muted-hint { color: var(--ink-soft); }
 
+/* Confirmation-page retention touches */
+.save-hint { font-size: 0.8rem; margin-top: 10px; }
+.cal-btn { width: auto; margin-top: 10px; font-size: 0.85rem; }
+.share-row { display: flex; gap: 10px; margin-top: 4px; }
+.share-row .btn { flex: 1; }
+.whatsapp-btn { background: #1da851; color: #fff; text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+.whatsapp-btn:hover { background: #178f44; }
+
 /* Configure-your-own board */
 .configurator { margin-top: 20px; padding: 18px; }
 .configurator-h { font-family: var(--serif); font-size: 1.2rem; color: var(--ink); margin: 0 0 2px; }
