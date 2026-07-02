@@ -311,15 +311,10 @@ async function main() {
     update: { passwordHash: await bcrypt.hash(password, 10), role: "admin" },
     create: { email, passwordHash: await bcrypt.hash(password, 10), role: "admin" },
   });
-  // Demo account is for local/staging only — never created in production.
-  if (!isProd) {
-    const demoHash = await bcrypt.hash("demo1234", 10);
-    await prisma.user.upsert({
-      where: { email: "demo@kellysdeli.co.uk" },
-      update: { passwordHash: demoHash, role: "admin" },
-      create: { email: "demo@kellysdeli.co.uk", passwordHash: demoHash, role: "admin" },
-    });
-  }
+  // No demo account. Local dev shares the production database, so a "dev-only"
+  // account here would be a real admin on the live site. Removed 2026-07-02
+  // (it had been auto-logging visitors into production admin) — don't re-add.
+  await prisma.user.deleteMany({ where: { email: "demo@kellysdeli.co.uk" } });
 
   // --- Demo customer (handy for re-order / SMS testing) ---
   await prisma.customer.upsert({
@@ -328,7 +323,7 @@ async function main() {
     create: { name: "Demo Customer", phone: "07700900123", email: "demo@example.com", referralCode: randomReferralCode() },
   });
 
-  console.log(`Seeded ${locations.length} locations, ${platters.length} platters, ${boardCount} board tiles, ${boardComponents.length} board components, ${experiences.length} experience(s), ${settings.length} settings, admin <${email}> + demo.`);
+  console.log(`Seeded ${locations.length} locations, ${platters.length} platters, ${boardCount} board tiles, ${boardComponents.length} board components, ${experiences.length} experience(s), ${settings.length} settings, admin <${email}>.`);
 }
 
 main()
