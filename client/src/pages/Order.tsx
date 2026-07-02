@@ -19,6 +19,37 @@ function round2(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
+// Mobile browsers routinely reload the tab when the customer switches apps
+// mid-checkout (WhatsApp, calendar…). Draft the form to sessionStorage so they
+// come back to exactly where they were instead of an empty form.
+const DRAFT_KEY = "kd-order-draft";
+
+interface OrderDraft {
+  platterId: string;
+  headcount: number;
+  isGift: boolean;
+  sendAsGift: boolean;
+  recipientName: string;
+  deliveryAddress: string;
+  giftMessage: string;
+  locationId: string;
+  date: string;
+  customerName: string;
+  phone: string;
+  email: string;
+  notes: string;
+  stepIdx: number;
+}
+
+function loadDraft(): OrderDraft | null {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY);
+    return raw ? (JSON.parse(raw) as OrderDraft) : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function Order() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -39,22 +70,29 @@ export default function Order() {
     return raw ? raw.split(",").map((s) => s.trim()).filter(Boolean) : [];
   });
 
-  const [platterId, setPlatterId] = useState<string>(params.get("platter") || "");
+  // A saved draft only resumes the full order (incl. step) when it's for the same
+  // platter the URL asks for; otherwise just the customer's own details carry over.
+  const urlPlatter = params.get("platter") || "";
+  const draft = useState(() => loadDraft())[0];
+  const resume = !!draft && (!urlPlatter || draft.platterId === urlPlatter);
+
+  const [platterId, setPlatterId] = useState<string>(urlPlatter || (resume ? draft.platterId : ""));
   const [headcount, setHeadcount] = useState<number>(() => {
+    if (resume) return draft.headcount;
     const qty = params.get("quantity");
     return qty ? Math.max(1, parseInt(qty, 10) || 1) : 10;
   });
-  const [isGift, setIsGift] = useState(false);
-  const [sendAsGift, setSendAsGift] = useState(false); // board orders only: "gift for someone else"
-  const [recipientName, setRecipientName] = useState("");
-  const [deliveryAddress, setDeliveryAddress] = useState("");
-  const [giftMessage, setGiftMessage] = useState("");
-  const [locationId, setLocationId] = useState<string>("");
-  const [date, setDate] = useState<string>("");
-  const [customerName, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [notes, setNotes] = useState("");
+  const [isGift, setIsGift] = useState(resume ? draft.isGift : false);
+  const [sendAsGift, setSendAsGift] = useState(resume ? draft.sendAsGift : false); // board orders only: "gift for someone else"
+  const [recipientName, setRecipientName] = useState(resume ? draft.recipientName : "");
+  const [deliveryAddress, setDeliveryAddress] = useState(draft?.deliveryAddress ?? "");
+  const [giftMessage, setGiftMessage] = useState(resume ? draft.giftMessage : "");
+  const [locationId, setLocationId] = useState<string>(resume ? draft.locationId : "");
+  const [date, setDate] = useState<string>(resume ? draft.date : "");
+  const [customerName, setName] = useState(draft?.customerName ?? "");
+  const [phone, setPhone] = useState(draft?.phone ?? "");
+  const [email, setEmail] = useState(draft?.email ?? "");
+  const [notes, setNotes] = useState(draft?.notes ?? "");
 
   const [reorderContact, setReorderContact] = useState("");
   const [reorderBusy, setReorderBusy] = useState(false);
@@ -74,7 +112,11 @@ export default function Order() {
         setPlatters(ps);
         setLocations(ls);
         setLoaded(true);
-        if (isBoard && ls.length) setLocationId(ls[0].id); // single shop — no picker needed
+        if (isBoard && ls.length && !locationId) setLocationId(ls[0].id); // single shop — no picker needed
+        if (resume && draft.stepIdx > 0) {
+          setStepIdx(Math.min(draft.stepIdx, STEPS.length - 1)); // pick up where they left off
+          return;
+        }
         const pre = ps.find((p) => p.id === params.get("platter"));
         if (pre) {
           if (!isBoard) setHeadcount(pre.minHeadcount > 1 ? pre.minHeadcount : pre.isFixed ? 2 : 10);
@@ -90,6 +132,19 @@ export default function Order() {
     setAvailability(null);
     api.availability(locationId).then((r) => setAvailability(r.days)).catch((e) => setError(e.message));
   }, [locationId]);
+
+  // Keep the draft current so an app-switch/reload never loses the customer's progress.
+  useEffect(() => {
+    if (!loaded) return;
+    const d: OrderDraft = { platterId, headcount, isGift, sendAsGift, recipientName, deliveryAddress, giftMessage, locationId, date, customerName, phone, email, notes, stepIdx };
+    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* storage full/blocked — not worth breaking checkout */ }
+  }, [loaded, platterId, headcount, isGift, sendAsGift, recipientName, deliveryAddress, giftMessage, locationId, date, customerName, phone, email, notes, stepIdx]);
+
+  // Each step is a new "screen" to the customer — start it at the top, not wherever
+  // the last step's Continue button happened to leave the scroll position.
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [stepIdx]);
 
   const pricing = useMemo(() => {
     if (!platter) return null;
@@ -168,10 +223,12 @@ export default function Order() {
     };
     try {
       const { order } = await api.createOrder(body);
+      try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
       navigate(`/confirm/${order.ref}`);
     } catch (e: any) {
       setError(e.message || "Could not place order");
       setSubmitting(false);
+      window.scrollTo({ top: 0, behavior: "smooth" }); // the error notice renders at the top
     }
   }
 
@@ -244,7 +301,11 @@ export default function Order() {
         <section>
           <h1>Delivery details</h1>
           <p className="muted">Click &amp; Collect isn&apos;t live yet, so every board is delivered.</p>
-          <div className="field"><label>Delivery address</label><textarea className="input" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="House, street, town, postcode" /></div>
+          <div className="field">
+            <label>Delivery address</label>
+            <textarea className="input" autoComplete="street-address" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="House, street, town, postcode" />
+            <p className="field-hint muted-hint">Delivered fresh from our Bentley Heath deli.</p>
+          </div>
           <label className="toggle inline" style={{ marginTop: 8 }}>
             <input type="checkbox" checked={sendAsGift} onChange={(e) => setSendAsGift(e.target.checked)} />
             <span>This is a gift for someone else</span>
@@ -315,9 +376,17 @@ export default function Order() {
       {step === "contact" && (
         <section>
           <h1>Your details</h1>
-          <div className="field"><label htmlFor="name">Your name</label><input id="name" className="input" value={customerName} onChange={(e) => setName(e.target.value)} /></div>
-          <div className="field"><label htmlFor="phone">Phone</label><input id="phone" className="input" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
-          <div className="field"><label htmlFor="email">Email</label><input id="email" className="input" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+          <div className="field"><label htmlFor="name">Your name</label><input id="name" className="input" autoComplete="name" value={customerName} onChange={(e) => setName(e.target.value)} /></div>
+          <div className="field">
+            <label htmlFor="phone">Phone</label>
+            <input id="phone" className="input" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            {phone.trim().length > 0 && phone.trim().length < 5 && <p className="field-hint">That phone number looks too short.</p>}
+          </div>
+          <div className="field">
+            <label htmlFor="email">Email</label>
+            <input id="email" className="input" type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            {email.trim().length > 3 && !/\S+@\S+\.\S+/.test(email) && <p className="field-hint">That email doesn&apos;t look quite right — is a bit missing?</p>}
+          </div>
           <div className="field"><label htmlFor="notes">Allergies / dietary notes (optional)</label><textarea id="notes" className="input" value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
         </section>
       )}

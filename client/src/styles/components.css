@@ -322,6 +322,10 @@
 /* Skip rendering below-fold sections until scrolled near (perf). */
 .board-feature, .faq { content-visibility: auto; contain-intrinsic-size: auto 520px; }
 
+/* Inline form hints — gentle nudges, not shouty validation errors. */
+.field-hint { font-size: 0.8rem; color: #a4552e; margin: 6px 0 0; }
+.field-hint.muted-hint { color: var(--ink-soft); }
+
 /* Configure-your-own board */
 .configurator { margin-top: 20px; padding: 18px; }
 .configurator-h { font-family: var(--serif); font-size: 1.2rem; color: var(--ink); margin: 0 0 2px; }

@@ -44,6 +44,7 @@ export function CapacityCalendar({ days, selected, onSelect }: Props) {
         <span><i className="dot open" /> Available</span>
         <span><i className="dot limited" /> Filling up</span>
         <span><i className="dot full" /> Full</span>
+        <span>— Too soon (48hrs&apos; notice)</span>
       </div>
     </div>
   );
