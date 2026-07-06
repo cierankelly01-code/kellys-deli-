@@ -30,6 +30,26 @@ export function calcTotal(p: PlatterPricing, headcount: number, quantity = 1): n
   throw new Error("Platter has neither fixedPrice nor pricePerHead");
 }
 
+export interface ExtrasGroupInput {
+  includedFree: number; // this many of the selected options are free (cheapest first)
+  prices: number[]; // prices of the options the customer SELECTED in this group
+}
+
+/**
+ * Per-board extras charge for a build-your-own selection. Within each group the
+ * `includedFree` cheapest selections are free; every remaining selection adds its price.
+ * £0-priced options therefore never charge. Mirrored client-side in
+ * client/src/lib/boardPricing.ts (display only — this is the authoritative version).
+ */
+export function calcBoardExtras(groups: ExtrasGroupInput[]): number {
+  let extras = 0;
+  for (const g of groups) {
+    const sorted = [...g.prices].sort((a, b) => a - b);
+    for (const price of sorted.slice(Math.max(0, g.includedFree))) extras += price;
+  }
+  return toMoney(extras);
+}
+
 /** Apply a referral discount (£15 off), never below zero. */
 export function applyReferral(total: number, hasValidReferral: boolean): number {
   if (!hasValidReferral) return toMoney(total);
@@ -53,14 +73,21 @@ export interface PricedOrder {
   deposit: number; // 25% of total (flat £25 for board orders)
 }
 
-/** Full pricing for an order in one call. Pass `isBoardOrder` + `quantity` for the platter configurator. */
+/**
+ * Full pricing for an order in one call. Pass `isBoardOrder` + `quantity` for the platter
+ * configurator; `extrasPerBoard` (from calcBoardExtras) is added to each board's fixed price.
+ */
 export function priceOrder(
   p: PlatterPricing,
   headcount: number,
   hasValidReferral: boolean,
-  opts: { isBoardOrder?: boolean; quantity?: number } = {},
+  opts: { isBoardOrder?: boolean; quantity?: number; extrasPerBoard?: number } = {},
 ): PricedOrder {
-  const base = calcTotal(p, headcount, opts.quantity ?? 1);
+  const priced: PlatterPricing =
+    opts.extrasPerBoard && p.fixedPrice != null
+      ? { ...p, fixedPrice: toMoney(p.fixedPrice + opts.extrasPerBoard) }
+      : p;
+  const base = calcTotal(priced, headcount, opts.quantity ?? 1);
   const total = applyReferral(base, hasValidReferral);
   const discount = toMoney(base - total);
   const deposit = opts.isBoardOrder ? calcBoardDeposit(total) : calcDeposit(total);

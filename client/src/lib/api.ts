@@ -37,8 +37,22 @@ export interface BoardComponent {
   category: BoardComponentCategory;
   label: string;
   imageUrl: string | null;
+  price: number; // £ added when the selection exceeds the group's free allowance
+  isDefault: boolean; // pre-selected in the configurator
   active: boolean;
   sortOrder: number;
+}
+
+// Configurator group rules + options, from GET /api/board-config.
+export interface BoardGroup {
+  id: string;
+  key: BoardComponentCategory;
+  heading: string;
+  maxSelections: number | null; // null = unlimited
+  includedFree: number; // this many picks are free (cheapest first) before option prices apply
+  sortOrder: number;
+  active: boolean;
+  options: BoardComponent[];
 }
 
 export interface Experience {
@@ -214,6 +228,7 @@ export const api = {
   categories: () => req<CategoryCounts>("/api/categories"),
   locations: () => req<LocationT[]>("/api/locations"),
   boardComponents: () => req<BoardComponent[]>("/api/board-components"),
+  boardConfig: () => req<{ groups: BoardGroup[] }>("/api/board-config"),
   availability: (locationId: string, from?: string, days = 21) => {
     const q = new URLSearchParams({ locationId, days: String(days) });
     if (from) q.set("from", from);

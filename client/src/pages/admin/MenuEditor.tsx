@@ -42,6 +42,18 @@ function toDraft(p: AdminPlatter): Draft {
     boardType: p.boardType ?? "", size: p.size ?? "",
   };
 }
+// The API takes the whole platter on every save, so quick edits send the full
+// current row with just the changed fields swapped in (mirrors toDraft/save).
+function toUpsert(p: AdminPlatter): PlatterUpsertInput {
+  return {
+    category: p.category, name: p.name, description: p.description,
+    pricePerHead: p.pricePerHead, fixedPrice: p.fixedPrice, cost: p.cost,
+    serves: p.serves, minHeadcount: p.minHeadcount, items: p.items.map((i) => ({ ...i })),
+    imageUrl: p.imageUrl, active: p.active, sortOrder: p.sortOrder,
+    boardType: p.boardType, size: p.size,
+  };
+}
+
 function blankDraft(category: Category = "home"): Draft {
   return {
     id: null, category, name: "", description: "", pricingType: "fixed", price: "", cost: "", serves: "",
@@ -126,15 +138,19 @@ export default function MenuEditor() {
       {(["platters", "home", "events", "seasonal"] as Category[]).map((cat) => (
         <div key={cat}>
           <h2>{CATEGORY_LABEL[cat]}{cat === "seasonal" ? " (switch on by season)" : ""}</h2>
-          <div className="menu-chips">
+          <div className="bc-rows">
             {grouped[cat].map((p) => (
-              <button key={p.id} className={`chip ${!p.active ? "inactive" : ""} ${draft?.id === p.id ? "selected" : ""}`}
-                onClick={() => { setDraft(toDraft(p)); setMsg(null); setError(null); }}>
-                {p.name}{!p.active && <small> (hidden)</small>}
-              </button>
+              <PlatterQuickRow
+                key={`${p.id}-${p.fixedPrice}-${p.pricePerHead}-${p.active}`}
+                platter={p}
+                editing={draft?.id === p.id}
+                onEdit={() => { setDraft(toDraft(p)); setMsg(null); setError(null); }}
+                onChanged={refresh}
+                onError={setError}
+              />
             ))}
-            <button className="chip add" onClick={() => { setDraft(blankDraft(cat)); setMsg(null); setError(null); }}>+ New</button>
           </div>
+          <button className="chip add" style={{ marginTop: 8 }} onClick={() => { setDraft(blankDraft(cat)); setMsg(null); setError(null); }}>+ New</button>
         </div>
       ))}
 
@@ -222,6 +238,77 @@ export default function MenuEditor() {
       <h2>Locations &amp; daily capacity</h2>
       <p className="muted" style={{ marginTop: -6 }}>Max orders per day at each shop.</p>
       <div className="stack">{locations.map((l) => <LocationRow key={l.id} location={l} onSaved={refresh} />)}</div>
+    </div>
+  );
+}
+
+// Compact inline row: rename-free quick price/active edits + delete, "Edit" opens the full form.
+function PlatterQuickRow({
+  platter: p, editing, onEdit, onChanged, onError,
+}: {
+  platter: AdminPlatter; editing: boolean; onEdit: () => void; onChanged: () => void; onError: (m: string) => void;
+}) {
+  const [price, setPrice] = useState(String(p.isFixed ? p.fixedPrice : p.pricePerHead));
+  const [busy, setBusy] = useState(false);
+  const priceNum = parseFloat(price) || 0;
+  const dirty = priceNum > 0 && priceNum !== (p.isFixed ? p.fixedPrice : p.pricePerHead);
+
+  async function run(fn: () => Promise<unknown>) {
+    setBusy(true);
+    try {
+      await fn();
+      onChanged();
+    } catch (e: any) {
+      onError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const savePrice = () =>
+    run(() =>
+      adminApi.updatePlatter(p.id, {
+        ...toUpsert(p),
+        pricePerHead: p.isFixed ? null : priceNum,
+        fixedPrice: p.isFixed ? priceNum : null,
+      }),
+    );
+
+  return (
+    <div className={`bc-row ${!p.active ? "bc-row-hidden" : ""} ${editing ? "bc-row-editing" : ""}`}>
+      <span className="bc-row-label bc-row-name">
+        {p.name}
+        {p.size ? <small className="muted"> · {p.size}</small> : null}
+        {!p.active && <small className="muted"> (hidden)</small>}
+      </span>
+      <div className="bc-row-price">
+        <span className="muted">£</span>
+        <input
+          className="input" inputMode="decimal"
+          value={price} onChange={(e) => setPrice(e.target.value.replace(/[^0-9.]/g, ""))}
+        />
+        {!p.isFixed && <span className="muted">/head</span>}
+      </div>
+      <div className="bc-row-actions">
+        {dirty && <button className="btn bc-save" disabled={busy} onClick={savePrice}>Save</button>}
+        <button
+          className="icon-btn" disabled={busy} title={p.active ? "Hide from customers" : "Show to customers"}
+          onClick={() => run(() => adminApi.updatePlatter(p.id, { ...toUpsert(p), active: !p.active }))}
+        >
+          {p.active ? "👁" : "🚫"}
+        </button>
+        <button className="icon-btn" disabled={busy} title="Full editor (description, photo, prep items…)" onClick={onEdit}>✎</button>
+        <button
+          className="icon-btn danger" disabled={busy} title="Delete"
+          onClick={() => {
+            if (window.confirm(`Delete "${p.name}"? This can't be undone.`)) {
+              run(() => adminApi.deletePlatter(p.id));
+            }
+          }}
+        >
+          ✕
+        </button>
+      </div>
     </div>
   );
 }

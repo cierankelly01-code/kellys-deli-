@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { env } from "../lib/env";
-import { orderDTO, platterDTO, experienceDTO, locationDTO, boardComponentDTO, type PlatterItem } from "../lib/serialize";
+import { orderDTO, platterDTO, experienceDTO, locationDTO, boardComponentDTO, boardGroupDTO, type PlatterItem } from "../lib/serialize";
 import {
   platterUpsertSchema,
   experienceUpsertSchema,
@@ -10,6 +10,7 @@ import {
   settingSchema,
   blastSchema,
   boardComponentUpsertSchema,
+  boardGroupUpdateSchema,
 } from "../lib/validation";
 import { calcMargin } from "../lib/money";
 import { parseDate, formatDate } from "../lib/capacity";
@@ -220,6 +221,18 @@ adminRouter.patch("/platters/:id", async (req, res) => {
   res.json(platterDTO(updated, { includeCost: true }));
 });
 
+// Past orders reference platters by FK, so those can only be hidden, never deleted.
+adminRouter.delete("/platters/:id", async (req, res) => {
+  const exists = await prisma.platter.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Platter not found" });
+  const orderCount = await prisma.order.count({ where: { platterId: req.params.id } });
+  if (orderCount > 0) {
+    return res.status(409).json({ error: "This platter has past orders — hide it with the Active toggle instead of deleting" });
+  }
+  await prisma.platter.delete({ where: { id: req.params.id } });
+  res.json({ ok: true });
+});
+
 // =====================  Menu & Pricing — experiences  =====================
 adminRouter.get("/experiences", async (_req, res) => {
   const experiences = await prisma.experience.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] });
@@ -262,7 +275,7 @@ adminRouter.post("/board-components", async (req, res) => {
   const d = parsed.data;
   const count = await prisma.boardComponent.count();
   const created = await prisma.boardComponent.create({
-    data: { category: d.category, label: d.label, imageUrl: d.imageUrl ?? null, active: d.active ?? true, sortOrder: d.sortOrder ?? count },
+    data: { category: d.category, label: d.label, imageUrl: d.imageUrl ?? null, price: d.price ?? 0, isDefault: d.isDefault ?? false, active: d.active ?? true, sortOrder: d.sortOrder ?? count },
   });
   res.status(201).json(boardComponentDTO(created));
 });
@@ -275,9 +288,40 @@ adminRouter.patch("/board-components/:id", async (req, res) => {
   if (!exists) return res.status(404).json({ error: "Item not found" });
   const updated = await prisma.boardComponent.update({
     where: { id: req.params.id },
-    data: { category: d.category, label: d.label, imageUrl: d.imageUrl ?? null, active: d.active ?? exists.active, sortOrder: d.sortOrder ?? exists.sortOrder },
+    data: {
+      category: d.category,
+      label: d.label,
+      imageUrl: d.imageUrl ?? null,
+      price: d.price ?? Number(exists.price),
+      isDefault: d.isDefault ?? exists.isDefault,
+      active: d.active ?? exists.active,
+      sortOrder: d.sortOrder ?? exists.sortOrder,
+    },
   });
   res.json(boardComponentDTO(updated));
+});
+
+// Safe to hard-delete: past orders store ingredient labels, not FKs.
+adminRouter.delete("/board-components/:id", async (req, res) => {
+  const exists = await prisma.boardComponent.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Item not found" });
+  await prisma.boardComponent.delete({ where: { id: req.params.id } });
+  res.json({ ok: true });
+});
+
+// =====================  Board configurator group rules  =====================
+adminRouter.get("/board-groups", async (_req, res) => {
+  const groups = await prisma.boardComponentGroup.findMany({ orderBy: { sortOrder: "asc" } });
+  res.json(groups.map((g) => boardGroupDTO(g)));
+});
+
+adminRouter.patch("/board-groups/:id", async (req, res) => {
+  const parsed = boardGroupUpdateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid group" });
+  const exists = await prisma.boardComponentGroup.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Group not found" });
+  const updated = await prisma.boardComponentGroup.update({ where: { id: req.params.id }, data: parsed.data });
+  res.json(boardGroupDTO(updated));
 });
 
 // =====================  Locations  =====================

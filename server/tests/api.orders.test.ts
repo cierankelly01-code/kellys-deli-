@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import { createApp } from "../src/app";
 
@@ -73,5 +73,96 @@ d("POST /api/orders (platter + gift)", () => {
     const res = await request(app).post("/api/orders").send({ ...base(), platterId: office.id, headcount: 4 });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/[Mm]inimum headcount/);
+  });
+});
+
+d("POST /api/orders (board configurator pricing)", () => {
+  const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "owner@kellysdeli.co.uk";
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "changeme123";
+  let t = "";
+  let board: any;
+  let locationId = "";
+  let freeCheeseLabel = "";
+  let paidCheeseId = "";
+  const paidCheeseLabel = `Test Truffle Cheese ${Math.floor(Math.random() * 1e6)}`;
+
+  beforeAll(async () => {
+    t = (await request(app).post("/api/auth/login").send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })).body.token;
+    const platters = (await request(app).get("/api/platters?category=platters")).body as any[];
+    board = platters.find((p: any) => p.isFixed && p.boardType);
+    locationId = ((await request(app).get("/api/locations")).body as any[])[0].id;
+    const config = (await request(app).get("/api/board-config")).body;
+    const cheeses = config.groups.find((g: any) => g.key === "cheese");
+    freeCheeseLabel = cheeses.options.find((o: any) => o.price === 0).label;
+    // Temp priced cheese so we can exercise paid extras (cheese group has includedFree: 0).
+    const created = await request(app)
+      .post("/api/admin/board-components")
+      .set("Authorization", `Bearer ${t}`)
+      .send({ category: "cheese", label: paidCheeseLabel, price: 3.5 });
+    paidCheeseId = created.body.id;
+  });
+
+  afterAll(async () => {
+    if (paidCheeseId) {
+      await request(app).delete(`/api/admin/board-components/${paidCheeseId}`).set("Authorization", `Bearer ${t}`);
+    }
+  });
+
+  const base = () => ({
+    platterId: board.id,
+    headcount: 1,
+    collectionOrDeliveryDate: farDate(),
+    locationId,
+    customerName: "Board Buyer",
+    phone: uniqPhone(),
+    email: "board@example.com",
+  });
+
+  it("free selections keep the seeded all-free pricing (base = fixedPrice × qty, £25 deposit)", async () => {
+    const res = await request(app)
+      .post("/api/orders")
+      .send({ ...base(), quantity: 2, customItems: [freeCheeseLabel] });
+    expect(res.status).toBe(201);
+    expect(res.body.pricing.base).toBe(board.fixedPrice * 2);
+    expect(res.body.pricing.deposit).toBe(25);
+  });
+
+  it("adds a priced extra to each board before the quantity multiply", async () => {
+    const res = await request(app)
+      .post("/api/orders")
+      .send({ ...base(), quantity: 2, customItems: [freeCheeseLabel, paidCheeseLabel] });
+    expect(res.status).toBe(201);
+    expect(res.body.pricing.base).toBeCloseTo((board.fixedPrice + 3.5) * 2, 2);
+    expect(res.body.pricing.deposit).toBe(25);
+    expect(res.body.order.customItems).toContain(paidCheeseLabel);
+  });
+
+  it("rejects selections beyond a group's maxSelections (400 naming the group)", async () => {
+    const groups = (await request(app).get(`/api/admin/board-groups`).set("Authorization", `Bearer ${t}`)).body as any[];
+    const cheese = groups.find((g) => g.key === "cheese");
+    await request(app)
+      .patch(`/api/admin/board-groups/${cheese.id}`)
+      .set("Authorization", `Bearer ${t}`)
+      .send({ maxSelections: 1 });
+    try {
+      const res = await request(app)
+        .post("/api/orders")
+        .send({ ...base(), quantity: 1, customItems: [freeCheeseLabel, paidCheeseLabel] });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/only pick 1/);
+    } finally {
+      await request(app)
+        .patch(`/api/admin/board-groups/${cheese.id}`)
+        .set("Authorization", `Bearer ${t}`)
+        .send({ maxSelections: cheese.maxSelections ?? null });
+    }
+  });
+
+  it("still rejects orders whose chosen items are all stale (400)", async () => {
+    const res = await request(app)
+      .post("/api/orders")
+      .send({ ...base(), quantity: 1, customItems: ["Not A Real Ingredient"] });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/no longer available/);
   });
 });

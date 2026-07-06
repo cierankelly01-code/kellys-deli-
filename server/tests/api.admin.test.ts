@@ -85,6 +85,89 @@ d("tastings coming soon (default)", () => {
   });
 });
 
+d("board config admin (groups, components, platter delete)", () => {
+  let t = "";
+  beforeAll(async () => {
+    t = await token();
+  });
+  const authed = (method: "get" | "post" | "patch" | "delete", url: string) =>
+    request(app)[method](url).set("Authorization", `Bearer ${t}`);
+
+  it("lists the five fixed group rules", async () => {
+    const res = await authed("get", "/api/admin/board-groups");
+    expect(res.status).toBe(200);
+    const keys = res.body.map((g: any) => g.key).sort();
+    expect(keys).toEqual(["cheese", "cracker", "jam", "meat", "savoury"]);
+  });
+
+  it("updates group rules and restores them", async () => {
+    const meat = (await authed("get", "/api/admin/board-groups")).body.find((g: any) => g.key === "meat");
+    const res = await authed("patch", `/api/admin/board-groups/${meat.id}`).send({
+      heading: "Test Meats", maxSelections: 2, includedFree: 1,
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.heading).toBe("Test Meats");
+    expect(res.body.maxSelections).toBe(2);
+    expect(res.body.includedFree).toBe(1);
+    const restored = await authed("patch", `/api/admin/board-groups/${meat.id}`).send({
+      heading: meat.heading, maxSelections: meat.maxSelections ?? null, includedFree: meat.includedFree,
+    });
+    expect(restored.body.heading).toBe(meat.heading);
+  });
+
+  it("rejects invalid group rules (400)", async () => {
+    const meat = (await authed("get", "/api/admin/board-groups")).body.find((g: any) => g.key === "meat");
+    expect((await authed("patch", `/api/admin/board-groups/${meat.id}`).send({ includedFree: -1 })).status).toBe(400);
+  });
+
+  it("creates a component with price + isDefault, updates it, then deletes it", async () => {
+    const label = `Test Chilli Jam ${Math.floor(Math.random() * 1e6)}`;
+    const created = await authed("post", "/api/admin/board-components").send({
+      category: "jam", label, price: 1.25, isDefault: false,
+    });
+    expect(created.status).toBe(201);
+    expect(created.body.price).toBe(1.25);
+    expect(created.body.isDefault).toBe(false);
+
+    const patched = await authed("patch", `/api/admin/board-components/${created.body.id}`).send({
+      category: "jam", label, price: 2, isDefault: true,
+    });
+    expect(patched.body.price).toBe(2);
+    expect(patched.body.isDefault).toBe(true);
+
+    expect((await authed("delete", `/api/admin/board-components/${created.body.id}`)).body.ok).toBe(true);
+    const all = (await authed("get", "/api/admin/board-components")).body as any[];
+    expect(all.some((c) => c.id === created.body.id)).toBe(false);
+  });
+
+  it("rejects component labels containing commas (400)", async () => {
+    const res = await authed("post", "/api/admin/board-components").send({ category: "jam", label: "Fig, Chilli" });
+    expect(res.status).toBe(400);
+  });
+
+  it("deletes a platter with no orders; 409s one that has orders", async () => {
+    const payload = {
+      category: "home", name: `Test Platter ${Math.floor(Math.random() * 1e6)}`, description: "temp",
+      fixedPrice: 30, cost: 10, minHeadcount: 1, items: [{ label: "Thing", qtyPerUnit: 1 }],
+    };
+    const clean = await authed("post", "/api/admin/platters").send(payload);
+    expect(clean.status).toBe(201);
+    expect((await authed("delete", `/api/admin/platters/${clean.body.id}`)).body.ok).toBe(true);
+
+    const withOrder = await authed("post", "/api/admin/platters").send({ ...payload, name: `${payload.name} B` });
+    const locationId = ((await request(app).get("/api/locations")).body as any[])[0].id;
+    await request(app).post("/api/orders").send({
+      platterId: withOrder.body.id, headcount: 1, collectionOrDeliveryDate: farDate(), locationId,
+      customerName: "Blocker", phone: uniqPhone(), email: "b@example.com",
+    });
+    const res = await authed("delete", `/api/admin/platters/${withOrder.body.id}`);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/Active toggle/);
+    // tidy: hide the temp platter (can't delete it now, by design)
+    await authed("patch", `/api/admin/platters/${withOrder.body.id}`).send({ ...payload, name: `${payload.name} B`, active: false });
+  });
+});
+
 d("experience booking + capacity", () => {
   let experience: any;
   let locationId = "";

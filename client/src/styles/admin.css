@@ -149,6 +149,51 @@
   padding: 12px; font-size: 0.92rem; margin: 12px 0; white-space: pre-wrap;
 }
 
+/* Inline row editors (Menu quick-edit + Board Ingredients) */
+.bc-rows { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.bc-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: #fff; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 10px;
+}
+.bc-row-hidden { opacity: 0.55; }
+.bc-row-editing { border-color: var(--brick); }
+.bc-row .input { min-height: 44px; margin: 0; }
+.bc-row-label { flex: 1 1 140px; min-width: 120px; }
+.bc-row-name { font-weight: 700; padding: 6px 2px; }
+.bc-row-price { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+.bc-row-price .input { width: 72px; text-align: right; font-weight: 700; }
+.bc-row-default { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--ink-soft); cursor: pointer; white-space: nowrap; }
+.bc-row-default input { width: 20px; height: 20px; }
+.bc-row-actions { display: flex; gap: 6px; align-items: center; margin-left: auto; }
+.bc-save { width: auto; padding: 8px 14px; min-height: 44px; }
+
+.bc-rules { padding: 12px 14px; margin-bottom: 10px; }
+.bc-rules-nums { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.bc-rules-nums .field { flex: 0 1 130px; margin: 0; }
+.bc-rules-nums .btn { min-height: 46px; }
+.bc-hint { font-size: 0.82rem; margin: 8px 0 0; }
+
+/* Mobile-first data entry: owner updates the menu from a phone in the deli. */
+@media (max-width: 640px) {
+  .admin-main h1 { font-size: 1.35rem; }
+  /* 16px inputs stop iOS Safari zooming on focus; 44px targets per Apple HIG. */
+  .admin .input, .admin select, .admin textarea { font-size: 16px; min-height: 46px; }
+  .admin .btn, .admin .chip, .admin .icon-btn { min-height: 44px; }
+  .icon-btn { width: 44px; }
+  .admin-nav { -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .admin-nav::-webkit-scrollbar { display: none; }
+  .price-row { flex-direction: column; gap: 0; }
+  .stat-cards { grid-template-columns: 1fr; }
+  /* Keep Save/Cancel reachable however long the form is. */
+  .card.editor .nav-row {
+    position: sticky; bottom: 0; background: #fff; padding: 12px 0 10px;
+    border-top: 1px solid var(--line); margin: 12px -2px 0; z-index: 5;
+  }
+  .bc-row { padding: 10px; }
+  .bc-row-label { flex-basis: 100%; }
+  .bc-row-actions { margin-left: 0; flex: 1 1 auto; justify-content: flex-end; }
+}
+
 /* Print: show only the prep sheet, big and clean */
 @media print {
   .no-print, .admin-top, .admin-nav { display: none !important; }

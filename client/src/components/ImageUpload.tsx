@@ -1,5 +1,6 @@
 import { useState, type ChangeEvent } from "react";
 import { adminApi } from "../lib/admin";
+import { compressImage } from "../lib/compressImage";
 
 export function ImageUpload({ value, onChange, label = "Photo" }: { value: string; onChange: (url: string) => void; label?: string }) {
   const [busy, setBusy] = useState(false);
@@ -10,7 +11,7 @@ export function ImageUpload({ value, onChange, label = "Photo" }: { value: strin
     setBusy(true);
     setErr(null);
     try {
-      const { url } = await adminApi.uploadImage(file);
+      const { url } = await adminApi.uploadImage(await compressImage(file));
       onChange(url);
     } catch (ex: any) {
       setErr(ex.message);

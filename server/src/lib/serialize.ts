@@ -1,6 +1,6 @@
 // Convert Prisma rows (with Decimal/Date types) into plain JSON-friendly DTOs
 // with numbers and 'YYYY-MM-DD' date strings, so the client never deals with Decimal.
-import type { Platter, Location, Order, Customer, Experience, BoardComponent } from "@prisma/client";
+import type { Platter, Location, Order, Customer, Experience, BoardComponent, BoardComponentGroup } from "@prisma/client";
 import { formatDate } from "./capacity";
 
 const num = (d: unknown): number | null => (d == null ? null : Number(d));
@@ -40,8 +40,23 @@ export function boardComponentDTO(c: BoardComponent) {
     category: c.category,
     label: c.label,
     imageUrl: c.imageUrl,
+    price: Number(c.price),
+    isDefault: c.isDefault,
     active: c.active,
     sortOrder: c.sortOrder,
+  };
+}
+
+export function boardGroupDTO(g: BoardComponentGroup, options?: BoardComponent[]) {
+  return {
+    id: g.id,
+    key: g.key,
+    heading: g.heading,
+    maxSelections: g.maxSelections,
+    includedFree: g.includedFree,
+    sortOrder: g.sortOrder,
+    active: g.active,
+    ...(options ? { options: options.map(boardComponentDTO) } : {}),
   };
 }
 

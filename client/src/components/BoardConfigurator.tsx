@@ -1,28 +1,12 @@
-import { useEffect, useState } from "react";
-import { api, type Platter, type BoardComponent, type BoardComponentCategory, type BoardSize } from "../lib/api";
+import { useEffect, useMemo, useState } from "react";
+import { api, type Platter, type BoardGroup, type BoardSize } from "../lib/api";
+import { extrasForSelection } from "../lib/boardPricing";
 import { gbp } from "../lib/format";
 
-const CATEGORY_LABEL: Record<BoardComponentCategory, string> = {
-  cheese: "Choose your cheeses",
-  meat: "Add a meat (optional)",
-  savoury: "Included as standard — swap anything you don't want",
-  cracker: "Your crackers",
-  jam: "Your chutney or jam",
-};
-// Multi-select categories: pick any number. Single-select: exactly one, always included.
-const SINGLE_SELECT: BoardComponentCategory[] = ["cracker", "jam"];
+// All configurator behaviour (headings, selection limits, defaults, extra charges) is
+// admin-managed via /api/board-config — nothing menu-related is hardcoded here.
 const SIZE_ORDER: BoardSize[] = ["small", "medium", "large"];
 const SIZE_LABEL: Record<BoardSize, string> = { small: "Small", medium: "Medium", large: "Large" };
-
-function groupByCategory(components: BoardComponent[]): Map<BoardComponentCategory, BoardComponent[]> {
-  const grouped = new Map<BoardComponentCategory, BoardComponent[]>();
-  for (const c of [...components].sort((a, b) => a.sortOrder - b.sortOrder)) {
-    const list = grouped.get(c.category) ?? [];
-    list.push(c);
-    grouped.set(c.category, list);
-  }
-  return grouped;
-}
 
 export function BoardConfigurator({
   customPlatters,
@@ -31,56 +15,62 @@ export function BoardConfigurator({
   customPlatters: Platter[];
   onAdd: (platterId: string, quantity: number, customItems: string[]) => void;
 }) {
-  const [components, setComponents] = useState<BoardComponent[] | null>(null);
+  const [groups, setGroups] = useState<BoardGroup[] | null>(null);
   const [size, setSize] = useState<BoardSize>(
     customPlatters.find((p) => p.size === "medium")?.size ?? (customPlatters[0].size as BoardSize),
   );
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [maxHint, setMaxHint] = useState<string | null>(null);
+
   const [qty, setQty] = useState(1);
 
   useEffect(() => {
-    api.boardComponents().then(setComponents).catch(() => setComponents([]));
+    api.boardConfig().then((c) => setGroups(c.groups)).catch(() => setGroups([]));
   }, []);
 
-  // Standard board extras come pre-picked (customer can still deselect to swap them out).
-  // Single-select categories (crackers, jam) default to whichever the deli lists first.
+  // Pre-select the deli's defaults. A single-pick group with no default falls back to
+  // its first option, so crackers/jam always start with something included.
   useEffect(() => {
-    if (!components || components.length === 0) return;
+    if (!groups || groups.length === 0) return;
     setSelected((prev) => {
       if (prev.size > 0) return prev; // don't clobber choices already made
-      const grouped = groupByCategory(components);
       const next = new Set<string>();
-      const standard = ["Salami", "Stuffed Peppers", "Mixed Olives"];
-      for (const label of standard) {
-        if (grouped.get("savoury")?.some((c) => c.label === label)) next.add(label);
-      }
-      for (const cat of SINGLE_SELECT) {
-        const first = grouped.get(cat)?.[0];
-        if (first) next.add(first.label);
+      for (const g of groups) {
+        const defaults = g.options.filter((o) => o.isDefault);
+        for (const o of defaults) next.add(o.label);
+        if (defaults.length === 0 && g.maxSelections === 1 && g.options[0]) next.add(g.options[0].label);
       }
       return next;
     });
-  }, [components]);
+  }, [groups]);
 
   const platter = customPlatters.find((p) => p.size === size) ?? customPlatters[0];
-  const grouped = groupByCategory(components ?? []);
 
-  function toggle(category: BoardComponentCategory, label: string) {
+  function toggle(group: BoardGroup, label: string) {
+    setMaxHint(null);
     setSelected((prev) => {
       const next = new Set(prev);
-      if (SINGLE_SELECT.includes(category)) {
-        for (const item of grouped.get(category) ?? []) next.delete(item.label);
-        next.add(label);
-      } else if (next.has(label)) {
+      if (next.has(label)) {
         next.delete(label);
-      } else {
-        next.add(label);
+        return next;
       }
+      const picked = group.options.filter((o) => next.has(o.label));
+      if (group.maxSelections != null && picked.length >= group.maxSelections) {
+        if (group.maxSelections === 1) {
+          for (const o of picked) next.delete(o.label); // radio behaviour: swap
+        } else {
+          setMaxHint(`${group.heading}: max ${group.maxSelections}`);
+          return prev;
+        }
+      }
+      next.add(label);
       return next;
     });
   }
 
-  const hasCheese = [...selected].some((l) => grouped.get("cheese")?.some((c) => c.label === l));
+  const cheeseGroup = groups?.find((g) => g.key === "cheese");
+  const hasCheese = !cheeseGroup || cheeseGroup.options.some((o) => selected.has(o.label));
+  const extras = useMemo(() => (groups ? extrasForSelection(groups, selected) : 0), [groups, selected]);
 
   return (
     <div className="card configurator">
@@ -99,26 +89,26 @@ export function BoardConfigurator({
             );
           })}
         </div>
-        {platter.serves && <p className="muted board-feature-serves">Serves {platter.serves}</p>}
       </div>
+      {platter.serves && <p className="muted board-feature-serves">Serves {platter.serves}</p>}
 
-      {!components && <p className="muted center">Loading ingredients…</p>}
+      {!groups && <p className="muted center">Loading ingredients…</p>}
 
-      {(["cheese", "meat", "savoury", "cracker", "jam"] as BoardComponentCategory[]).map((cat) => {
-        const items = grouped.get(cat);
-        if (!items || items.length === 0) return null;
+      {groups?.map((g) => {
+        if (g.options.length === 0) return null;
         return (
-          <div className="field" key={cat}>
-            <label>{CATEGORY_LABEL[cat]}</label>
+          <div className="field" key={g.id}>
+            <label>{g.heading}</label>
             <div className="chip-select">
-              {items.map((c) => (
+              {g.options.map((c) => (
                 <button
                   key={c.id}
                   type="button"
                   className={`chip ${selected.has(c.label) ? "selected" : ""}`}
-                  onClick={() => toggle(cat, c.label)}
+                  onClick={() => toggle(g, c.label)}
                 >
                   {c.label}
+                  {c.price > 0 && <span className="chip-price">+{gbp(c.price)}</span>}
                 </button>
               ))}
             </div>
@@ -126,7 +116,14 @@ export function BoardConfigurator({
         );
       })}
 
+      {maxHint && <p className="muted" style={{ fontSize: "0.85rem" }}>{maxHint}</p>}
       {!hasCheese && <p className="muted" style={{ fontSize: "0.85rem" }}>Pick at least one cheese to continue.</p>}
+
+      {extras > 0 && (
+        <p className="muted" style={{ fontSize: "0.85rem" }}>
+          Extras +{gbp(extras)} per board
+        </p>
+      )}
 
       <div className="buy-bar">
         <div className="buy-bar-qty">
@@ -139,7 +136,7 @@ export function BoardConfigurator({
           disabled={!hasCheese}
           onClick={() => onAdd(platter.id, qty, [...selected])}
         >
-          Add · {gbp(platter.fixedPrice! * qty)}
+          Add · {gbp((platter.fixedPrice! + extras) * qty)}
         </button>
       </div>
       <p className="buy-reassure">Just £25 today · balance on delivery · 48hrs notice</p>

@@ -6,12 +6,12 @@ import {
   availabilityQuerySchema,
   experienceAvailabilityQuerySchema,
 } from "../lib/validation";
-import { priceOrder } from "../lib/money";
+import { priceOrder, calcBoardExtras, type ExtrasGroupInput } from "../lib/money";
 import { buildAvailability, canBook, getDayAvailability, meetsNotice, parseDate, formatDate } from "../lib/capacity";
 import { genRef, randomReferralCode } from "../lib/ref";
 import { captureDepositIntent } from "../lib/payments";
 import { notifyOrderReceived } from "../lib/notify";
-import { platterDTO, experienceDTO, locationDTO, orderDTO, boardComponentDTO } from "../lib/serialize";
+import { platterDTO, experienceDTO, locationDTO, orderDTO, boardComponentDTO, boardGroupDTO } from "../lib/serialize";
 
 export const publicRouter = Router();
 
@@ -68,6 +68,21 @@ publicRouter.get("/board-components", async (_req, res) => {
     orderBy: [{ category: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
   });
   res.json(rows.map(boardComponentDTO));
+});
+
+// Configurator groups with their options nested — rules (headings, limits, free allowance)
+// plus each option's price/isDefault. The configurator UI is driven entirely by this.
+publicRouter.get("/board-config", async (_req, res) => {
+  const [groups, components] = await Promise.all([
+    prisma.boardComponentGroup.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
+    prisma.boardComponent.findMany({
+      where: { active: true },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    }),
+  ]);
+  res.json({
+    groups: groups.map((g) => boardGroupDTO(g, components.filter((c) => c.category === g.key))),
+  });
 });
 
 // Which categories should the choice screen show? (those with ≥1 active platter)
@@ -215,21 +230,38 @@ publicRouter.post("/orders", async (req, res) => {
   const isBoardOrder = platter.category === "platters";
   const quantity = isBoardOrder ? input.quantity ?? 1 : undefined;
 
-  // "Build your own" — validate chosen ingredients are real, active BoardComponent labels.
+  // "Build your own" — validate chosen ingredients are real, active BoardComponent labels,
+  // enforce each group's selection limit, and price any extras beyond the free allowance.
   let customItems: string[] | null = null;
+  let extrasPerBoard = 0;
   if (isBoardOrder && input.customItems && input.customItems.length > 0) {
-    const active = await prisma.boardComponent.findMany({ where: { active: true }, select: { label: true } });
-    const validLabels = new Set(active.map((c) => c.label));
-    const chosen = input.customItems.filter((l) => validLabels.has(l));
+    const [active, groups] = await Promise.all([
+      prisma.boardComponent.findMany({ where: { active: true }, select: { label: true, category: true, price: true } }),
+      prisma.boardComponentGroup.findMany({ where: { active: true } }),
+    ]);
+    const byLabel = new Map(active.map((c) => [c.label, c]));
+    const chosen = input.customItems.filter((l) => byLabel.has(l));
     if (chosen.length === 0) return res.status(400).json({ error: "Chosen board items are no longer available" });
     customItems = chosen;
+
+    const extrasInput: ExtrasGroupInput[] = [];
+    for (const group of groups) {
+      const picks = chosen.filter((l) => byLabel.get(l)!.category === group.key);
+      if (group.maxSelections != null && picks.length > group.maxSelections) {
+        return res.status(400).json({
+          error: `You can only pick ${group.maxSelections} from "${group.heading}"`,
+        });
+      }
+      extrasInput.push({ includedFree: group.includedFree, prices: picks.map((l) => Number(byLabel.get(l)!.price)) });
+    }
+    extrasPerBoard = calcBoardExtras(extrasInput);
   }
 
   const pricing = priceOrder(
     { pricePerHead: platter.pricePerHead ? Number(platter.pricePerHead) : null, fixedPrice: platter.fixedPrice ? Number(platter.fixedPrice) : null },
     input.headcount,
     referrerCode != null,
-    { isBoardOrder, quantity },
+    { isBoardOrder, quantity, extrasPerBoard },
   );
 
   // First-order hook: free item for a customer's first catering order, if enabled.

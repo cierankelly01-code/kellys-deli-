@@ -49,15 +49,32 @@ model Platter {
 // Admin-managed ingredient picker for the "build your own" charcuterie board.
 model BoardComponent {
   id        String   @id @default(cuid())
-  category  String // cheese | meat | savoury | extra
+  category  String // cheese | meat | savoury | cracker | jam (= BoardComponentGroup.key)
   label     String
   imageUrl  String?
+  // Charged when the selection exceeds the group's includedFree allowance (cheapest picks are free).
+  price     Decimal  @default(0) @db.Decimal(10, 2)
+  isDefault Boolean  @default(false) // pre-selected in the customer configurator
   active    Boolean  @default(true)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([category])
+}
+
+// Per-group configurator rules (headings, selection limits, free allowance).
+// Fixed set of five rows keyed by BoardComponent.category — admin edits rules, never creates groups.
+model BoardComponentGroup {
+  id            String   @id @default(cuid())
+  key           String   @unique // cheese | meat | savoury | cracker | jam
+  heading       String // customer-facing section heading
+  maxSelections Int? // null = unlimited
+  includedFree  Int      @default(0) // this many selections are free; beyond that, option prices apply
+  sortOrder     Int      @default(0)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model Experience {

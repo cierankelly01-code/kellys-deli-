@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { api, type Platter, type LocationT, type DayAvailability, type CreateOrderInput, type Category } from "../lib/api";
+import { api, type Platter, type LocationT, type DayAvailability, type CreateOrderInput, type Category, type BoardGroup } from "../lib/api";
+import { extrasForSelection } from "../lib/boardPricing";
 import { gbp, formatDate } from "../lib/format";
 import { Header } from "../components/Header";
 import { CapacityCalendar } from "../components/CapacityCalendar";
@@ -98,6 +99,14 @@ export default function Order() {
   const [reorderBusy, setReorderBusy] = useState(false);
   const [reorderInfo, setReorderInfo] = useState<string | null>(null);
 
+  // Group rules/prices, for the extras price preview only — the server reprices on submit.
+  const [boardGroups, setBoardGroups] = useState<BoardGroup[]>([]);
+  useEffect(() => {
+    if (!isBoard || customItems.length === 0) return;
+    api.boardConfig().then((c) => setBoardGroups(c.groups)).catch(() => setBoardGroups([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [availability, setAvailability] = useState<DayAvailability[] | null>(null);
   const [stepIdx, setStepIdx] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -146,14 +155,22 @@ export default function Order() {
     window.scrollTo({ top: 0 });
   }, [stepIdx]);
 
+  // Board orders reuse `headcount` as the board quantity; priced extras apply per board.
+  const extrasPerBoard = useMemo(
+    () => (isBoard && customItems.length ? extrasForSelection(boardGroups, new Set(customItems)) : 0),
+    [isBoard, customItems, boardGroups],
+  );
+
   const pricing = useMemo(() => {
     if (!platter) return null;
-    const base = platter.isFixed ? platter.fixedPrice! * (isBoard ? headcount : 1) : platter.pricePerHead! * headcount;
+    const base = platter.isFixed
+      ? (platter.fixedPrice! + extrasPerBoard) * (isBoard ? headcount : 1)
+      : platter.pricePerHead! * headcount;
     const discount = referralCode ? Math.min(15, base) : 0;
     const total = round2(Math.max(0, base - discount));
     const deposit = isBoard ? round2(Math.min(BOARD_DEPOSIT, total)) : round2(total * 0.25);
     return { base: round2(base), discount: round2(discount), total, deposit };
-  }, [platter, headcount, referralCode, isBoard]);
+  }, [platter, headcount, referralCode, isBoard, extrasPerBoard]);
 
   const step = STEPS[stepIdx];
 
@@ -398,7 +415,18 @@ export default function Order() {
           <div className="card review">
             <Row label="Platter" value={platter.name} />
             <Row label={isBoard ? "Boards" : platter.isFixed ? "Guests" : "People"} value={String(headcount)} />
-            {isBoard && customItems.length > 0 && <Row label="Your selection" value={customItems.join(", ")} />}
+            {isBoard && customItems.length > 0 && (
+              <Row
+                label="Your selection"
+                value={customItems
+                  .map((l) => {
+                    const opt = boardGroups.flatMap((g) => g.options).find((o) => o.label === l);
+                    return opt && opt.price > 0 ? `${l} (+${gbp(opt.price)})` : l;
+                  })
+                  .join(", ")}
+              />
+            )}
+            {isBoard && extrasPerBoard > 0 && <Row label="Extras" value={`+${gbp(extrasPerBoard)} per board`} />}
             <Row label={dateLabel} value={date ? formatDate(date) : "—"} />
             {isBoard && <Row label="Deliver to" value={sendAsGift ? recipientName : customerName} />}
             <Row label="Address" value={deliveryAddress} />

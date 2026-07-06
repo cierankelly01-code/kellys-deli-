@@ -4,6 +4,7 @@ import {
   calcTotal,
   calcDeposit,
   calcBoardDeposit,
+  calcBoardExtras,
   applyReferral,
   calcMargin,
   orderProfit,
@@ -114,6 +115,58 @@ describe("priceOrder", () => {
       total: 90,
       deposit: 25,
     });
+  });
+  it("adds extras to each board's price before the quantity multiply", () => {
+    // (45 + 3.50) × 2 = 97
+    expect(
+      priceOrder({ pricePerHead: null, fixedPrice: 45 }, 1, false, { isBoardOrder: true, quantity: 2, extrasPerBoard: 3.5 }),
+    ).toEqual({ base: 97, discount: 0, total: 97, deposit: 25 });
+  });
+  it("extras combine with referral discount and the deposit cap", () => {
+    // (10 + 2) × 1 = 12, minus £15 referral => 0 total, deposit capped at 0
+    expect(
+      priceOrder({ pricePerHead: null, fixedPrice: 10 }, 1, true, { isBoardOrder: true, quantity: 1, extrasPerBoard: 2 }),
+    ).toEqual({ base: 12, discount: 12, total: 0, deposit: 0 });
+  });
+  it("zero extras changes nothing", () => {
+    expect(
+      priceOrder({ pricePerHead: null, fixedPrice: 45 }, 1, false, { isBoardOrder: true, quantity: 1, extrasPerBoard: 0 }),
+    ).toEqual({ base: 45, discount: 0, total: 45, deposit: 25 });
+  });
+});
+
+describe("calcBoardExtras", () => {
+  it("is zero for no groups or no selections", () => {
+    expect(calcBoardExtras([])).toBe(0);
+    expect(calcBoardExtras([{ includedFree: 0, prices: [] }])).toBe(0);
+  });
+  it("is zero when every selected option is free (current seeded behaviour)", () => {
+    expect(calcBoardExtras([{ includedFree: 0, prices: [0, 0, 0] }])).toBe(0);
+  });
+  it("is zero when includedFree covers all selections", () => {
+    expect(calcBoardExtras([{ includedFree: 3, prices: [2, 3.5, 1] }])).toBe(0);
+    expect(calcBoardExtras([{ includedFree: 5, prices: [2, 3.5] }])).toBe(0);
+  });
+  it("charges only beyond the includedFree allowance, cheapest picks free first", () => {
+    // free allowance eats the £0 pick; the £2 cracker charges
+    expect(calcBoardExtras([{ includedFree: 1, prices: [2, 0] }])).toBe(2);
+    // 1 free of [3, 1, 2] => £1 free, charge 2 + 3
+    expect(calcBoardExtras([{ includedFree: 1, prices: [3, 1, 2] }])).toBe(5);
+  });
+  it("handles equal prices (first 3 cheeses free, 4th charges)", () => {
+    expect(calcBoardExtras([{ includedFree: 3, prices: [3, 3, 3, 3] }])).toBe(3);
+  });
+  it("sums across groups", () => {
+    expect(
+      calcBoardExtras([
+        { includedFree: 3, prices: [3, 3, 3, 3] }, // +3
+        { includedFree: 1, prices: [2.5] }, // covered
+        { includedFree: 0, prices: [0, 1.25] }, // +1.25
+      ]),
+    ).toBe(4.25);
+  });
+  it("rounds to 2dp", () => {
+    expect(calcBoardExtras([{ includedFree: 0, prices: [0.1, 0.2] }])).toBe(0.3);
   });
 });
 

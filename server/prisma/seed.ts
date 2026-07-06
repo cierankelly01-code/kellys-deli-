@@ -246,21 +246,46 @@ async function main() {
     { id: "bc-goats", category: "cheese", label: "Goats Cheese", sortOrder: 5 },
     { id: "bc-ham", category: "meat", label: "Sliced Ham", sortOrder: 1 },
     { id: "bc-turkey", category: "meat", label: "Sliced Turkey", sortOrder: 2 },
-    { id: "bc-salami", category: "savoury", label: "Salami", sortOrder: 1 },
-    { id: "bc-peppers", category: "savoury", label: "Stuffed Peppers", sortOrder: 2 },
-    { id: "bc-olives", category: "savoury", label: "Mixed Olives", sortOrder: 3 },
+    { id: "bc-salami", category: "savoury", label: "Salami", sortOrder: 1, isDefault: true },
+    { id: "bc-peppers", category: "savoury", label: "Stuffed Peppers", sortOrder: 2, isDefault: true },
+    { id: "bc-olives", category: "savoury", label: "Mixed Olives", sortOrder: 3, isDefault: true },
     { id: "bc-onions", category: "savoury", label: "Balsamic Onions", sortOrder: 4 },
-    // Crackers/jam are always included — this is a real choice of which one, not whether. Sort order
-    // 1 is the default that comes pre-picked. PLACEHOLDER labels — edit in admin Board Ingredients to match real stock.
-    { id: "bc-crackers", category: "cracker", label: "Table Water Crackers", sortOrder: 1 },
+    // Crackers/jam are always included — this is a real choice of which one, not whether. The
+    // isDefault one comes pre-picked. PLACEHOLDER labels — edit in admin Board Ingredients to match real stock.
+    { id: "bc-crackers", category: "cracker", label: "Table Water Crackers", sortOrder: 1, isDefault: true },
     { id: "bc-crackers-seeded", category: "cracker", label: "Seeded Crackers", sortOrder: 2 },
     { id: "bc-crackers-gf", category: "cracker", label: "Gluten-Free Crackers", sortOrder: 3 },
-    { id: "bc-chutney", category: "jam", label: "Red Onion Chutney", sortOrder: 1 },
+    { id: "bc-chutney", category: "jam", label: "Red Onion Chutney", sortOrder: 1, isDefault: true },
     { id: "bc-jam-fig", category: "jam", label: "Fig Chutney", sortOrder: 2 },
     { id: "bc-jam-apricot", category: "jam", label: "Apricot Jam", sortOrder: 3 },
   ];
+  // update: {} — the owner edits these in admin; a reseed must only fill gaps, never clobber.
   for (const c of boardComponents) {
-    await prisma.boardComponent.upsert({ where: { id: c.id }, update: c, create: { ...c, active: true } });
+    await prisma.boardComponent.upsert({ where: { id: c.id }, update: {}, create: { ...c, active: true } });
+  }
+  // One-time backfill for rows seeded before isDefault existed: only if the owner hasn't
+  // marked any defaults yet (so this never overrides a deliberate admin choice).
+  const defaultCount = await prisma.boardComponent.count({ where: { isDefault: true } });
+  if (defaultCount === 0) {
+    await prisma.boardComponent.updateMany({
+      where: { id: { in: ["bc-salami", "bc-peppers", "bc-olives", "bc-crackers", "bc-chutney"] } },
+      data: { isDefault: true },
+    });
+  }
+
+  // --- Configurator group rules (BoardComponentGroup) ---
+  // Fixed set of five rows keyed by BoardComponent.category. Headings/limits mirror the copy
+  // that used to be hardcoded in the client configurator. includedFree = how many of the
+  // customer's picks are free before per-option prices apply (cheapest picks are free first).
+  const boardGroups = [
+    { id: "bcg-cheese", key: "cheese", heading: "Choose your cheeses", maxSelections: null, includedFree: 0, sortOrder: 1 },
+    { id: "bcg-meat", key: "meat", heading: "Add a meat (optional)", maxSelections: null, includedFree: 0, sortOrder: 2 },
+    { id: "bcg-savoury", key: "savoury", heading: "Included as standard — swap anything you don't want", maxSelections: null, includedFree: 0, sortOrder: 3 },
+    { id: "bcg-cracker", key: "cracker", heading: "Your crackers", maxSelections: 1, includedFree: 1, sortOrder: 4 },
+    { id: "bcg-jam", key: "jam", heading: "Your chutney or jam", maxSelections: 1, includedFree: 1, sortOrder: 5 },
+  ];
+  for (const g of boardGroups) {
+    await prisma.boardComponentGroup.upsert({ where: { key: g.key }, update: {}, create: { ...g, active: true } });
   }
 
   // --- Experiences (bookable tastings) — PLACEHOLDER price/cost ---

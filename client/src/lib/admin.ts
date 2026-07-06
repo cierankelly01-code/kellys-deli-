@@ -1,5 +1,5 @@
 // Admin API client + JWT token storage.
-import { ApiError, type OrderDTO, type Platter, type PlatterItem, type LocationT, type Experience, type Category, type BoardComponent, type BoardComponentCategory, type BoardType, type BoardSize } from "./api";
+import { ApiError, type OrderDTO, type Platter, type PlatterItem, type LocationT, type Experience, type Category, type BoardComponent, type BoardComponentCategory, type BoardGroup, type BoardType, type BoardSize } from "./api";
 
 const BASE = import.meta.env.VITE_API_URL || "";
 const TOKEN_KEY = "kd_admin_token";
@@ -130,8 +130,21 @@ export interface BoardComponentUpsertInput {
   category: BoardComponentCategory;
   label: string;
   imageUrl?: string | null;
+  price?: number; // £ added when beyond the group's free allowance
+  isDefault?: boolean; // pre-selected in the customer configurator
   active?: boolean;
   sortOrder?: number;
+}
+
+// Group rules are edit-only: the five groups are fixed, admin tunes their behaviour.
+export type AdminBoardGroup = Omit<BoardGroup, "options">;
+
+export interface BoardGroupUpdateInput {
+  heading?: string;
+  maxSelections?: number | null;
+  includedFree?: number;
+  sortOrder?: number;
+  active?: boolean;
 }
 
 export type AdminExperience = Experience & { cost: number };
@@ -198,6 +211,7 @@ export const adminApi = {
     authedReq<AdminPlatter>(`/api/admin/platters`, { method: "POST", body: JSON.stringify(input) }),
   updatePlatter: (id: string, input: PlatterUpsertInput) =>
     authedReq<AdminPlatter>(`/api/admin/platters/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  deletePlatter: (id: string) => authedReq<{ ok: boolean }>(`/api/admin/platters/${id}`, { method: "DELETE" }),
   locations: () => authedReq<LocationT[]>(`/api/admin/locations`),
   updateLocation: (id: string, patch: { name?: string; weeklyCapacity?: number; active?: boolean }) =>
     authedReq<LocationT>(`/api/admin/locations/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
@@ -208,6 +222,11 @@ export const adminApi = {
     authedReq<BoardComponent>(`/api/admin/board-components`, { method: "POST", body: JSON.stringify(input) }),
   updateBoardComponent: (id: string, input: BoardComponentUpsertInput) =>
     authedReq<BoardComponent>(`/api/admin/board-components/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  deleteBoardComponent: (id: string) =>
+    authedReq<{ ok: boolean }>(`/api/admin/board-components/${id}`, { method: "DELETE" }),
+  boardGroups: () => authedReq<AdminBoardGroup[]>(`/api/admin/board-groups`),
+  updateBoardGroup: (id: string, patch: BoardGroupUpdateInput) =>
+    authedReq<AdminBoardGroup>(`/api/admin/board-groups/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
 
   // Experiences
   experiences: () => authedReq<AdminExperience[]>(`/api/admin/experiences`),

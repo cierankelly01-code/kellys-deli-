@@ -97,13 +97,27 @@ export type PlatterUpsertInput = z.infer<typeof platterUpsertSchema>;
 // Build-your-own ingredient picker (admin-managed).
 export const boardComponentUpsertSchema = z.object({
   category: z.enum(["cheese", "meat", "savoury", "cracker", "jam"]),
-  label: z.string().min(1).max(80),
+  // No commas: chosen labels travel comma-joined in the order URL (client Order.tsx).
+  label: z.string().min(1).max(80).refine((s) => !s.includes(","), "Labels can't contain commas"),
   imageUrl: z.string().max(500).nullable().optional(),
+  price: z.number().nonnegative().max(9999).optional(), // £ added when beyond the group's free allowance
+  isDefault: z.boolean().optional(), // pre-selected in the customer configurator
   active: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
 });
 
 export type BoardComponentUpsertInput = z.infer<typeof boardComponentUpsertSchema>;
+
+// Configurator group rules (fixed set of five rows; admin edits rules, never creates groups).
+export const boardGroupUpdateSchema = z.object({
+  heading: z.string().min(1).max(120).optional(),
+  maxSelections: z.number().int().positive().max(30).nullable().optional(),
+  includedFree: z.number().int().nonnegative().max(30).optional(),
+  sortOrder: z.number().int().optional(),
+  active: z.boolean().optional(),
+});
+
+export type BoardGroupUpdateInput = z.infer<typeof boardGroupUpdateSchema>;
 
 // Experience editor payload.
 export const experienceUpsertSchema = z.object({
