@@ -356,7 +356,7 @@ adminRouter.post("/margin", (req, res) => {
 // Temporary diagnostic: report which Supabase env var (if any) contains a
 // non-Latin1 character that breaks HTTP header construction — WITHOUT exposing
 // the secret value (only length + the index/code of the first bad character).
-adminRouter.get("/upload-diag", (_req, res) => {
+adminRouter.get("/upload-diag", async (_req, res) => {
   const check = (name: string, v: string | undefined) => {
     if (v == null) return { name, set: false };
     let firstBadIndex = -1, firstBadCode = -1, firstCtrlIndex = -1;
@@ -372,19 +372,30 @@ adminRouter.get("/upload-diag", (_req, res) => {
       hasControlChar: firstCtrlIndex >= 0, firstCtrlIndex,
     };
   };
-  const url = process.env.SUPABASE_URL ?? "";
+  const url = (process.env.SUPABASE_URL ?? "").trim();
+  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
+  // Live probe: hit the storage REST endpoint exactly like an upload would, and
+  // surface the underlying network cause (DNS/connection/TLS) that "fetch failed" hides.
+  let probe: Record<string, unknown>;
+  try {
+    const r = await fetch(`${url}/storage/v1/bucket`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
+    probe = { reached: true, status: r.status, body: (await r.text()).slice(0, 300) };
+  } catch (e) {
+    const cause = (e as { cause?: unknown }).cause;
+    probe = { reached: false, error: e instanceof Error ? e.message : String(e), cause: cause instanceof Error ? cause.message : String(cause ?? "") };
+  }
   res.json({
     vars: [
       check("SUPABASE_URL", process.env.SUPABASE_URL),
       check("SUPABASE_SERVICE_ROLE_KEY", process.env.SUPABASE_SERVICE_ROLE_KEY),
       check("SUPABASE_BUCKET", process.env.SUPABASE_BUCKET),
     ],
-    // Safe structural view of the URL (protocol + suffix only, never the project ref).
     urlShape: {
-      startsWithHttps: url.trim().startsWith("https://"),
-      endsWithSupabaseCo: url.trim().endsWith(".supabase.co"),
-      parses: (() => { try { new URL(url.trim()); return true; } catch { return false; } })(),
+      startsWithHttps: url.startsWith("https://"),
+      endsWithSupabaseCo: url.endsWith(".supabase.co"),
+      parses: (() => { try { new URL(url); return true; } catch { return false; } })(),
     },
+    storageProbe: probe,
   });
 });
 
