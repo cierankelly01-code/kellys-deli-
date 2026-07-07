@@ -85,6 +85,23 @@ export function locationDTO(l: Location) {
   };
 }
 
+// Mask contact details for the *public* order-lookup (GET /orders/:ref), which is
+// reachable by anyone holding the order reference (a capability URL that customers
+// are told to screenshot/bookmark). The owner still recognises their own masked
+// phone/email; a leaked link no longer hands a stranger full contact details.
+export function maskPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 4) return "•••";
+  return `•••••${digits.slice(-3)}`;
+}
+
+export function maskEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!domain) return "•••";
+  const head = local.slice(0, 1);
+  return `${head}${"•".repeat(Math.max(local.length - 1, 1))}@${domain}`;
+}
+
 export function orderDTO(
   o: Order & {
     platter?: Platter | null;
@@ -125,4 +142,22 @@ export function orderDTO(
     referralCodeUsed: o.referralCodeUsed,
     createdAt: o.createdAt.toISOString(),
   };
+}
+
+/**
+ * Public-safe order view for the unauthenticated lookup (GET /orders/:ref).
+ * Same shape as orderDTO, but the customer's phone/email are masked so a leaked
+ * reference link can't be used to harvest full contact details. Admin routes keep
+ * the full orderDTO.
+ */
+export function publicOrderDTO(
+  o: Order & {
+    platter?: Platter | null;
+    experience?: Experience | null;
+    location?: Location | null;
+    customer?: Customer | null;
+  },
+) {
+  const dto = orderDTO(o);
+  return { ...dto, phone: maskPhone(dto.phone), email: maskEmail(dto.email) };
 }

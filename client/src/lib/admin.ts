@@ -271,5 +271,8 @@ export const adminApi = {
   fillSlots: (days = 7) => authedReq<FillSlotsResponse>(`/api/admin/fill-slots?days=${days}`),
 
   wipeTestData: () =>
-    authedReq<{ orders: number; customers: number; referrals: number }>(`/api/admin/wipe-test-data`, { method: "POST" }),
+    authedReq<{ orders: number; customers: number; referrals: number }>(`/api/admin/wipe-test-data`, {
+      method: "POST",
+      body: JSON.stringify({ confirm: "DELETE ALL DATA" }),
+    }),
 };

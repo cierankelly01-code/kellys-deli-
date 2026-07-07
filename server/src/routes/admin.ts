@@ -379,7 +379,13 @@ adminRouter.patch("/settings/:key", async (req, res) => {
 
 // Wipe all transactional/test data (orders, bookings, referrals, customers).
 // Keeps platters, experiences, locations, settings and admin users. Admin-only.
-adminRouter.post("/wipe-test-data", async (_req, res) => {
+// DESTRUCTIVE and irreversible: it deletes ALL orders/customers, not just test rows.
+// Require an explicit typed confirmation in the body so a stray/accidental call
+// (or a compromised token hitting it blindly) can't erase real customer history.
+adminRouter.post("/wipe-test-data", async (req, res) => {
+  if (req.body?.confirm !== "DELETE ALL DATA") {
+    return res.status(400).json({ error: 'Send { "confirm": "DELETE ALL DATA" } to confirm this irreversible wipe' });
+  }
   const referrals = await prisma.referral.deleteMany();
   const orders = await prisma.order.deleteMany();
   const customers = await prisma.customer.deleteMany();
@@ -426,10 +432,16 @@ adminRouter.patch("/customers/:id", async (req, res) => {
 adminRouter.get("/customers/export", async (_req, res) => {
   const customers = await prisma.customer.findMany({ orderBy: { createdAt: "desc" } });
   const header = "name,phone,email,bigSpender,referralCode";
+  // Neutralise CSV formula injection: a customer-supplied value starting with
+  // = + - @ (or tab/CR) is treated as a formula by Excel/Sheets. Prefix with '
+  // so the spreadsheet renders it as text, then quote-escape as normal.
+  const csvCell = (v: unknown) => {
+    let s = String(v);
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+    return `"${s.replace(/"/g, '""')}"`;
+  };
   const rows = customers.map((c) =>
-    [c.name, c.phone, c.email, c.isBigSpender ? "yes" : "no", c.referralCode]
-      .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-      .join(","),
+    [c.name, c.phone, c.email, c.isBigSpender ? "yes" : "no", c.referralCode].map(csvCell).join(","),
   );
   res.setHeader("Content-Type", "text/csv");
   res.setHeader("Content-Disposition", 'attachment; filename="kellys-deli-sms-list.csv"');

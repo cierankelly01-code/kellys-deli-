@@ -11,7 +11,7 @@ import { buildAvailability, canBook, getDayAvailability, meetsNotice, parseDate,
 import { genRef, randomReferralCode } from "../lib/ref";
 import { captureDepositIntent } from "../lib/payments";
 import { notifyOrderReceived } from "../lib/notify";
-import { platterDTO, experienceDTO, locationDTO, orderDTO, boardComponentDTO, boardGroupDTO } from "../lib/serialize";
+import { platterDTO, experienceDTO, locationDTO, orderDTO, publicOrderDTO, boardComponentDTO, boardGroupDTO } from "../lib/serialize";
 
 export const publicRouter = Router();
 
@@ -174,7 +174,7 @@ publicRouter.get("/orders/:ref", async (req, res) => {
     include: { platter: true, experience: true, location: true, customer: true },
   });
   if (!order) return res.status(404).json({ error: "Order not found" });
-  res.json(orderDTO(order));
+  res.json(publicOrderDTO(order));
 });
 
 // --- Re-order ---
@@ -189,13 +189,15 @@ publicRouter.get("/reorder", async (req, res) => {
   if (!order) return res.status(404).json({ error: "We couldn't find a previous order for that" });
   // Return only the order *selection* to pre-fill the basket — never echo back the
   // contact details (name/phone/email), so a known email can't be used to harvest PII.
+  // notes is withheld too: it's free-text that may hold addresses/event details, and
+  // this endpoint is keyed on a guessable email/phone. The customer re-enters notes.
   res.json({
     platterId: order.platterId,
     platterName: order.platter?.name ?? null,
     headcount: order.headcount,
     locationId: order.locationId,
     locationName: order.location.name,
-    notes: order.notes,
+    notes: null,
   });
 });
 
@@ -224,7 +226,10 @@ publicRouter.post("/orders", async (req, res) => {
   let referrerCode: string | null = null;
   if (input.referralCodeUsed) {
     const referrer = await prisma.customer.findUnique({ where: { referralCode: input.referralCodeUsed } });
-    if (referrer && referrer.phone !== input.phone) referrerCode = input.referralCodeUsed;
+    // No self-referral: reject if the referrer matches the buyer on phone OR email
+    // (matching phone alone let a customer self-refer with a second number).
+    const isSelf = referrer && (referrer.phone === input.phone || referrer.email === input.email);
+    if (referrer && !isSelf) referrerCode = input.referralCodeUsed;
   }
 
   const isBoardOrder = platter.category === "platters";

@@ -58,6 +58,20 @@ d("POST /api/orders (platter + gift)", () => {
     expect(res.body.order.deliveryAddress).toContain("High St");
   });
 
+  it("masks phone + email on the public order lookup (leaked-ref safety)", async () => {
+    const order = base();
+    const created = await request(app).post("/api/orders").send(order);
+    expect(created.status).toBe(201);
+    const ref = created.body.order.ref as string;
+    const looked = await request(app).get(`/api/orders/${ref}`);
+    expect(looked.status).toBe(200);
+    // The lookup is reachable by anyone with the ref, so it must not echo full PII.
+    expect(looked.body.phone).toContain("•");
+    expect(looked.body.phone).not.toBe(order.phone);
+    expect(looked.body.email).toContain("•");
+    expect(looked.body.email).not.toBe(order.email);
+  });
+
   it("rejects a gift with no delivery address (400)", async () => {
     const res = await request(app).post("/api/orders").send({ ...base(), isGift: true, recipientName: "X" });
     expect(res.status).toBe(400);
