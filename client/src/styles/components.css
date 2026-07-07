@@ -374,3 +374,34 @@
 }
 .nav-row .btn { flex: 1; }
 .nav-row .btn-secondary { flex: 0 0 35%; }
+
+/* --- Site footer (legal links) --- */
+.site-footer {
+  margin-top: 40px;
+  border-top: 1px solid var(--line);
+  background: var(--cream);
+}
+.site-footer-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 22px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 20px;
+}
+.footer-brand { font-family: var(--font-display, serif); font-weight: 600; color: var(--ink); }
+.footer-links { display: flex; flex-wrap: wrap; gap: 18px; }
+.footer-links a { color: var(--ink-soft); text-decoration: none; font-size: 0.92rem; }
+.footer-links a:hover { color: var(--ink); text-decoration: underline; }
+.footer-copy { color: var(--ink-soft); font-size: 0.82rem; }
+
+/* --- Legal pages (privacy / terms) --- */
+.legal { max-width: 760px; margin: 0 auto; padding: 8px 4px 16px; line-height: 1.6; }
+.legal h1 { margin-bottom: 4px; }
+.legal h2 { margin-top: 26px; margin-bottom: 6px; font-size: 1.15rem; color: var(--ink); }
+.legal p, .legal li { color: var(--ink); }
+.legal ul { padding-left: 20px; }
+.legal li { margin-bottom: 6px; }
+.legal a { color: var(--navy); }
