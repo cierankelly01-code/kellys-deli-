@@ -362,7 +362,9 @@ adminRouter.post("/upload", (req, res) => {
       res.json({ url: await persistUpload(req.file) });
     } catch (e) {
       console.error("[upload] failed", e);
-      res.status(500).json({ error: "Upload failed" });
+      // Admin-only endpoint: surface the underlying storage error so upload
+      // misconfiguration (missing/misnamed bucket, bad key) is diagnosable.
+      res.status(500).json({ error: "Upload failed", detail: e instanceof Error ? e.message : String(e) });
     }
   });
 });
