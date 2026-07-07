@@ -353,52 +353,6 @@ adminRouter.post("/margin", (req, res) => {
   res.json(calcMargin(Number(price) || 0, Number(cost) || 0));
 });
 
-// Temporary diagnostic: report which Supabase env var (if any) contains a
-// non-Latin1 character that breaks HTTP header construction — WITHOUT exposing
-// the secret value (only length + the index/code of the first bad character).
-adminRouter.get("/upload-diag", async (_req, res) => {
-  const check = (name: string, v: string | undefined) => {
-    if (v == null) return { name, set: false };
-    let firstBadIndex = -1, firstBadCode = -1, firstCtrlIndex = -1;
-    for (let i = 0; i < v.length; i++) {
-      const c = v.charCodeAt(i);
-      if (c > 255 && firstBadIndex < 0) { firstBadIndex = i; firstBadCode = c; }
-      if ((c < 32 || c === 127) && firstCtrlIndex < 0) firstCtrlIndex = i; // tabs/newlines/etc
-    }
-    return {
-      name, set: true, length: v.length,
-      hasBadChar: firstBadIndex >= 0, firstBadIndex, firstBadCode,
-      hasWhitespaceEdges: v !== v.trim(),
-      hasControlChar: firstCtrlIndex >= 0, firstCtrlIndex,
-    };
-  };
-  const url = (process.env.SUPABASE_URL ?? "").trim();
-  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
-  // Live probe: hit the storage REST endpoint exactly like an upload would, and
-  // surface the underlying network cause (DNS/connection/TLS) that "fetch failed" hides.
-  let probe: Record<string, unknown>;
-  try {
-    const r = await fetch(`${url}/storage/v1/bucket`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
-    probe = { reached: true, status: r.status, body: (await r.text()).slice(0, 300) };
-  } catch (e) {
-    const cause = (e as { cause?: unknown }).cause;
-    probe = { reached: false, error: e instanceof Error ? e.message : String(e), cause: cause instanceof Error ? cause.message : String(cause ?? "") };
-  }
-  res.json({
-    vars: [
-      check("SUPABASE_URL", process.env.SUPABASE_URL),
-      check("SUPABASE_SERVICE_ROLE_KEY", process.env.SUPABASE_SERVICE_ROLE_KEY),
-      check("SUPABASE_BUCKET", process.env.SUPABASE_BUCKET),
-    ],
-    urlShape: {
-      startsWithHttps: url.startsWith("https://"),
-      endsWithSupabaseCo: url.endsWith(".supabase.co"),
-      parses: (() => { try { new URL(url); return true; } catch { return false; } })(),
-    },
-    storageProbe: probe,
-  });
-});
-
 // Image upload — returns a URL to store as a platter/experience imageUrl.
 adminRouter.post("/upload", (req, res) => {
   imageUpload.single("image")(req, res, async (err) => {
