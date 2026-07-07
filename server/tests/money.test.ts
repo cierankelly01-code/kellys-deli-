@@ -19,6 +19,21 @@ describe("toMoney", () => {
     expect(toMoney(0.1 + 0.2)).toBe(0.3);
     expect(toMoney(175)).toBe(175);
   });
+  it("rounds genuine half-pennies UP, not down", () => {
+    // 8.70 * 0.25 = 2.174999… in float; must round to 2.18, not 2.17.
+    expect(toMoney(8.7 * 0.25)).toBe(2.18);
+    expect(toMoney(16.9 * 0.25)).toBe(4.23);
+    expect(toMoney(8.54 * 0.25)).toBe(2.14);
+  });
+});
+
+describe("calcDeposit half-penny rounding", () => {
+  it("never undercharges the 25% deposit by a penny", () => {
+    // Regression: the old absolute-epsilon toMoney rounded these down by 1p.
+    expect(calcDeposit(8.7)).toBe(2.18);
+    expect(calcDeposit(16.9)).toBe(4.23);
+    expect(calcDeposit(8.54)).toBe(2.14);
+  });
 });
 
 describe("calcTotal", () => {

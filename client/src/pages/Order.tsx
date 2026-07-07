@@ -101,9 +101,15 @@ export default function Order() {
 
   // Group rules/prices, for the extras price preview only — the server reprices on submit.
   const [boardGroups, setBoardGroups] = useState<BoardGroup[]>([]);
+  // If these rules fail to load for a board with paid extras, the preview would
+  // undercount the total (extras → £0) while the server still charges them. Track
+  // the failure so we can block submit rather than show a price we can't honour.
+  const [boardRulesFailed, setBoardRulesFailed] = useState(false);
   useEffect(() => {
     if (!isBoard || customItems.length === 0) return;
-    api.boardConfig().then((c) => setBoardGroups(c.groups)).catch(() => setBoardGroups([]));
+    api.boardConfig()
+      .then((c) => { setBoardGroups(c.groups); setBoardRulesFailed(false); })
+      .catch(() => { setBoardGroups([]); setBoardRulesFailed(true); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -111,6 +117,22 @@ export default function Order() {
   const [stepIdx, setStepIdx] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Only apply the £15 referral discount once the server confirms the code is real
+  // and not a self-referral — otherwise the review total wouldn't match the charge.
+  const [referralValid, setReferralValid] = useState(false);
+  const currentStep = STEPS[stepIdx];
+  useEffect(() => {
+    if (currentStep !== "review" || !referralCode || phone.length < 5 || !email.includes("@")) {
+      setReferralValid(false);
+      return;
+    }
+    let cancelled = false;
+    api.checkReferral(referralCode, phone, email)
+      .then((r) => { if (!cancelled) setReferralValid(r.valid); })
+      .catch(() => { if (!cancelled) setReferralValid(false); });
+    return () => { cancelled = true; };
+  }, [currentStep, referralCode, phone, email]);
 
   const platter = platters.find((p) => p.id === platterId) || null;
   const shownPlatters = category ? platters.filter((p) => p.category === category) : platters;
@@ -166,11 +188,11 @@ export default function Order() {
     const base = platter.isFixed
       ? (platter.fixedPrice! + extrasPerBoard) * (isBoard ? headcount : 1)
       : platter.pricePerHead! * headcount;
-    const discount = referralCode ? Math.min(15, base) : 0;
+    const discount = referralCode && referralValid ? Math.min(15, base) : 0;
     const total = round2(Math.max(0, base - discount));
     const deposit = isBoard ? round2(Math.min(BOARD_DEPOSIT, total)) : round2(total * 0.25);
     return { base: round2(base), discount: round2(discount), total, deposit };
-  }, [platter, headcount, referralCode, isBoard, extrasPerBoard]);
+  }, [platter, headcount, referralCode, referralValid, isBoard, extrasPerBoard]);
 
   const step = STEPS[stepIdx];
 
@@ -213,6 +235,13 @@ export default function Order() {
 
   async function submit() {
     if (!platter) return;
+    // Don't submit a board with paid extras if we couldn't load its pricing rules —
+    // the shown total may be wrong. Ask the customer to retry rather than surprise
+    // them with a higher charge.
+    if (isBoard && customItems.length > 0 && boardRulesFailed) {
+      setError("We couldn't load the latest board pricing. Please refresh and try again.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
 
@@ -264,7 +293,11 @@ export default function Order() {
       <Link to={backHref} className="btn-ghost back">← Back</Link>
       <div className="progress"><div className="progress-bar" style={{ width: `${progress}%` }} /></div>
 
-      {referralCode && <div className="notice good">£15 referral discount will be applied 🎉</div>}
+      {referralCode && (
+        <div className="notice good">
+          {referralValid ? "£15 referral discount applied 🎉" : "£15 referral discount — applied at checkout once your code is confirmed"}
+        </div>
+      )}
       {reorderInfo && <div className="notice good">{reorderInfo}</div>}
       {error && <div className="notice danger">{error}</div>}
 
@@ -429,7 +462,7 @@ export default function Order() {
             {isBoard && extrasPerBoard > 0 && <Row label="Extras" value={`+${gbp(extrasPerBoard)} per board`} />}
             <Row label={dateLabel} value={date ? formatDate(date) : "—"} />
             {isBoard && <Row label="Deliver to" value={sendAsGift ? recipientName : customerName} />}
-            <Row label="Address" value={deliveryAddress} />
+            {deliveryAddress.trim() && <Row label="Address" value={deliveryAddress} />}
             {((isBoard && sendAsGift) || (!isBoard && isGift)) && giftMessage && <Row label="Message" value={giftMessage} />}
             {!isBoard && <Row label="Shop" value={locName ?? "—"} />}
             <Row label="You" value={`${customerName} · ${phone}`} />

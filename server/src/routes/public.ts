@@ -6,7 +6,7 @@ import {
   availabilityQuerySchema,
   experienceAvailabilityQuerySchema,
 } from "../lib/validation";
-import { priceOrder, calcBoardExtras, type ExtrasGroupInput } from "../lib/money";
+import { priceOrder, calcBoardExtras, REFERRAL_DISCOUNT, type ExtrasGroupInput } from "../lib/money";
 import { buildAvailability, canBook, getDayAvailability, meetsNotice, parseDate, formatDate } from "../lib/capacity";
 import { genRef, randomReferralCode } from "../lib/ref";
 import { captureDepositIntent } from "../lib/payments";
@@ -22,14 +22,23 @@ async function getSetting(key: string): Promise<string | null> {
   return s?.value ?? null;
 }
 
-// Generate a unique order ref within a transaction.
+// Generate a unique order ref within a transaction. Always returns a value that
+// passed the existence check (never a final unchecked candidate).
 async function uniqueRef(tx: { order: { findUnique: (a: any) => Promise<unknown> } }): Promise<string> {
-  let ref = genRef();
-  for (let i = 0; i < 5; i++) {
-    if (!(await tx.order.findUnique({ where: { ref } }))) break;
-    ref = genRef();
+  for (let i = 0; i < 6; i++) {
+    const ref = genRef();
+    if (!(await tx.order.findUnique({ where: { ref } }))) return ref;
   }
-  return ref;
+  throw new Error("Could not generate a unique order reference");
+}
+
+// Same pattern for a customer's shareable referral code (also @unique).
+async function uniqueReferralCode(tx: { customer: { findUnique: (a: any) => Promise<unknown> } }): Promise<string> {
+  for (let i = 0; i < 6; i++) {
+    const code = randomReferralCode();
+    if (!(await tx.customer.findUnique({ where: { referralCode: code } }))) return code;
+  }
+  throw new Error("Could not generate a unique referral code");
 }
 
 // --- Menu ---
@@ -201,6 +210,21 @@ publicRouter.get("/reorder", async (req, res) => {
   });
 });
 
+// --- Validate a referral code against the buyer's contact ---
+// The checkout uses this so it only shows the £15 discount when the server will
+// actually honour it (real code, and not a self-referral) — otherwise the review
+// total wouldn't match the amount charged. Mirrors the rule in POST /orders.
+publicRouter.get("/referral/check", async (req, res) => {
+  const code = String(req.query.code ?? "").trim();
+  const phone = String(req.query.phone ?? "").trim();
+  const email = String(req.query.email ?? "").trim();
+  if (!code) return res.json({ valid: false, discount: 0 });
+  const referrer = await prisma.customer.findUnique({ where: { referralCode: code } });
+  const isSelf = !!referrer && (referrer.phone === phone || referrer.email === email);
+  const valid = !!referrer && !isSelf;
+  res.json({ valid, discount: valid ? REFERRAL_DISCOUNT : 0 });
+});
+
 // --- Create a platter order (collection) or gift (delivery) ---
 publicRouter.post("/orders", async (req, res) => {
   const parsed = createOrderSchema.safeParse(req.body);
@@ -245,9 +269,20 @@ publicRouter.post("/orders", async (req, res) => {
       prisma.boardComponentGroup.findMany({ where: { active: true } }),
     ]);
     const byLabel = new Map(active.map((c) => [c.label, c]));
-    const chosen = input.customItems.filter((l) => byLabel.has(l));
+    // Dedupe: the client dedupes via a Set, so the server must too — otherwise a
+    // tampered `?customItems=Brie,Brie` would be priced twice while the customer
+    // was shown it once. Keep only known, active, distinct labels.
+    const chosen = [...new Set(input.customItems)].filter((l) => byLabel.has(l));
     if (chosen.length === 0) return res.status(400).json({ error: "Chosen board items are no longer available" });
     customItems = chosen;
+
+    const groupKeys = new Set(groups.map((g) => g.key));
+    // Fail closed: an active, possibly-priced item whose group is inactive/missing
+    // would otherwise be charged £0 and escape the per-group limit. Reject instead.
+    const ungrouped = chosen.filter((l) => !groupKeys.has(byLabel.get(l)!.category));
+    if (ungrouped.length > 0) {
+      return res.status(400).json({ error: "Some chosen board items aren't available right now" });
+    }
 
     const extrasInput: ExtrasGroupInput[] = [];
     for (const group of groups) {
@@ -278,16 +313,22 @@ publicRouter.post("/orders", async (req, res) => {
 
   try {
     const order = await prisma.$transaction(async (tx) => {
+      // Lock the location row for the duration of the transaction so two orders
+      // racing for the last slot can't both pass the capacity check (READ COMMITTED
+      // wouldn't see each other's uncommitted insert). Serializes order creation
+      // per location, which prevents overbooking.
+      await tx.$queryRaw`SELECT 1 FROM "Location" WHERE id = ${input.locationId} FOR UPDATE`;
       const booked = await tx.order.count({
         where: { locationId: input.locationId, collectionOrDeliveryDate: parseDate(input.collectionOrDeliveryDate), type: { in: ["platter", "gift"] }, status: { not: "cancelled" } },
       });
       if (!canBook(input.collectionOrDeliveryDate, location.weeklyCapacity, booked, now)) throw new CapacityError();
 
       const ref = await uniqueRef(tx);
+      const referralCode = await uniqueReferralCode(tx);
       const customer = await tx.customer.upsert({
         where: { phone: input.phone },
         update: { name: input.customerName, email: input.email },
-        create: { name: input.customerName, phone: input.phone, email: input.email, referralCode: randomReferralCode() },
+        create: { name: input.customerName, phone: input.phone, email: input.email, referralCode },
       });
 
       const created = await tx.order.create({
@@ -359,6 +400,9 @@ publicRouter.post("/bookings", async (req, res) => {
 
   try {
     const order = await prisma.$transaction(async (tx) => {
+      // Serialize concurrent bookings for this location so two parties can't both
+      // pass the session-capacity check for the last seats (see /orders for detail).
+      await tx.$queryRaw`SELECT 1 FROM "Location" WHERE id = ${input.locationId} FOR UPDATE`;
       const agg = await tx.order.aggregate({
         where: { type: "experience", experienceId: input.experienceId, locationId: input.locationId, collectionOrDeliveryDate: parseDate(input.date), status: { not: "cancelled" } },
         _sum: { headcount: true },
@@ -368,10 +412,11 @@ publicRouter.post("/bookings", async (req, res) => {
       if (!avail.bookable || avail.remaining < input.partySize) throw new CapacityError();
 
       const ref = await uniqueRef(tx);
+      const referralCode = await uniqueReferralCode(tx);
       const customer = await tx.customer.upsert({
         where: { phone: input.phone },
         update: { name: input.customerName, email: input.email },
-        create: { name: input.customerName, phone: input.phone, email: input.email, referralCode: randomReferralCode() },
+        create: { name: input.customerName, phone: input.phone, email: input.email, referralCode },
       });
       const created = await tx.order.create({
         data: {

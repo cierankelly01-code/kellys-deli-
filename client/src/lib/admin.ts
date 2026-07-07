@@ -246,6 +246,7 @@ export const adminApi = {
     authedReq<{ id: string; isBigSpender: boolean }>(`/api/admin/customers/${id}`, { method: "PATCH", body: JSON.stringify({ isBigSpender }) }),
   customersCsv: async (): Promise<string> => {
     const res = await fetch(`${BASE}/api/admin/customers/export`, { headers: { Authorization: `Bearer ${auth.token ?? ""}` } });
+    if (res.status === 401) { auth.clear(); throw new ApiError("Session expired — please log in again", 401); }
     if (!res.ok) throw new ApiError("Export failed", res.status);
     return res.text();
   },
@@ -261,6 +262,7 @@ export const adminApi = {
       headers: { Authorization: `Bearer ${auth.token ?? ""}` },
       body: fd,
     });
+    if (res.status === 401) { auth.clear(); throw new ApiError("Session expired — please log in again", 401); }
     if (!res.ok) {
       const b = await res.json().catch(() => ({}));
       throw new ApiError(b.error || "Upload failed", res.status);

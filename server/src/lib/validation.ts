@@ -8,7 +8,7 @@ const boardComponentLabel = z.string().min(1).max(80);
 export const createOrderSchema = z
   .object({
     platterId: z.string().min(1),
-    headcount: z.number().int().positive(),
+    headcount: z.number().int().positive().max(1000, "Headcount looks too large"),
     collectionOrDeliveryDate: dateString,
     locationId: z.string().min(1),
     customerName: z.string().min(1, "Name is required").max(120),
@@ -90,6 +90,13 @@ export const platterUpsertSchema = z
   .refine((d) => (d.pricePerHead != null) !== (d.fixedPrice != null), {
     message: "Set either a per-head price OR a fixed price (not both, not neither)",
     path: ["pricePerHead"],
+  })
+  // Board-configurator platters MUST be fixed-price: pricing folds extras into the
+  // fixed price and multiplies by quantity, both of which are ignored for per-head.
+  // A per-head board would silently drop the customer's quantity and paid extras.
+  .refine((d) => d.category !== "platters" || d.fixedPrice != null, {
+    message: "Build-your-own boards must use a fixed price, not a per-head price",
+    path: ["fixedPrice"],
   });
 
 export type PlatterUpsertInput = z.infer<typeof platterUpsertSchema>;

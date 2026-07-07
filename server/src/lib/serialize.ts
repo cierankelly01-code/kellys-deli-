@@ -2,6 +2,7 @@
 // with numbers and 'YYYY-MM-DD' date strings, so the client never deals with Decimal.
 import type { Platter, Location, Order, Customer, Experience, BoardComponent, BoardComponentGroup } from "@prisma/client";
 import { formatDate } from "./capacity";
+import { toMoney } from "./money";
 
 const num = (d: unknown): number | null => (d == null ? null : Number(d));
 
@@ -20,13 +21,19 @@ export function platterDTO(p: Platter, opts: { includeCost?: boolean } = {}) {
     fixedPrice: num(p.fixedPrice),
     serves: p.serves,
     minHeadcount: p.minHeadcount,
-    items: (p.items as unknown as PlatterItem[]) ?? [],
+    items: Array.isArray(p.items) ? (p.items as unknown as PlatterItem[]) : [],
     imageUrl: p.imageUrl,
     active: p.active,
     sortOrder: p.sortOrder,
     isFixed: p.fixedPrice != null,
-    // From-price for display: fixed price, or per-head * minHeadcount.
-    fromPrice: p.fixedPrice != null ? Number(p.fixedPrice) : Number(p.pricePerHead) * p.minHeadcount,
+    // From-price for display: fixed price, or per-head * minHeadcount. Rounded, and
+    // guarded so a row with neither price shows null rather than a silent "from £0".
+    fromPrice:
+      p.fixedPrice != null
+        ? Number(p.fixedPrice)
+        : p.pricePerHead != null
+          ? toMoney(Number(p.pricePerHead) * p.minHeadcount)
+          : null,
     boardType: p.boardType,
     size: p.size,
   };
@@ -121,7 +128,7 @@ export function orderDTO(
     experienceName: o.experience?.name ?? null,
     headcount: o.headcount,
     quantity: o.quantity,
-    customItems: (o.customItems as unknown as string[] | null) ?? null,
+    customItems: Array.isArray(o.customItems) ? (o.customItems as string[]) : null,
     total: Number(o.total),
     deposit: Number(o.deposit),
     depositStatus: o.depositStatus,
@@ -159,5 +166,16 @@ export function publicOrderDTO(
   },
 ) {
   const dto = orderDTO(o);
-  return { ...dto, phone: maskPhone(dto.phone), email: maskEmail(dto.email) };
+  // The confirmation page renders phone/email (masked), the gift address, the gift
+  // message, the recipient and the referral code — but never the full customerName
+  // or the free-text notes. So on this unauthenticated, link-shareable lookup we
+  // return only the customer's FIRST name and drop notes entirely: a leaked ref
+  // link can't yield a full identity or whatever the customer typed into notes.
+  return {
+    ...dto,
+    customerName: dto.customerName.split(/\s+/)[0] ?? "",
+    notes: null,
+    phone: maskPhone(dto.phone),
+    email: maskEmail(dto.email),
+  };
 }

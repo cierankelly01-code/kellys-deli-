@@ -4,9 +4,14 @@
 export const DEPOSIT_RATE = 0.25;
 export const REFERRAL_DISCOUNT = 15;
 
-/** Round to 2 decimal places, guarding against float drift. */
+/**
+ * Round to 2 decimal places (half-up), guarding against float drift.
+ * The epsilon is applied AFTER scaling to pennies and is proportional to the
+ * magnitude, so a genuine half-penny (e.g. 8.70 * 0.25 = 2.174999…) rounds up
+ * to 2.18 rather than down to 2.17. An absolute epsilon is too small at £-scale.
+ */
 export function toMoney(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
+  return Math.round(n * 100 * (1 + Number.EPSILON)) / 100;
 }
 
 // Board configurator orders (category "platters") take a flat deposit instead of 25% —

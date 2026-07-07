@@ -9,23 +9,33 @@ export interface NotifyTarget {
 }
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-// Resend only delivers from a verified domain; until one is verified, use their sandbox sender.
-const EMAIL_FROM = process.env.EMAIL_FROM || "Kelly's Deli <onboarding@resend.dev>";
+const EMAIL_FROM = process.env.EMAIL_FROM;
+const SANDBOX_FROM = "Kelly's Deli <onboarding@resend.dev>";
 
-async function sendSms(to: string, body: string): Promise<void> {
-  console.log(`[notify:sms] -> ${to}\n  ${body}`);
+// Fail loud (once, at boot) if production is missing real email config — otherwise
+// order/review/referral emails silently never send and nobody notices.
+if (process.env.NODE_ENV === "production") {
+  if (!RESEND_API_KEY) console.error("[notify] RESEND_API_KEY is not set — customer emails will NOT be delivered in production.");
+  else if (!EMAIL_FROM) console.error("[notify] EMAIL_FROM is not set — falling back to the Resend sandbox sender, which only delivers to the account owner. Set a verified EMAIL_FROM.");
+}
+
+// Redact a phone to its last 3 digits for logs (avoid dumping PII to stdout).
+const redactPhone = (p: string) => { const d = p.replace(/\D/g, ""); return d.length < 4 ? "•••" : `•••••${d.slice(-3)}`; };
+
+async function sendSms(to: string, _body: string): Promise<void> {
+  console.log(`[notify:sms] -> ${redactPhone(to)} (message body omitted)`);
 }
 
 async function sendEmail(to: string, subject: string, body: string): Promise<void> {
   if (!RESEND_API_KEY) {
-    console.log(`[notify:email] -> ${to} | ${subject}\n  ${body}`);
+    console.log(`[notify:email dry-run] -> ${to} | ${subject}\n  ${body}`);
     return;
   }
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, text: body }),
+      body: JSON.stringify({ from: EMAIL_FROM || SANDBOX_FROM, to: [to], subject, text: body }),
     });
     if (!res.ok) console.error(`[notify:email] Resend ${res.status}: ${await res.text()}`);
   } catch (e) {
@@ -52,9 +62,9 @@ export async function notifyReviewRequest(t: NotifyTarget, reviewLink: string): 
   await Promise.all([sendSms(t.phone, msg), sendEmail(t.email, "How did we do?", msg)]);
 }
 
-/** SMS marketing blast (stub) — logs the payload per recipient. */
-export async function notifyBlast(phone: string, message: string): Promise<void> {
-  console.log(`[notify:sms-blast] -> ${phone}\n  ${message}`);
+/** SMS marketing blast (stub) — logs the recipient count target, not the PII payload. */
+export async function notifyBlast(phone: string, _message: string): Promise<void> {
+  console.log(`[notify:sms-blast] -> ${redactPhone(phone)} (message body omitted)`);
 }
 
 /** Sent when an order is marked Completed — the referral engine. */

@@ -251,4 +251,9 @@ export const api = {
     }),
   getOrder: (ref: string) => req<OrderDTO>(`/api/orders/${ref}`),
   reorder: (contact: string) => req<ReorderResult>(`/api/reorder?contact=${encodeURIComponent(contact)}`),
+  // Validate a referral code against the buyer's contact before promising the discount.
+  checkReferral: (code: string, phone: string, email: string) => {
+    const q = new URLSearchParams({ code, phone, email });
+    return req<{ valid: boolean; discount: number }>(`/api/referral/check?${q.toString()}`);
+  },
 };

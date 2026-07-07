@@ -22,6 +22,13 @@ if (isProd) {
   if (!process.env.JWT_SECRET || env.jwtSecret === WEAK_SECRET || env.jwtSecret.length < 32) {
     problems.push("JWT_SECRET must be a strong random value (>= 32 chars), not the dev default");
   }
+  // NOTE: CLIENT_ORIGIN is intentionally NOT required. This app serves the client and
+  // the API from the same Vercel origin, so cross-origin CORS never applies in prod and
+  // CLIENT_ORIGIN is normally unset. Only add a check here if the client is ever split
+  // onto a different domain — a hard requirement now would break the current deploy.
+  if (process.env.CLIENT_ORIGIN && env.clientOrigins.length === 0) {
+    console.warn("[env] CLIENT_ORIGIN is set but parsed to an empty allowlist — check its format.");
+  }
   if (problems.length) {
     throw new Error(`[env] Unsafe production configuration:\n - ${problems.join("\n - ")}`);
   }
