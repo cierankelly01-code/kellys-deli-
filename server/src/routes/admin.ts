@@ -353,6 +353,25 @@ adminRouter.post("/margin", (req, res) => {
   res.json(calcMargin(Number(price) || 0, Number(cost) || 0));
 });
 
+// Temporary diagnostic: report which Supabase env var (if any) contains a
+// non-Latin1 character that breaks HTTP header construction — WITHOUT exposing
+// the secret value (only length + the index/code of the first bad character).
+adminRouter.get("/upload-diag", (_req, res) => {
+  const check = (name: string, v: string | undefined) => {
+    if (v == null) return { name, set: false };
+    let firstBadIndex = -1, firstBadCode = -1;
+    for (let i = 0; i < v.length; i++) {
+      if (v.charCodeAt(i) > 255) { firstBadIndex = i; firstBadCode = v.charCodeAt(i); break; }
+    }
+    return { name, set: true, length: v.length, hasBadChar: firstBadIndex >= 0, firstBadIndex, firstBadCode };
+  };
+  res.json([
+    check("SUPABASE_URL", process.env.SUPABASE_URL),
+    check("SUPABASE_SERVICE_ROLE_KEY", process.env.SUPABASE_SERVICE_ROLE_KEY),
+    check("SUPABASE_BUCKET", process.env.SUPABASE_BUCKET),
+  ]);
+});
+
 // Image upload — returns a URL to store as a platter/experience imageUrl.
 adminRouter.post("/upload", (req, res) => {
   imageUpload.single("image")(req, res, async (err) => {
