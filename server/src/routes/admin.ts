@@ -359,17 +359,33 @@ adminRouter.post("/margin", (req, res) => {
 adminRouter.get("/upload-diag", (_req, res) => {
   const check = (name: string, v: string | undefined) => {
     if (v == null) return { name, set: false };
-    let firstBadIndex = -1, firstBadCode = -1;
+    let firstBadIndex = -1, firstBadCode = -1, firstCtrlIndex = -1;
     for (let i = 0; i < v.length; i++) {
-      if (v.charCodeAt(i) > 255) { firstBadIndex = i; firstBadCode = v.charCodeAt(i); break; }
+      const c = v.charCodeAt(i);
+      if (c > 255 && firstBadIndex < 0) { firstBadIndex = i; firstBadCode = c; }
+      if ((c < 32 || c === 127) && firstCtrlIndex < 0) firstCtrlIndex = i; // tabs/newlines/etc
     }
-    return { name, set: true, length: v.length, hasBadChar: firstBadIndex >= 0, firstBadIndex, firstBadCode };
+    return {
+      name, set: true, length: v.length,
+      hasBadChar: firstBadIndex >= 0, firstBadIndex, firstBadCode,
+      hasWhitespaceEdges: v !== v.trim(),
+      hasControlChar: firstCtrlIndex >= 0, firstCtrlIndex,
+    };
   };
-  res.json([
-    check("SUPABASE_URL", process.env.SUPABASE_URL),
-    check("SUPABASE_SERVICE_ROLE_KEY", process.env.SUPABASE_SERVICE_ROLE_KEY),
-    check("SUPABASE_BUCKET", process.env.SUPABASE_BUCKET),
-  ]);
+  const url = process.env.SUPABASE_URL ?? "";
+  res.json({
+    vars: [
+      check("SUPABASE_URL", process.env.SUPABASE_URL),
+      check("SUPABASE_SERVICE_ROLE_KEY", process.env.SUPABASE_SERVICE_ROLE_KEY),
+      check("SUPABASE_BUCKET", process.env.SUPABASE_BUCKET),
+    ],
+    // Safe structural view of the URL (protocol + suffix only, never the project ref).
+    urlShape: {
+      startsWithHttps: url.trim().startsWith("https://"),
+      endsWithSupabaseCo: url.trim().endsWith(".supabase.co"),
+      parses: (() => { try { new URL(url.trim()); return true; } catch { return false; } })(),
+    },
+  });
 });
 
 // Image upload — returns a URL to store as a platter/experience imageUrl.
