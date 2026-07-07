@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { asyncRouter } from "../lib/async-router";
 import { prisma } from "../lib/prisma";
 import {
   createOrderSchema,
@@ -13,7 +13,7 @@ import { captureDepositIntent } from "../lib/payments";
 import { notifyOrderReceived } from "../lib/notify";
 import { platterDTO, experienceDTO, locationDTO, orderDTO, publicOrderDTO, boardComponentDTO, boardGroupDTO } from "../lib/serialize";
 
-export const publicRouter = Router();
+export const publicRouter = asyncRouter();
 
 class CapacityError extends Error {}
 

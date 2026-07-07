@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { asyncRouter } from "../lib/async-router";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { env } from "../lib/env";
@@ -19,7 +19,7 @@ import { summarizeOrders, rankPlattersByMargin, profitOf, type StatOrderInput } 
 import { notifyReviewRequest, notifyReferralOffer, notifyBlast } from "../lib/notify";
 import { imageUpload, persistUpload } from "../lib/uploads";
 
-export const adminRouter = Router();
+export const adminRouter = asyncRouter();
 
 const STATUSES = ["new", "confirmed", "in_prep", "ready", "completed", "cancelled"] as const;
 const GOOGLE_REVIEW_URL = "https://g.page/r/kellys-deli/review"; // placeholder review link
@@ -80,12 +80,21 @@ adminRouter.patch("/orders/:id/status", async (req, res) => {
     include: { ...ORDER_INCLUDE, customer: true },
   });
 
-  // Completion triggers the review + referral engines (stubbed/logged), once.
-  if (parsed.data.status === "completed" && existing.status !== "completed") {
-    const code = order.customer?.referralCode;
-    const target = { name: order.customerName, phone: order.phone, email: order.email };
-    await notifyReviewRequest(target, GOOGLE_REVIEW_URL);
-    if (code) await notifyReferralOffer(target, code, `${env.clientOrigins[0]}/order?referral=${code}`);
+  // Completion triggers the review + referral engines exactly once. Guard on a
+  // persistent timestamp (not the transient status) and flip it atomically, so a
+  // status bounce (completed -> other -> completed) or two concurrent PATCHes can't
+  // re-send the customer duplicate "review us" / referral messages.
+  if (parsed.data.status === "completed") {
+    const flip = await prisma.order.updateMany({
+      where: { id: req.params.id, completedNotifiedAt: null },
+      data: { completedNotifiedAt: new Date() },
+    });
+    if (flip.count === 1) {
+      const code = order.customer?.referralCode;
+      const target = { name: order.customerName, phone: order.phone, email: order.email };
+      await notifyReviewRequest(target, GOOGLE_REVIEW_URL);
+      if (code) await notifyReferralOffer(target, code, `${env.clientOrigins[0]}/order?referral=${code}`);
+    }
   }
 
   res.json({ ...orderDTO(order), cost: orderCost(order), profit: profitOf(toStatInput(order)) });

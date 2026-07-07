@@ -127,6 +127,10 @@ model Order {
   referralCodeUsed         String?
   customerId               String?
   customer                 Customer?   @relation(fields: [customerId], references: [id])
+  // Set once, atomically, the first time the order is marked completed — so the
+  // review-request + referral notifications fire exactly once even if the status
+  // is bounced out of and back into "completed".
+  completedNotifiedAt      DateTime?
   createdAt                DateTime    @default(now())
   updatedAt                DateTime    @updatedAt
 

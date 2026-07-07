@@ -1,10 +1,10 @@
-import { Router } from "express";
+import { asyncRouter } from "../lib/async-router";
 import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma";
 import { loginSchema } from "../lib/validation";
 import { signToken } from "../lib/auth";
 
-export const authRouter = Router();
+export const authRouter = asyncRouter();
 
 authRouter.post("/login", async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
