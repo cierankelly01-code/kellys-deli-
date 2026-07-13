@@ -153,7 +153,7 @@ export default function MenuEditor() {
 
       <FirstOrderHook settings={settings} onSaved={refresh} />
 
-      {(["platters", "home", "events", "seasonal"] as Category[]).map((cat) => (
+      {(["board", "home", "events", "seasonal", "platters"] as Category[]).map((cat) => (
         <div key={cat}>
           <h2>{CATEGORY_LABEL[cat]}{cat === "seasonal" ? " (switch on by season)" : ""}</h2>
           <div className="bc-rows">
