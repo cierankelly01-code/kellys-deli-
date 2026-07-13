@@ -5,6 +5,17 @@ import { randomReferralCode } from "../src/lib/ref";
 
 const prisma = new PrismaClient();
 
+// v2 catalogue (build spec §2/§3/§4). The owner deleted all old platters and curates the
+// new catalogue in admin, so catalogue rows are CREATE-ONLY (update: {}) — a reseed fills
+// gaps but never clobbers admin price/photo/feeds corrections. Descriptions carry a
+// "[CHECK PRICE & DETAILS]" marker so the owner knows to review each row.
+//
+// The pre-v2 systems (sized boards, build-your-own configurator components/groups,
+// home/events/seasonal catering platters, demo experience) are intentionally NOT seeded —
+// the models remain for history but the customer UI is rebuilt around the boards below.
+
+const CHECK = "[CHECK PRICE & DETAILS]";
+
 async function main() {
   // --- Locations (multi-site from day one) ---
   // weeklyCapacity = max catering orders per DAY at this location (see SPEC decision #2).
@@ -17,288 +28,192 @@ async function main() {
     await prisma.location.upsert({ where: { id: loc.id }, update: loc, create: loc });
   }
 
-  // --- Platters (PLACEHOLDER prices/costs/items — edit in the Menu & Pricing editor) ---
-  // items: ordered array of { label, qtyPerUnit }.
-  //   per-head platter (pricePerHead set): prep qty = qtyPerUnit * headcount
-  //   fixed platter   (fixedPrice set):    prep qty = qtyPerUnit * 1 (per order)
-  const platters = [
-    // ---- At Home ----
-    {
-      id: "platter-date-night", category: "home", name: "Date Night In", sortOrder: 1, active: true,
-      description: "Dinner for two, sorted — the same local produce our regulars have trusted for years.",
-      pricePerHead: null as number | null, fixedPrice: 35, cost: 14, serves: "2", minHeadcount: 1,
-      imageUrl: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=800&q=60",
-      items: [
-        { label: "Gourmet sandwiches", qtyPerUnit: 6 },
-        { label: "Sausage rolls", qtyPerUnit: 4 },
-        { label: "Veg & lamb samosas", qtyPerUnit: 4 },
-        { label: "Crusty cobs", qtyPerUnit: 2 },
-        { label: "Local cheese & produce", qtyPerUnit: 1 },
-        { label: "Fruit pots", qtyPerUnit: 2 },
-      ],
-    },
-    {
-      id: "platter-night-in", category: "home", name: "Night In", sortOrder: 2, active: true,
-      description: "For family & friends round the table — generous, fresh, no fuss.",
-      pricePerHead: null, fixedPrice: 65, cost: 27, serves: "4-6", minHeadcount: 1,
-      imageUrl: "https://images.unsplash.com/photo-1504754524776-8f4f37790ca0?auto=format&fit=crop&w=800&q=60",
-      items: [
-        { label: "Gourmet sandwiches", qtyPerUnit: 14 },
-        { label: "Sausage rolls", qtyPerUnit: 10 },
-        { label: "Veg & lamb samosas", qtyPerUnit: 8 },
-        { label: "Crusty cobs", qtyPerUnit: 6 },
-        { label: "Local cheese & produce", qtyPerUnit: 2 },
-        { label: "Fruit pots", qtyPerUnit: 4 },
-      ],
-    },
-    {
-      id: "platter-small-gathering", category: "home", name: "Small Gathering", sortOrder: 3, active: true,
-      description: "Birthdays, get-togethers, the good afternoons — a proper spread for the room.",
-      pricePerHead: null, fixedPrice: 140, cost: 62, serves: "10-15", minHeadcount: 1,
-      imageUrl: "https://images.unsplash.com/photo-1447279506476-3faec8071eee?auto=format&fit=crop&w=800&q=60",
-      items: [
-        { label: "Gourmet sandwiches", qtyPerUnit: 30 },
-        { label: "Sausage rolls", qtyPerUnit: 22 },
-        { label: "Veg & lamb samosas", qtyPerUnit: 18 },
-        { label: "Crusty cobs", qtyPerUnit: 12 },
-        { label: "Local cheese & produce", qtyPerUnit: 4 },
-        { label: "Fruit platters", qtyPerUnit: 2 },
-      ],
-    },
-    // ---- Events & Office ----
-    {
-      id: "platter-big-spread", category: "events", name: "The Big Spread", sortOrder: 1, active: true,
-      description: "The full event spread for up to 20 — everything the table needs.",
-      pricePerHead: null, fixedPrice: 195, cost: 88, serves: "up to 20", minHeadcount: 1,
-      imageUrl: "https://images.unsplash.com/photo-1672826979217-7156a305acf5?auto=format&fit=crop&w=800&q=60",
-      items: [
-        { label: "Gourmet sandwiches", qtyPerUnit: 45 },
-        { label: "Sausage rolls", qtyPerUnit: 30 },
-        { label: "Veg & lamb samosas", qtyPerUnit: 24 },
-        { label: "Crusty cobs", qtyPerUnit: 18 },
-        { label: "Local cheese & produce", qtyPerUnit: 6 },
-        { label: "Fruit platters", qtyPerUnit: 3 },
-      ],
-    },
-    {
-      id: "platter-office-lunch", category: "events", name: "Office Lunch", sortOrder: 2, active: true,
-      description: "Sorted lunch for the team — priced per head, 10 person minimum.",
-      pricePerHead: 8.5, fixedPrice: null, cost: 3.4, serves: "10+", minHeadcount: 10,
-      imageUrl: "https://images.unsplash.com/photo-1554998171-89445e31c52b?auto=format&fit=crop&w=800&q=60",
-      items: [
-        { label: "Gourmet sandwiches", qtyPerUnit: 1.5 },
-        { label: "Sausage rolls", qtyPerUnit: 1 },
-        { label: "Veg & lamb samosas", qtyPerUnit: 1 },
-        { label: "Crusty cobs", qtyPerUnit: 1 },
-        { label: "Fruit portions", qtyPerUnit: 1 },
-      ],
-    },
-    // ---- Seasonal (off by default — owner switches on by season) ----
-    {
-      id: "platter-xmas", category: "seasonal", name: "Christmas Spread", sortOrder: 1, active: false,
-      description: "Festive favourites for the season — switch on from admin when it's time.",
-      pricePerHead: null, fixedPrice: 165, cost: 72, serves: "10-15", minHeadcount: 1,
-      imageUrl: "https://images.unsplash.com/photo-1543258103-a62bdc069871?auto=format&fit=crop&w=800&q=60",
-      items: [
-        { label: "Festive sandwiches", qtyPerUnit: 30 },
-        { label: "Pigs in blankets", qtyPerUnit: 24 },
-        { label: "Veg & lamb samosas", qtyPerUnit: 16 },
-        { label: "Crusty cobs", qtyPerUnit: 12 },
-        { label: "Cheese & chutney", qtyPerUnit: 4 },
-        { label: "Mince pies", qtyPerUnit: 12 },
-      ],
-    },
-    {
-      id: "platter-bbq", category: "seasonal", name: "Summer BBQ Platter", sortOrder: 2, active: false,
-      description: "Sunshine spread for gardens & gatherings — switch on for summer.",
-      pricePerHead: null, fixedPrice: 150, cost: 66, serves: "10-15", minHeadcount: 1,
-      imageUrl: "https://images.unsplash.com/photo-1529193591184-b1d58069ecdd?auto=format&fit=crop&w=800&q=60",
-      items: [
-        { label: "BBQ pulled rolls", qtyPerUnit: 30 },
-        { label: "Sausage rolls", qtyPerUnit: 20 },
-        { label: "Veg & lamb samosas", qtyPerUnit: 16 },
-        { label: "Salads", qtyPerUnit: 6 },
-        { label: "Fruit platters", qtyPerUnit: 3 },
-      ],
-    },
-  ];
-
-  for (const p of platters) {
-    const data = {
-      category: p.category, name: p.name, description: p.description,
-      pricePerHead: p.pricePerHead, fixedPrice: p.fixedPrice, cost: p.cost,
-      serves: p.serves, minHeadcount: p.minHeadcount, sortOrder: p.sortOrder,
-      imageUrl: p.imageUrl, items: p.items, active: p.active,
-    };
-    await prisma.platter.upsert({ where: { id: p.id }, update: data, create: { id: p.id, ...data } });
-  }
-
-  // --- Board configurator (category "platters") — PLACEHOLDER prices/costs/images ---
-  // Each boardType has a Small/Medium/Large fixedPrice tile. "Charcuterie" also gets a
-  // "build your own" variant (same sizes) that the customer customises with BoardComponent picks.
-  type BoardSize = "small" | "medium" | "large";
-  const SIZES: Array<{ size: BoardSize; label: string; serves: string }> = [
-    { size: "small", label: "Small", serves: "4-6" },
-    { size: "medium", label: "Medium", serves: "8-10" },
-    { size: "large", label: "Large", serves: "12-15" },
-  ];
-
-  interface BoardDef {
-    boardType: string;
+  // --- v2 board catalogue: 5 signature + 4 gallery boards ---
+  // Every board is a flat fixed-price item with a feeds range. items[] is a PLACEHOLDER
+  // prep list the owner edits. cost is a placeholder (~40% of price) driving margin reporting.
+  interface BoardSeed {
+    id: string;
+    tier: "signature" | "gallery";
     name: string;
+    price: number;
+    cost: number;
+    feedsMin: number;
+    feedsMax: number;
+    priority: number; // recommender: higher = suggested first
     description: string;
-    image: string;
+    imageUrl: string;
     items: { label: string; qtyPerUnit: number }[];
-    prices: Record<BoardSize, { price: number; cost: number }>;
-    buildYourOwn?: boolean;
   }
 
-  const boards: BoardDef[] = [
+  const boards: BoardSeed[] = [
+    // ---- Tier 1: Signature Boards (fast path, prominent on home) ----
     {
-      boardType: "charcuterie",
-      name: "Charcuterie Board",
-      image: "https://images.unsplash.com/photo-1678572823447-45fc146df43c?auto=format&fit=crop&w=900&q=70",
-      description: "Three local cheeses, salami, stuffed peppers, olives & balsamic onions, with crackers and a jar of chutney.",
+      id: "board-small-platter", tier: "signature", name: "Small Platter", price: 45, cost: 18,
+      feedsMin: 4, feedsMax: 6, priority: 30,
+      description: `A generous mixed platter for a small group — sandwiches, savouries and fresh bits. ${CHECK}`,
+      imageUrl: "https://images.unsplash.com/photo-1447279506476-3faec8071eee?auto=format&fit=crop&w=900&q=70",
       items: [
-        { label: "Three cheeses", qtyPerUnit: 1 },
-        { label: "Salami", qtyPerUnit: 1 },
-        { label: "Stuffed peppers", qtyPerUnit: 1 },
-        { label: "Mixed olives", qtyPerUnit: 1 },
-        { label: "Balsamic onions", qtyPerUnit: 1 },
-        { label: "Crackers", qtyPerUnit: 1 },
-        { label: "Chutney", qtyPerUnit: 1 },
+        { label: "Gourmet sandwiches", qtyPerUnit: 12 },
+        { label: "Sausage rolls", qtyPerUnit: 8 },
+        { label: "Savoury selection", qtyPerUnit: 8 },
+        { label: "Fresh fruit", qtyPerUnit: 1 },
       ],
-      prices: { small: { price: 28, cost: 11 }, medium: { price: 48, cost: 19 }, large: { price: 75, cost: 30 } },
-      buildYourOwn: true,
     },
     {
-      boardType: "savoury",
-      name: "Savoury Board",
-      image: "https://images.unsplash.com/photo-1673960782730-ab13fc062d6d?auto=format&fit=crop&w=900&q=70",
-      description: "Sausage rolls, scotch eggs, quiches, samosas, vegetable & chicken kievs — all the hot favourites, served cold.",
+      id: "board-medium-platter", tier: "signature", name: "Medium Platter", price: 70, cost: 28,
+      feedsMin: 8, feedsMax: 10, priority: 90,
+      description: `Our most popular spread — a proper mixed platter for the room. ${CHECK}`,
+      imageUrl: "https://images.unsplash.com/photo-1504754524776-8f4f37790ca0?auto=format&fit=crop&w=900&q=70",
       items: [
-        { label: "Sausage rolls", qtyPerUnit: 1 },
-        { label: "Scotch eggs", qtyPerUnit: 1 },
-        { label: "Mini quiches", qtyPerUnit: 1 },
-        { label: "Samosas", qtyPerUnit: 1 },
-        { label: "Vegetable kievs", qtyPerUnit: 1 },
-        { label: "Chicken kievs", qtyPerUnit: 1 },
+        { label: "Gourmet sandwiches", qtyPerUnit: 24 },
+        { label: "Sausage rolls", qtyPerUnit: 16 },
+        { label: "Savoury selection", qtyPerUnit: 16 },
+        { label: "Fresh fruit", qtyPerUnit: 2 },
       ],
-      prices: { small: { price: 22, cost: 9 }, medium: { price: 38, cost: 15 }, large: { price: 60, cost: 24 } },
     },
     {
-      boardType: "cheese",
-      name: "Cheese Board",
-      image: "https://images.unsplash.com/photo-1517093602195-b40af9688b46?auto=format&fit=crop&w=900&q=70",
-      description: "A generous spread of local cheeses with grapes, olives and fresh fig.",
+      id: "board-large-platter", tier: "signature", name: "Large Platter", price: 100, cost: 42,
+      feedsMin: 12, feedsMax: 15, priority: 100,
+      description: `The full spread for a bigger gathering — everything the table needs. ${CHECK}`,
+      imageUrl: "https://images.unsplash.com/photo-1672826979217-7156a305acf5?auto=format&fit=crop&w=900&q=70",
+      items: [
+        { label: "Gourmet sandwiches", qtyPerUnit: 36 },
+        { label: "Sausage rolls", qtyPerUnit: 24 },
+        { label: "Savoury selection", qtyPerUnit: 24 },
+        { label: "Fresh fruit", qtyPerUnit: 3 },
+      ],
+    },
+    {
+      id: "board-cheese", tier: "signature", name: "Cheese Board", price: 55, cost: 22,
+      feedsMin: 8, feedsMax: 10, priority: 60,
+      description: `A generous spread of local cheeses with grapes, olives and fresh fig. ${CHECK}`,
+      imageUrl: "https://images.unsplash.com/photo-1517093602195-b40af9688b46?auto=format&fit=crop&w=900&q=70",
       items: [
         { label: "Selection of cheeses", qtyPerUnit: 1 },
         { label: "Grapes", qtyPerUnit: 1 },
         { label: "Mixed olives", qtyPerUnit: 1 },
-        { label: "Fresh fig", qtyPerUnit: 1 },
+        { label: "Crackers", qtyPerUnit: 1 },
       ],
-      prices: { small: { price: 26, cost: 10 }, medium: { price: 45, cost: 18 }, large: { price: 70, cost: 28 } },
     },
     {
-      boardType: "salmon",
-      name: "Smoked Salmon Board",
-      image: "https://images.unsplash.com/photo-1577906096429-f73c2c312435?auto=format&fit=crop&w=900&q=70",
-      description: "Smoked salmon with blinis and crostinis — simple, fresh and always a favourite.",
+      id: "board-charcuterie", tier: "signature", name: "Charcuterie Board", price: 60, cost: 24,
+      feedsMin: 8, feedsMax: 10, priority: 70,
+      description: `Local cheeses, cured meats, stuffed peppers, olives and chutney, with crackers. ${CHECK}`,
+      imageUrl: "https://images.unsplash.com/photo-1678572823447-45fc146df43c?auto=format&fit=crop&w=900&q=70",
+      items: [
+        { label: "Cheeses", qtyPerUnit: 1 },
+        { label: "Cured meats", qtyPerUnit: 1 },
+        { label: "Stuffed peppers & olives", qtyPerUnit: 1 },
+        { label: "Crackers & chutney", qtyPerUnit: 1 },
+      ],
+    },
+    // ---- Tier 2: More Boards (browsable gallery) ----
+    {
+      id: "board-indian", tier: "gallery", name: "Indian Board", price: 65, cost: 26,
+      feedsMin: 10, feedsMax: 12, priority: 80,
+      description: `Samosas, pakoras, bhajis and dips — a warm-spiced sharing board. ${CHECK}`,
+      imageUrl: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=900&q=70",
+      items: [
+        { label: "Samosas", qtyPerUnit: 20 },
+        { label: "Onion bhajis", qtyPerUnit: 16 },
+        { label: "Pakoras", qtyPerUnit: 16 },
+        { label: "Dips & chutneys", qtyPerUnit: 3 },
+      ],
+    },
+    {
+      id: "board-sandwich", tier: "gallery", name: "Sandwich Platter", price: 50, cost: 20,
+      feedsMin: 8, feedsMax: 10, priority: 55,
+      description: `A classic finger-sandwich platter on fresh local bread. ${CHECK}`,
+      imageUrl: "https://images.unsplash.com/photo-1554998171-89445e31c52b?auto=format&fit=crop&w=900&q=70",
+      items: [
+        { label: "Assorted finger sandwiches", qtyPerUnit: 40 },
+        { label: "Crisps", qtyPerUnit: 4 },
+      ],
+    },
+    {
+      id: "board-salmon", tier: "gallery", name: "Smoked Salmon Board", price: 70, cost: 30,
+      feedsMin: 8, feedsMax: 10, priority: 50,
+      description: `Smoked salmon with blinis and crostinis — simple, fresh and elegant. ${CHECK}`,
+      imageUrl: "https://images.unsplash.com/photo-1577906096429-f73c2c312435?auto=format&fit=crop&w=900&q=70",
       items: [
         { label: "Smoked salmon", qtyPerUnit: 1 },
         { label: "Blinis", qtyPerUnit: 1 },
         { label: "Crostinis", qtyPerUnit: 1 },
       ],
-      prices: { small: { price: 30, cost: 13 }, medium: { price: 52, cost: 22 }, large: { price: 80, cost: 34 } },
     },
-  ];
-
-  let boardCount = 0;
-  for (const b of boards) {
-    for (const s of SIZES) {
-      const { price, cost } = b.prices[s.size];
-      const id = `platter-${b.boardType}-${s.size}`;
-      const data = {
-        category: "platters", name: `${b.name} — ${s.label}`, description: b.description,
-        pricePerHead: null, fixedPrice: price, cost, serves: s.serves, minHeadcount: 1,
-        items: b.items, imageUrl: b.image, active: true, sortOrder: boardCount,
-        boardType: b.boardType, size: s.size,
-      };
-      await prisma.platter.upsert({ where: { id }, update: data, create: { id, ...data } });
-      boardCount++;
-
-      if (b.buildYourOwn) {
-        const customId = `platter-${b.boardType}-${s.size}-custom`;
-        const customData = { ...data, name: `${b.name} — ${s.label} (Build Your Own)`, sortOrder: boardCount };
-        // (customItems chosen by the customer at order time; this row just carries size/price/image)
-        await prisma.platter.upsert({ where: { id: customId }, update: customData, create: { id: customId, ...customData } });
-        boardCount++;
-      }
-    }
-  }
-
-  // --- Build-your-own board ingredients (BoardComponent) ---
-  const boardComponents = [
-    { id: "bc-brie", category: "cheese", label: "Brie", sortOrder: 1 },
-    { id: "bc-cheddar", category: "cheese", label: "Mature Cheddar", sortOrder: 2 },
-    { id: "bc-red-leicester", category: "cheese", label: "Red Leicester", sortOrder: 3 },
-    { id: "bc-stilton", category: "cheese", label: "Blue Stilton", sortOrder: 4 },
-    { id: "bc-goats", category: "cheese", label: "Goats Cheese", sortOrder: 5 },
-    { id: "bc-ham", category: "meat", label: "Sliced Ham", sortOrder: 1 },
-    { id: "bc-turkey", category: "meat", label: "Sliced Turkey", sortOrder: 2 },
-    { id: "bc-salami", category: "savoury", label: "Salami", sortOrder: 1, isDefault: true },
-    { id: "bc-peppers", category: "savoury", label: "Stuffed Peppers", sortOrder: 2, isDefault: true },
-    { id: "bc-olives", category: "savoury", label: "Mixed Olives", sortOrder: 3, isDefault: true },
-    { id: "bc-onions", category: "savoury", label: "Balsamic Onions", sortOrder: 4 },
-    // Crackers/jam are always included — this is a real choice of which one, not whether. The
-    // isDefault one comes pre-picked. PLACEHOLDER labels — edit in admin Board Ingredients to match real stock.
-    { id: "bc-crackers", category: "cracker", label: "Table Water Crackers", sortOrder: 1, isDefault: true },
-    { id: "bc-crackers-seeded", category: "cracker", label: "Seeded Crackers", sortOrder: 2 },
-    { id: "bc-crackers-gf", category: "cracker", label: "Gluten-Free Crackers", sortOrder: 3 },
-    { id: "bc-chutney", category: "jam", label: "Red Onion Chutney", sortOrder: 1, isDefault: true },
-    { id: "bc-jam-fig", category: "jam", label: "Fig Chutney", sortOrder: 2 },
-    { id: "bc-jam-apricot", category: "jam", label: "Apricot Jam", sortOrder: 3 },
-  ];
-  // update: {} — the owner edits these in admin; a reseed must only fill gaps, never clobber.
-  for (const c of boardComponents) {
-    await prisma.boardComponent.upsert({ where: { id: c.id }, update: {}, create: { ...c, active: true } });
-  }
-  // One-time backfill for rows seeded before isDefault existed: only if the owner hasn't
-  // marked any defaults yet (so this never overrides a deliberate admin choice).
-  const defaultCount = await prisma.boardComponent.count({ where: { isDefault: true } });
-  if (defaultCount === 0) {
-    await prisma.boardComponent.updateMany({
-      where: { id: { in: ["bc-salami", "bc-peppers", "bc-olives", "bc-crackers", "bc-chutney"] } },
-      data: { isDefault: true },
-    });
-  }
-
-  // --- Configurator group rules (BoardComponentGroup) ---
-  // Fixed set of five rows keyed by BoardComponent.category. Headings/limits mirror the copy
-  // that used to be hardcoded in the client configurator. includedFree = how many of the
-  // customer's picks are free before per-option prices apply (cheapest picks are free first).
-  const boardGroups = [
-    { id: "bcg-cheese", key: "cheese", heading: "Choose your cheeses", maxSelections: null, includedFree: 0, sortOrder: 1 },
-    { id: "bcg-meat", key: "meat", heading: "Add a meat (optional)", maxSelections: null, includedFree: 0, sortOrder: 2 },
-    { id: "bcg-savoury", key: "savoury", heading: "Included as standard — swap anything you don't want", maxSelections: null, includedFree: 0, sortOrder: 3 },
-    { id: "bcg-cracker", key: "cracker", heading: "Your crackers", maxSelections: 1, includedFree: 1, sortOrder: 4 },
-    { id: "bcg-jam", key: "jam", heading: "Your chutney or jam", maxSelections: 1, includedFree: 1, sortOrder: 5 },
-  ];
-  for (const g of boardGroups) {
-    await prisma.boardComponentGroup.upsert({ where: { key: g.key }, update: {}, create: { ...g, active: true } });
-  }
-
-  // --- Experiences (bookable tastings) — PLACEHOLDER price/cost ---
-  const experiences = [
     {
-      id: "exp-cheese-tasting", name: "Cheese Tasting Evening", sortOrder: 1, active: true,
-      description: "A guided evening through our finest local cheeses, with cobs, chutneys and a glass to match.",
-      pricePerHead: 45, cost: 16, capacity: 12,
-      imageUrl: "https://images.unsplash.com/photo-1452195100486-9cc805987862?auto=format&fit=crop&w=800&q=60",
+      id: "board-breakfast", tier: "gallery", name: "Breakfast Board", price: 55, cost: 22,
+      feedsMin: 6, feedsMax: 8, priority: 40,
+      description: `Pastries, fruit, yoghurts and breakfast bites to start the day. ${CHECK}`,
+      imageUrl: "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?auto=format&fit=crop&w=900&q=70",
+      items: [
+        { label: "Pastries", qtyPerUnit: 12 },
+        { label: "Fresh fruit", qtyPerUnit: 2 },
+        { label: "Yoghurts", qtyPerUnit: 6 },
+      ],
     },
   ];
-  for (const e of experiences) {
-    await prisma.experience.upsert({ where: { id: e.id }, update: e, create: e });
+
+  for (const b of boards) {
+    const data = {
+      category: "board",
+      tier: b.tier,
+      name: b.name,
+      description: b.description,
+      pricePerHead: null as number | null,
+      fixedPrice: b.price,
+      cost: b.cost,
+      serves: `${b.feedsMin}-${b.feedsMax}`,
+      feedsMin: b.feedsMin,
+      feedsMax: b.feedsMax,
+      minHeadcount: 1,
+      items: b.items,
+      imageUrl: b.imageUrl,
+      active: true,
+      sortOrder: boards.indexOf(b),
+      recommendEligible: true,
+      recommendPriority: b.priority,
+    };
+    // update: {} — create-only so admin corrections survive a reseed.
+    await prisma.platter.upsert({ where: { id: b.id }, update: {}, create: { id: b.id, ...data } });
+  }
+
+  // --- Add-ons (upsell engine, build spec §3) — PLACEHOLDER prices, owner corrects in admin ---
+  interface AddOnSeed {
+    id: string;
+    name: string;
+    price: number;
+    unitType: "per_person" | "per_order" | "serves";
+    unitLabel: string;
+    servesPerUnit?: number;
+    suggestFromHeadcount: boolean;
+    imageUrl?: string;
+  }
+  const addOns: AddOnSeed[] = [
+    { id: "addon-cutlery", name: "Disposable bamboo cutlery set", price: 1.5, unitType: "per_person", unitLabel: "per person", suggestFromHeadcount: true },
+    { id: "addon-plates", name: "Palm-leaf plates", price: 1.5, unitType: "per_person", unitLabel: "per person", suggestFromHeadcount: true },
+    { id: "addon-napkins", name: "Napkins pack", price: 3, unitType: "serves", unitLabel: "serves 10", servesPerUnit: 10, suggestFromHeadcount: true },
+    { id: "addon-drinks", name: "Sparkling elderflower / soft drinks bottle", price: 4.5, unitType: "per_order", unitLabel: "per bottle", suggestFromHeadcount: false },
+    { id: "addon-dips", name: "Extra dips & crackers top-up", price: 8, unitType: "per_order", unitLabel: "per top-up", suggestFromHeadcount: false },
+    { id: "addon-sweets", name: "Chocolate & sweet treats add-on board", price: 25, unitType: "per_order", unitLabel: "per board", suggestFromHeadcount: false },
+    { id: "addon-setup", name: "Setup & presentation at collection", price: 10, unitType: "per_order", unitLabel: "boards arranged, ready to serve", suggestFromHeadcount: false },
+  ];
+  for (let i = 0; i < addOns.length; i++) {
+    const a = addOns[i];
+    const data = {
+      name: a.name,
+      description: `Placeholder price — ${CHECK}`,
+      price: a.price,
+      unitType: a.unitType,
+      unitLabel: a.unitLabel,
+      servesPerUnit: a.servesPerUnit ?? null,
+      suggestFromHeadcount: a.suggestFromHeadcount,
+      imageUrl: a.imageUrl ?? null,
+      active: true,
+      sortOrder: i,
+    };
+    // create-only so admin edits survive a reseed.
+    await prisma.addOn.upsert({ where: { id: a.id }, update: {}, create: { id: a.id, ...data } });
   }
 
   // --- Settings (global admin toggles) ---
@@ -312,18 +227,20 @@ async function main() {
     { key: "tastingsComingSoon", value: "on" }, // not set up for bookings yet
     { key: "clickCollectComingSoon", value: "on" }, // click & collect isn't built yet
     { key: "openingHours", value: defaultHours }, // PLACEHOLDER — edit in Site Settings
-    { key: "aboutText", value: "Proper food from the people you know — local produce, made fresh, the same way we've always done it." },
+    { key: "aboutText", value: "Proper food from the people you know — grazing boards for collection, made fresh." },
     { key: "heroImageUrl", value: "https://images.unsplash.com/photo-1695606392727-d8b959879721?auto=format&fit=crop&w=1400&q=70" },
     { key: "missionTagline", value: "The deli your grandparents would recognise — local produce, no shortcuts, boards built the same way every time." },
     { key: "founderNote", value: "We've been doing this the same way for years — proper local produce, boards built by hand, nothing rushed. Every order that goes out the door is one we'd be happy to serve our own family." },
     { key: "reviewRating", value: "4.7" }, // real, from Google — update in Site Settings as reviews come in
     { key: "reviewCount", value: "47" },
+    // v2: collection lead time in hours (protects the kitchen). Admin-editable in Site Settings.
+    { key: "orderLeadTimeHours", value: "48" },
   ];
   for (const s of settings) {
     await prisma.setting.upsert({ where: { key: s.key }, update: {}, create: s });
   }
 
-  // --- Users (staff + demo) ---
+  // --- Users (staff) ---
   const isProd = process.env.NODE_ENV === "production";
   const email = process.env.ADMIN_EMAIL ?? "owner@kellysdeli.co.uk";
   const password = process.env.ADMIN_PASSWORD ?? "changeme123";
@@ -337,8 +254,7 @@ async function main() {
     create: { email, passwordHash: await bcrypt.hash(password, 10), role: "admin" },
   });
   // No demo account. Local dev shares the production database, so a "dev-only"
-  // account here would be a real admin on the live site. Removed 2026-07-02
-  // (it had been auto-logging visitors into production admin) — don't re-add.
+  // account here would be a real admin on the live site.
   await prisma.user.deleteMany({ where: { email: "demo@kellysdeli.co.uk" } });
 
   // --- Demo customer (handy for re-order / SMS testing) ---
@@ -348,7 +264,7 @@ async function main() {
     create: { name: "Demo Customer", phone: "07700900123", email: "demo@example.com", referralCode: randomReferralCode() },
   });
 
-  console.log(`Seeded ${locations.length} locations, ${platters.length} platters, ${boardCount} board tiles, ${boardComponents.length} board components, ${experiences.length} experience(s), ${settings.length} settings, admin <${email}>.`);
+  console.log(`Seeded ${locations.length} locations, ${boards.length} boards, ${addOns.length} add-ons, ${settings.length} settings, admin <${email}>.`);
 }
 
 main()

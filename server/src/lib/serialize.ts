@@ -1,6 +1,17 @@
 // Convert Prisma rows (with Decimal/Date types) into plain JSON-friendly DTOs
 // with numbers and 'YYYY-MM-DD' date strings, so the client never deals with Decimal.
-import type { Platter, Location, Order, Customer, Experience, BoardComponent, BoardComponentGroup } from "@prisma/client";
+import type {
+  Platter,
+  Location,
+  Order,
+  Customer,
+  Experience,
+  BoardComponent,
+  BoardComponentGroup,
+  AddOn,
+  OrderItem,
+  OrderAddOn,
+} from "@prisma/client";
 import { formatDate } from "./capacity";
 import { toMoney } from "./money";
 
@@ -36,9 +47,52 @@ export function platterDTO(p: Platter, opts: { includeCost?: boolean } = {}) {
           : null,
     boardType: p.boardType,
     size: p.size,
+    tier: p.tier,
+    feedsMin: p.feedsMin,
+    feedsMax: p.feedsMax,
+    recommendEligible: p.recommendEligible,
+    recommendPriority: p.recommendPriority,
   };
   if (opts.includeCost) return { ...dto, cost: Number(p.cost) };
   return dto;
+}
+
+export function addOnDTO(a: AddOn) {
+  return {
+    id: a.id,
+    name: a.name,
+    description: a.description,
+    price: Number(a.price),
+    unitType: a.unitType,
+    unitLabel: a.unitLabel,
+    servesPerUnit: a.servesPerUnit,
+    suggestFromHeadcount: a.suggestFromHeadcount,
+    imageUrl: a.imageUrl,
+    active: a.active,
+    sortOrder: a.sortOrder,
+  };
+}
+
+export function orderItemDTO(i: OrderItem & { platter?: Platter | null }) {
+  return {
+    id: i.id,
+    platterId: i.platterId,
+    platterName: i.platter?.name ?? null,
+    quantity: i.quantity,
+    unitPrice: Number(i.unitPrice),
+    lineTotal: toMoney(Number(i.unitPrice) * i.quantity),
+  };
+}
+
+export function orderAddOnDTO(a: OrderAddOn) {
+  return {
+    id: a.id,
+    addOnId: a.addOnId,
+    name: a.name,
+    quantity: a.quantity,
+    unitPrice: Number(a.unitPrice),
+    lineTotal: toMoney(Number(a.unitPrice) * a.quantity),
+  };
 }
 
 export function boardComponentDTO(c: BoardComponent) {
@@ -115,8 +169,12 @@ export function orderDTO(
     experience?: Experience | null;
     location?: Location | null;
     customer?: Customer | null;
+    items?: (OrderItem & { platter?: Platter | null })[] | null;
+    addOns?: OrderAddOn[] | null;
   },
 ) {
+  const total = Number(o.total);
+  const deposit = Number(o.deposit);
   return {
     customerReferralCode: o.customer?.referralCode ?? null,
     id: o.id,
@@ -128,9 +186,14 @@ export function orderDTO(
     experienceName: o.experience?.name ?? null,
     headcount: o.headcount,
     quantity: o.quantity,
+    occasion: o.occasion,
     customItems: Array.isArray(o.customItems) ? (o.customItems as string[]) : null,
-    total: Number(o.total),
-    deposit: Number(o.deposit),
+    // v2 itemisation (boards + add-ons). Empty arrays for legacy single-platter orders.
+    items: o.items ? o.items.map(orderItemDTO) : [],
+    addOns: o.addOns ? o.addOns.map(orderAddOnDTO) : [],
+    total,
+    deposit,
+    balance: toMoney(total - deposit), // payable on collection
     depositStatus: o.depositStatus,
     isGift: o.isGift,
     recipientName: o.recipientName,

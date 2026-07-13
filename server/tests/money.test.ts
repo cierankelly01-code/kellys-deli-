@@ -9,6 +9,10 @@ import {
   calcMargin,
   orderProfit,
   priceOrder,
+  roundTo5p,
+  lineItemsTotal,
+  addOnsTotal,
+  priceLineItemOrder,
   REFERRAL_DISCOUNT,
   BOARD_DEPOSIT,
 } from "../src/lib/money";
@@ -193,5 +197,86 @@ describe("orderProfit", () => {
   it("uses flat cost for fixed platters regardless of headcount", () => {
     // £175 total, cost £85 => profit £90 (headcount irrelevant)
     expect(orderProfit({ pricePerHead: null, fixedPrice: 175, cost: 85 }, 18, 175)).toBe(90);
+  });
+});
+
+describe("roundTo5p", () => {
+  it("rounds to the nearest 5p", () => {
+    expect(roundTo5p(16.86)).toBe(16.85);
+    expect(roundTo5p(16.88)).toBe(16.9);
+    expect(roundTo5p(16.875)).toBe(16.9); // half rounds up
+    expect(roundTo5p(2.174999)).toBe(2.15);
+  });
+  it("leaves exact 5p multiples untouched", () => {
+    expect(roundTo5p(11.25)).toBe(11.25);
+    expect(roundTo5p(25)).toBe(25);
+    expect(roundTo5p(0)).toBe(0);
+  });
+});
+
+describe("lineItemsTotal / addOnsTotal", () => {
+  it("sums unitPrice × quantity to 2dp", () => {
+    expect(lineItemsTotal([{ unitPrice: 1.5, quantity: 15 }])).toBe(22.5);
+    expect(lineItemsTotal([{ unitPrice: 8, quantity: 1 }, { unitPrice: 25, quantity: 1 }])).toBe(33);
+    expect(lineItemsTotal([{ unitPrice: 100, quantity: 2 }, { unitPrice: 55, quantity: 1 }])).toBe(255);
+  });
+  it("is zero for no items", () => {
+    expect(addOnsTotal([])).toBe(0);
+  });
+});
+
+describe("priceLineItemOrder", () => {
+  it("prices a single board with no add-ons (clean deposit)", () => {
+    expect(priceLineItemOrder([{ unitPrice: 100, quantity: 1 }], [], false)).toEqual({
+      base: 100,
+      boardsTotal: 100,
+      addOnsTotal: 0,
+      discount: 0,
+      total: 100,
+      deposit: 25,
+      balance: 75,
+    });
+  });
+  it("prices a board + per-person add-ons and rounds the deposit to 5p", () => {
+    // board £45 + cutlery £1.50 × 15 = £67.50; 25% = £16.875 → £16.90 deposit; balance £50.60
+    expect(
+      priceLineItemOrder([{ unitPrice: 45, quantity: 1 }], [{ unitPrice: 1.5, quantity: 15 }], false),
+    ).toEqual({
+      base: 67.5,
+      boardsTotal: 45,
+      addOnsTotal: 22.5,
+      discount: 0,
+      total: 67.5,
+      deposit: 16.9,
+      balance: 50.6,
+    });
+  });
+  it("applies a referral discount before computing the deposit", () => {
+    // board £70 + top-up £8 = £78, minus £15 referral = £63; 25% = £15.75; balance £47.25
+    expect(
+      priceLineItemOrder([{ unitPrice: 70, quantity: 1 }], [{ unitPrice: 8, quantity: 1 }], true),
+    ).toEqual({
+      base: 78,
+      boardsTotal: 70,
+      addOnsTotal: 8,
+      discount: 15,
+      total: 63,
+      deposit: 15.75,
+      balance: 47.25,
+    });
+  });
+  it("prices a multi-board event combination", () => {
+    // 2× Large £100 + 1× Cheese £55 = £255; 25% = £63.75; balance £191.25
+    expect(
+      priceLineItemOrder([{ unitPrice: 100, quantity: 2 }, { unitPrice: 55, quantity: 1 }], [], false),
+    ).toEqual({
+      base: 255,
+      boardsTotal: 255,
+      addOnsTotal: 0,
+      discount: 0,
+      total: 255,
+      deposit: 63.75,
+      balance: 191.25,
+    });
   });
 });

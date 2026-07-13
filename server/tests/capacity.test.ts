@@ -3,12 +3,33 @@ import {
   getDayAvailability,
   buildAvailability,
   meetsNotice,
+  meetsLeadTime,
   canBook,
   MIN_NOTICE_HOURS,
 } from "../src/lib/capacity";
 
 // Fixed "now" for deterministic tests: Mon 1 Jun 2026, 09:00 UTC.
 const NOW = new Date("2026-06-01T09:00:00.000Z");
+
+describe("meetsLeadTime (configurable)", () => {
+  it("defaults to the 48h notice", () => {
+    expect(meetsLeadTime("2026-06-03", NOW)).toBe(false); // 39h
+    expect(meetsLeadTime("2026-06-04", NOW)).toBe(true); // 63h
+  });
+  it("honours a custom lead time (24h)", () => {
+    expect(meetsLeadTime("2026-06-02", NOW, 24)).toBe(false); // ~15h < 24h
+    expect(meetsLeadTime("2026-06-03", NOW, 24)).toBe(true); // 39h >= 24h
+  });
+  it("honours a longer lead time (72h)", () => {
+    expect(meetsLeadTime("2026-06-04", NOW, 72)).toBe(false); // 63h < 72h
+    expect(meetsLeadTime("2026-06-05", NOW, 72)).toBe(true); // 87h >= 72h
+  });
+  it("blocks bookings inside a custom lead window via canBook", () => {
+    // 2026-06-04 is 63h out: bookable at 48h, blocked at 72h.
+    expect(canBook("2026-06-04", 5, 0, NOW, 48)).toBe(true);
+    expect(canBook("2026-06-04", 5, 0, NOW, 72)).toBe(false);
+  });
+});
 
 describe("meetsNotice (48h rule)", () => {
   it("rejects dates inside the 48h window", () => {

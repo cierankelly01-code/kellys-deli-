@@ -2,7 +2,7 @@ import { asyncRouter } from "../lib/async-router";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { env } from "../lib/env";
-import { orderDTO, platterDTO, experienceDTO, locationDTO, boardComponentDTO, boardGroupDTO, type PlatterItem } from "../lib/serialize";
+import { orderDTO, platterDTO, experienceDTO, locationDTO, boardComponentDTO, boardGroupDTO, addOnDTO, type PlatterItem } from "../lib/serialize";
 import {
   platterUpsertSchema,
   experienceUpsertSchema,
@@ -11,6 +11,7 @@ import {
   blastSchema,
   boardComponentUpsertSchema,
   boardGroupUpdateSchema,
+  addOnUpsertSchema,
 } from "../lib/validation";
 import { calcMargin } from "../lib/money";
 import { parseDate, formatDate } from "../lib/capacity";
@@ -21,7 +22,9 @@ import { imageUpload, persistUpload } from "../lib/uploads";
 
 export const adminRouter = asyncRouter();
 
-const STATUSES = ["new", "confirmed", "in_prep", "ready", "completed", "cancelled"] as const;
+// v2 manual staff flow (build spec §1.3). "collected" is the terminal, notify-firing state
+// (the old "completed"). Legacy values are tolerated when reading old rows but not offered.
+const STATUSES = ["new", "deposit_requested", "confirmed", "collected", "cancelled"] as const;
 const GOOGLE_REVIEW_URL = "https://g.page/r/kellys-deli/review"; // placeholder review link
 
 /** Cost of an order's line (platter or experience). */
@@ -44,7 +47,13 @@ function toStatInput(o: any): StatOrderInput {
   };
 }
 
-const ORDER_INCLUDE = { platter: true, experience: true, location: true } as const;
+const ORDER_INCLUDE = {
+  platter: true,
+  experience: true,
+  location: true,
+  items: { include: { platter: true } },
+  addOns: true,
+} as const;
 
 // --- Order + booking list (filterable) ---
 adminRouter.get("/orders", async (req, res) => {
@@ -80,11 +89,11 @@ adminRouter.patch("/orders/:id/status", async (req, res) => {
     include: { ...ORDER_INCLUDE, customer: true },
   });
 
-  // Completion triggers the review + referral engines exactly once. Guard on a
+  // Collection triggers the review + referral engines exactly once. Guard on a
   // persistent timestamp (not the transient status) and flip it atomically, so a
-  // status bounce (completed -> other -> completed) or two concurrent PATCHes can't
+  // status bounce (collected -> other -> collected) or two concurrent PATCHes can't
   // re-send the customer duplicate "review us" / referral messages.
-  if (parsed.data.status === "completed") {
+  if (parsed.data.status === "collected") {
     const flip = await prisma.order.updateMany({
       where: { id: req.params.id, completedNotifiedAt: null },
       data: { completedNotifiedAt: new Date() },
@@ -110,28 +119,42 @@ adminRouter.get("/prep-sheet", async (req, res) => {
 
   const orders = await prisma.order.findMany({
     where: { locationId, collectionOrDeliveryDate: parseDate(date), status: { not: "cancelled" }, type: { in: ["platter", "gift"] } },
-    include: { platter: true },
+    include: { platter: true, items: { include: { platter: true } } },
     orderBy: { createdAt: "asc" },
   });
 
+  // The name(s) of the board(s) on an order — the itemised line items when present,
+  // otherwise the legacy single platter.
+  const boardNames = (o: (typeof orders)[number]): string => {
+    if (o.items.length > 0) {
+      return o.items.map((i) => `${i.platter?.name ?? "—"}${i.quantity > 1 ? ` ×${i.quantity}` : ""}`).join(", ");
+    }
+    return o.platter?.name ?? "—";
+  };
+
+  // One prep row per ORDER (so headcount/order counts stay correct). Ingredient
+  // quantities are pre-scaled by each board line's quantity and flattened across all
+  // boards on the order; scale is then 1 (isFixed/quantity=1). Falls back to the legacy
+  // single platter (× quantity) / build-your-own customItems for pre-v2 rows.
   const input: PrepInputOrder[] = orders
-    .filter((o) => o.platter)
     .map((o) => {
-      const customItems = o.customItems as unknown as string[] | null;
-      // Build-your-own boards: prep from the customer's chosen ingredients, one unit each,
-      // scaled by quantity. Otherwise use the platter's own item list as normal.
-      const items: PlatterItem[] = customItems?.length
-        ? customItems.map((label) => ({ label, qtyPerUnit: 1 }))
-        : ((o.platter!.items as unknown as PlatterItem[]) ?? []);
-      return {
-        ref: o.ref,
-        platterName: o.platter!.name,
-        isFixed: o.platter!.fixedPrice != null,
-        headcount: o.headcount,
-        quantity: o.quantity ?? undefined,
-        items,
-      };
-    });
+      const items: PlatterItem[] = [];
+      if (o.items.length > 0) {
+        for (const line of o.items) {
+          const boardItems = (line.platter?.items as unknown as PlatterItem[]) ?? [];
+          for (const it of boardItems) items.push({ label: it.label, qtyPerUnit: it.qtyPerUnit * line.quantity });
+        }
+      } else if (o.platter) {
+        const customItems = o.customItems as unknown as string[] | null;
+        const base: PlatterItem[] = customItems?.length
+          ? customItems.map((label) => ({ label, qtyPerUnit: 1 }))
+          : ((o.platter.items as unknown as PlatterItem[]) ?? []);
+        const q = o.quantity ?? 1;
+        for (const it of base) items.push({ label: it.label, qtyPerUnit: it.qtyPerUnit * q });
+      }
+      return { ref: o.ref, platterName: boardNames(o), isFixed: true, headcount: o.headcount, quantity: 1, items };
+    })
+    .filter((o) => o.items.length > 0);
 
   res.json({
     location: { id: location.id, name: location.name },
@@ -139,7 +162,7 @@ adminRouter.get("/prep-sheet", async (req, res) => {
     sheet: buildPrepSheet(input),
     orders: orders.map((o) => ({
       ref: o.ref,
-      platterName: o.platter?.name ?? "—",
+      platterName: boardNames(o),
       headcount: o.headcount,
       customerName: o.customerName,
       status: o.status,
@@ -191,7 +214,17 @@ adminRouter.get("/platters", async (_req, res) => {
   res.json(platters.map((p) => platterDTO(p, { includeCost: true })));
 });
 
-function platterData(d: import("../lib/validation").PlatterUpsertInput, fallback?: { active: boolean; sortOrder: number }) {
+interface PlatterFallback {
+  active: boolean;
+  sortOrder: number;
+  tier?: string | null;
+  feedsMin?: number | null;
+  feedsMax?: number | null;
+  recommendEligible?: boolean;
+  recommendPriority?: number;
+}
+
+function platterData(d: import("../lib/validation").PlatterUpsertInput, fallback?: PlatterFallback) {
   return {
     category: d.category,
     name: d.name,
@@ -207,6 +240,13 @@ function platterData(d: import("../lib/validation").PlatterUpsertInput, fallback
     sortOrder: d.sortOrder ?? fallback?.sortOrder ?? 0,
     boardType: d.boardType ?? null,
     size: d.size ?? null,
+    // v2 board fields — preserve existing values on PATCH when the client omits them,
+    // so a Menu editor save can't silently wipe recommender config set elsewhere.
+    tier: d.tier ?? fallback?.tier ?? null,
+    feedsMin: d.feedsMin ?? fallback?.feedsMin ?? null,
+    feedsMax: d.feedsMax ?? fallback?.feedsMax ?? null,
+    recommendEligible: d.recommendEligible ?? fallback?.recommendEligible ?? false,
+    recommendPriority: d.recommendPriority ?? fallback?.recommendPriority ?? 0,
   };
 }
 
@@ -225,7 +265,15 @@ adminRouter.patch("/platters/:id", async (req, res) => {
   if (!exists) return res.status(404).json({ error: "Platter not found" });
   const updated = await prisma.platter.update({
     where: { id: req.params.id },
-    data: platterData(parsed.data, { active: exists.active, sortOrder: exists.sortOrder }),
+    data: platterData(parsed.data, {
+      active: exists.active,
+      sortOrder: exists.sortOrder,
+      tier: exists.tier,
+      feedsMin: exists.feedsMin,
+      feedsMax: exists.feedsMax,
+      recommendEligible: exists.recommendEligible,
+      recommendPriority: exists.recommendPriority,
+    }),
   });
   res.json(platterDTO(updated, { includeCost: true }));
 });
@@ -331,6 +379,59 @@ adminRouter.patch("/board-groups/:id", async (req, res) => {
   if (!exists) return res.status(404).json({ error: "Group not found" });
   const updated = await prisma.boardComponentGroup.update({ where: { id: req.params.id }, data: parsed.data });
   res.json(boardGroupDTO(updated));
+});
+
+// =====================  Add-ons (upsell items)  =====================
+function addOnData(d: import("../lib/validation").AddOnUpsertInput, fallback?: { active: boolean; sortOrder: number }) {
+  return {
+    name: d.name,
+    description: d.description ?? null,
+    price: d.price,
+    unitType: d.unitType,
+    unitLabel: d.unitLabel ?? null,
+    servesPerUnit: d.servesPerUnit ?? null,
+    suggestFromHeadcount: d.suggestFromHeadcount ?? false,
+    imageUrl: d.imageUrl ?? null,
+    active: d.active ?? fallback?.active ?? true,
+    sortOrder: d.sortOrder ?? fallback?.sortOrder ?? 0,
+  };
+}
+
+adminRouter.get("/add-ons", async (_req, res) => {
+  const rows = await prisma.addOn.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] });
+  res.json(rows.map(addOnDTO));
+});
+
+adminRouter.post("/add-ons", async (req, res) => {
+  const parsed = addOnUpsertSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid add-on", details: parsed.error.flatten() });
+  const count = await prisma.addOn.count();
+  const created = await prisma.addOn.create({ data: addOnData(parsed.data, { active: true, sortOrder: count }) });
+  res.status(201).json(addOnDTO(created));
+});
+
+adminRouter.patch("/add-ons/:id", async (req, res) => {
+  const parsed = addOnUpsertSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid add-on", details: parsed.error.flatten() });
+  const exists = await prisma.addOn.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Add-on not found" });
+  const updated = await prisma.addOn.update({
+    where: { id: req.params.id },
+    data: addOnData(parsed.data, { active: exists.active, sortOrder: exists.sortOrder }),
+  });
+  res.json(addOnDTO(updated));
+});
+
+// Safe to hard-delete: past orders snapshot the add-on name + price, not an FK value.
+adminRouter.delete("/add-ons/:id", async (req, res) => {
+  const exists = await prisma.addOn.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Add-on not found" });
+  const used = await prisma.orderAddOn.count({ where: { addOnId: req.params.id } });
+  if (used > 0) {
+    return res.status(409).json({ error: "This add-on is on past orders — hide it with the Active toggle instead of deleting" });
+  }
+  await prisma.addOn.delete({ where: { id: req.params.id } });
+  res.json({ ok: true });
 });
 
 // =====================  Locations  =====================

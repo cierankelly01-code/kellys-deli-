@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import request from "supertest";
 import { createApp } from "../src/app";
+import { roundTo5p, toMoney } from "../src/lib/money";
 
-// Real-DB integration tests. Run with DATABASE_URL set, after `npm run db:seed`.
+// Real-DB integration tests (v2 line-item orders). Run with DATABASE_URL set, after `npm run db:seed`.
 const hasDb = !!process.env.DATABASE_URL;
 const d = hasDb ? describe : describe.skip;
 const app = createApp();
@@ -14,20 +15,29 @@ function farDate(): string {
 }
 const uniqPhone = () => `07${Math.floor(700000000 + Math.random() * 99999999)}`;
 
-d("POST /api/orders (platter + gift)", () => {
-  let fixed: any;
-  let office: any;
+d("POST /api/orders (v2 line items + add-ons)", () => {
+  let boards: any[] = [];
+  let signature: any;
+  let large: any;
+  let cheese: any;
   let locationId = "";
+  let addOns: any[] = [];
+  let perPerson: any;
+  let perOrder: any;
 
   beforeAll(async () => {
-    const platters = (await request(app).get("/api/platters")).body as any[];
-    fixed = platters.find((p) => p.isFixed);
-    office = platters.find((p) => p.name === "Office Lunch");
+    boards = (await request(app).get("/api/platters?category=board")).body as any[];
+    signature = boards.find((p) => p.tier === "signature" && p.name === "Medium Platter") ?? boards[0];
+    large = boards.find((p) => p.name === "Large Platter") ?? signature;
+    cheese = boards.find((p) => p.name === "Cheese Board") ?? boards[1] ?? signature;
     locationId = ((await request(app).get("/api/locations")).body as any[])[0].id;
+    addOns = (await request(app).get("/api/add-ons")).body as any[];
+    perPerson = addOns.find((a) => a.unitType === "per_person");
+    perOrder = addOns.find((a) => a.unitType === "per_order");
   });
 
   const base = () => ({
-    platterId: fixed.id,
+    items: [{ platterId: signature.id, quantity: 1 }],
     headcount: 8,
     collectionOrDeliveryDate: farDate(),
     locationId,
@@ -37,25 +47,90 @@ d("POST /api/orders (platter + gift)", () => {
     src: "qr",
   });
 
-  it("creates a fixed-price order with a KD- ref and 25% deposit", async () => {
+  it("creates a single-board order with a KD- ref, 25% deposit (nearest 5p), and balance", async () => {
     const res = await request(app).post("/api/orders").send(base());
     expect(res.status).toBe(201);
     expect(res.body.order.ref).toMatch(/^KD-[2-9A-Z]{6}$/);
-    expect(res.body.pricing.total).toBe(fixed.fixedPrice);
-    expect(res.body.pricing.deposit).toBeCloseTo(fixed.fixedPrice * 0.25, 2);
+    expect(res.body.pricing.total).toBe(signature.fixedPrice);
+    expect(res.body.pricing.deposit).toBe(roundTo5p(signature.fixedPrice * 0.25));
+    expect(res.body.pricing.balance).toBe(toMoney(signature.fixedPrice - res.body.pricing.deposit));
     expect(res.body.order.type).toBe("platter");
+    expect(res.body.order.items).toHaveLength(1);
+    expect(res.body.order.items[0].platterId).toBe(signature.id);
     expect(res.body.order.src).toBe("qr");
   });
 
-  it("captures gift delivery details when isGift", async () => {
+  it("accepts the legacy single-platter shape and normalises it to one item", async () => {
     const res = await request(app)
       .post("/api/orders")
-      .send({ ...base(), isGift: true, recipientName: "Aunt May", deliveryAddress: "1 High St, Henley", giftMessage: "Happy birthday!" });
+      .send({ platterId: signature.id, quantity: 1, headcount: 8, collectionOrDeliveryDate: farDate(), locationId, customerName: "Legacy", phone: uniqPhone(), email: "legacy@example.com" });
     expect(res.status).toBe(201);
-    expect(res.body.order.type).toBe("gift");
-    expect(res.body.order.isGift).toBe(true);
-    expect(res.body.order.recipientName).toBe("Aunt May");
-    expect(res.body.order.deliveryAddress).toContain("High St");
+    expect(res.body.order.items).toHaveLength(1);
+  });
+
+  it("prices add-ons into the total, deposit and balance, and itemises them", async () => {
+    const headcount = 10;
+    const res = await request(app)
+      .post("/api/orders")
+      .send({
+        ...base(),
+        headcount,
+        addOns: [
+          { addOnId: perPerson.id, quantity: headcount },
+          { addOnId: perOrder.id, quantity: 1 },
+        ],
+      });
+    expect(res.status).toBe(201);
+    const expectedTotal = toMoney(signature.fixedPrice + perPerson.price * headcount + perOrder.price * 1);
+    expect(res.body.pricing.total).toBe(expectedTotal);
+    expect(res.body.pricing.deposit).toBe(roundTo5p(expectedTotal * 0.25));
+    expect(res.body.pricing.balance).toBe(toMoney(expectedTotal - res.body.pricing.deposit));
+    expect(res.body.order.addOns).toHaveLength(2);
+    const addOnNames = res.body.order.addOns.map((a: any) => a.name);
+    expect(addOnNames).toContain(perPerson.name);
+  });
+
+  it("creates a multi-board event order and sums the boards", async () => {
+    const res = await request(app)
+      .post("/api/orders")
+      .send({
+        ...base(),
+        headcount: 25,
+        occasion: "Corporate",
+        items: [
+          { platterId: large.id, quantity: 2 },
+          { platterId: cheese.id, quantity: 1 },
+        ],
+      });
+    expect(res.status).toBe(201);
+    const expectedTotal = toMoney(large.fixedPrice * 2 + cheese.fixedPrice * 1);
+    expect(res.body.pricing.total).toBe(expectedTotal);
+    expect(res.body.pricing.deposit).toBe(roundTo5p(expectedTotal * 0.25));
+    expect(res.body.order.items).toHaveLength(2);
+    expect(res.body.order.occasion).toBe("Corporate");
+    // primary board = first item
+    expect(res.body.order.platterId).toBe(large.id);
+  });
+
+  it("rejects an order with no boards (400)", async () => {
+    const res = await request(app).post("/api/orders").send({ ...base(), items: [] });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a same-day order (inside the lead time, 400)", async () => {
+    const res = await request(app).post("/api/orders").send({ ...base(), collectionOrDeliveryDate: new Date().toISOString().slice(0, 10) });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/notice/);
+  });
+
+  it("404s for an unknown board id", async () => {
+    const res = await request(app).post("/api/orders").send({ ...base(), items: [{ platterId: "does-not-exist", quantity: 1 }] });
+    expect(res.status).toBe(404);
+  });
+
+  it("404s for an unknown add-on id", async () => {
+    const res = await request(app).post("/api/orders").send({ ...base(), addOns: [{ addOnId: "nope", quantity: 1 }] });
+    expect(res.status).toBe(404);
   });
 
   it("masks phone + email on the public order lookup (leaked-ref safety)", async () => {
@@ -65,118 +140,39 @@ d("POST /api/orders (platter + gift)", () => {
     const ref = created.body.order.ref as string;
     const looked = await request(app).get(`/api/orders/${ref}`);
     expect(looked.status).toBe(200);
-    // The lookup is reachable by anyone with the ref, so it must not echo full PII.
     expect(looked.body.phone).toContain("•");
     expect(looked.body.phone).not.toBe(order.phone);
     expect(looked.body.email).toContain("•");
-    expect(looked.body.email).not.toBe(order.email);
-  });
-
-  it("rejects a gift with no delivery address (400)", async () => {
-    const res = await request(app).post("/api/orders").send({ ...base(), isGift: true, recipientName: "X" });
-    expect(res.status).toBe(400);
-  });
-
-  it("rejects < 48h notice (400)", async () => {
-    const res = await request(app).post("/api/orders").send({ ...base(), collectionOrDeliveryDate: new Date().toISOString().slice(0, 10) });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/48 hours/);
-  });
-
-  it("enforces minimum headcount on the per-head Office Lunch (400)", async () => {
-    const res = await request(app).post("/api/orders").send({ ...base(), platterId: office.id, headcount: 4 });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/[Mm]inimum headcount/);
   });
 });
 
-d("POST /api/orders (board configurator pricing)", () => {
-  const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "owner@kellysdeli.co.uk";
-  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "changeme123";
-  let t = "";
-  let board: any;
-  let locationId = "";
-  let freeCheeseLabel = "";
-  let paidCheeseId = "";
-  const paidCheeseLabel = `Test Truffle Cheese ${Math.floor(Math.random() * 1e6)}`;
+d("GET /api/add-ons", () => {
+  it("lists active add-ons with unit metadata", async () => {
+    const res = await request(app).get("/api/add-ons");
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
+    const cutlery = res.body.find((a: any) => a.unitType === "per_person");
+    expect(cutlery).toBeTruthy();
+    expect(cutlery.suggestFromHeadcount).toBe(true);
+  });
+});
 
-  beforeAll(async () => {
-    t = (await request(app).post("/api/auth/login").send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })).body.token;
-    const platters = (await request(app).get("/api/platters?category=platters")).body as any[];
-    board = platters.find((p: any) => p.isFixed && p.boardType);
-    locationId = ((await request(app).get("/api/locations")).body as any[])[0].id;
-    const config = (await request(app).get("/api/board-config")).body;
-    const cheeses = config.groups.find((g: any) => g.key === "cheese");
-    freeCheeseLabel = cheeses.options.find((o: any) => o.price === 0).label;
-    // Temp priced cheese so we can exercise paid extras (cheese group has includedFree: 0).
-    const created = await request(app)
-      .post("/api/admin/board-components")
-      .set("Authorization", `Bearer ${t}`)
-      .send({ category: "cheese", label: paidCheeseLabel, price: 3.5 });
-    paidCheeseId = created.body.id;
+d("GET /api/recommend", () => {
+  it("recommends a board combo that covers the headcount", async () => {
+    const res = await request(app).get("/api/recommend?headcount=15");
+    expect(res.status).toBe(200);
+    expect(res.body.headcount).toBe(15);
+    expect(res.body.items.length).toBeGreaterThan(0);
+    expect(res.body.totalFeeds).toBeGreaterThanOrEqual(15);
+    expect(res.body.undercatered).toBe(false);
+    // each item carries the full board DTO + a per-board feeds figure
+    expect(res.body.items[0].board).toBeTruthy();
+    expect(res.body.items[0].feedsEach).toBeGreaterThan(0);
   });
 
-  afterAll(async () => {
-    if (paidCheeseId) {
-      await request(app).delete(`/api/admin/board-components/${paidCheeseId}`).set("Authorization", `Bearer ${t}`);
-    }
-  });
-
-  const base = () => ({
-    platterId: board.id,
-    headcount: 1,
-    collectionOrDeliveryDate: farDate(),
-    locationId,
-    customerName: "Board Buyer",
-    phone: uniqPhone(),
-    email: "board@example.com",
-  });
-
-  it("free selections keep the seeded all-free pricing (base = fixedPrice × qty, £25 deposit)", async () => {
-    const res = await request(app)
-      .post("/api/orders")
-      .send({ ...base(), quantity: 2, customItems: [freeCheeseLabel] });
-    expect(res.status).toBe(201);
-    expect(res.body.pricing.base).toBe(board.fixedPrice * 2);
-    expect(res.body.pricing.deposit).toBe(25);
-  });
-
-  it("adds a priced extra to each board before the quantity multiply", async () => {
-    const res = await request(app)
-      .post("/api/orders")
-      .send({ ...base(), quantity: 2, customItems: [freeCheeseLabel, paidCheeseLabel] });
-    expect(res.status).toBe(201);
-    expect(res.body.pricing.base).toBeCloseTo((board.fixedPrice + 3.5) * 2, 2);
-    expect(res.body.pricing.deposit).toBe(25);
-    expect(res.body.order.customItems).toContain(paidCheeseLabel);
-  });
-
-  it("rejects selections beyond a group's maxSelections (400 naming the group)", async () => {
-    const groups = (await request(app).get(`/api/admin/board-groups`).set("Authorization", `Bearer ${t}`)).body as any[];
-    const cheese = groups.find((g) => g.key === "cheese");
-    await request(app)
-      .patch(`/api/admin/board-groups/${cheese.id}`)
-      .set("Authorization", `Bearer ${t}`)
-      .send({ maxSelections: 1 });
-    try {
-      const res = await request(app)
-        .post("/api/orders")
-        .send({ ...base(), quantity: 1, customItems: [freeCheeseLabel, paidCheeseLabel] });
-      expect(res.status).toBe(400);
-      expect(res.body.error).toMatch(/only pick 1/);
-    } finally {
-      await request(app)
-        .patch(`/api/admin/board-groups/${cheese.id}`)
-        .set("Authorization", `Bearer ${t}`)
-        .send({ maxSelections: cheese.maxSelections ?? null });
-    }
-  });
-
-  it("still rejects orders whose chosen items are all stale (400)", async () => {
-    const res = await request(app)
-      .post("/api/orders")
-      .send({ ...base(), quantity: 1, customItems: ["Not A Real Ingredient"] });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/no longer available/);
+  it("rejects a missing/invalid headcount (400)", async () => {
+    expect((await request(app).get("/api/recommend")).status).toBe(400);
+    expect((await request(app).get("/api/recommend?headcount=0")).status).toBe(400);
   });
 });

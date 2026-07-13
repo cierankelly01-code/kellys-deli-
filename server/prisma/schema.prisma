@@ -22,28 +22,59 @@ model Location {
 }
 
 model Platter {
-  id           String   @id @default(cuid())
-  category     String   @default("home") // home | events | seasonal | platters
-  name         String
-  description  String
-  pricePerHead Decimal? @db.Decimal(10, 2) // null for fixed-price platters
-  fixedPrice   Decimal? @db.Decimal(10, 2) // null for per-head platters
-  cost         Decimal  @db.Decimal(10, 2) // owner's cost to produce one unit / per head — drives margin
-  serves       String? // display only, e.g. "15-20"
-  minHeadcount Int      @default(1)
-  items        Json // ordered array of { label: string, qtyPerUnit: number }
-  imageUrl     String?
-  active       Boolean  @default(true)
-  sortOrder    Int      @default(0)
+  id                String      @id @default(cuid())
+  category          String      @default("home") // home | events | seasonal | platters
+  name              String
+  description       String
+  pricePerHead      Decimal?    @db.Decimal(10, 2) // null for fixed-price platters
+  fixedPrice        Decimal?    @db.Decimal(10, 2) // null for per-head platters
+  cost              Decimal     @db.Decimal(10, 2) // owner's cost to produce one unit / per head — drives margin
+  serves            String? // display only, e.g. "15-20"
+  minHeadcount      Int         @default(1)
+  items             Json // ordered array of { label: string, qtyPerUnit: number }
+  imageUrl          String?
+  active            Boolean     @default(true)
+  sortOrder         Int         @default(0)
   // Board configurator (category = "platters" only). Null for regular catering platters.
-  boardType    String? // charcuterie | savoury | cheese | salmon
-  size         String? // small | medium | large
-  orders       Order[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  boardType         String? // charcuterie | savoury | cheese | salmon
+  size              String? // small | medium | large
+  // v2 board catalogue (category = "board"). Two-tier: signature (fast path) | gallery ("more boards").
+  tier              String? // signature | gallery
+  // Numeric feeds range for the event recommender's midpoint maths (serves = display string).
+  feedsMin          Int?
+  feedsMax          Int?
+  // "Plan My Event" recommender config (admin-managed per board).
+  recommendEligible Boolean     @default(false)
+  recommendPriority Int         @default(0) // higher = recommended first
+  orders            Order[]
+  orderItems        OrderItem[]
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
   @@index([category])
   @@index([boardType])
+  @@index([tier])
+}
+
+// Optional extras attached to any order (cutlery, plates, drinks, setup, sweet boards...).
+// Fully admin-managed. See build spec §3.
+model AddOn {
+  id                   String       @id @default(cuid())
+  name                 String
+  description          String? // carries the "[CHECK PRICE]" seed note; owner edits in admin
+  price                Decimal      @db.Decimal(10, 2)
+  unitType             String       @default("per_order") // per_person | per_order | serves
+  unitLabel            String? // display, e.g. "per person", "serves 10", "per bottle"
+  servesPerUnit        Int? // for unitType "serves" (e.g. napkins pack serves 10)
+  suggestFromHeadcount Boolean      @default(false) // pre-fill suggested qty from headcount/feeds
+  imageUrl             String?
+  active               Boolean      @default(true)
+  sortOrder            Int          @default(0)
+  orderAddOns          OrderAddOn[]
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  @@index([active, sortOrder])
 }
 
 // Admin-managed ingredient picker for the "build your own" charcuterie board.
@@ -93,51 +124,89 @@ model Experience {
 }
 
 model Order {
-  id                       String      @id @default(cuid())
-  ref                      String      @unique // e.g. KD-7F3K9Q
-  type                     String      @default("platter") // platter | gift | experience
+  id                       String       @id @default(cuid())
+  ref                      String       @unique // e.g. KD-7F3K9Q
+  type                     String       @default("platter") // platter | gift | experience
   platterId                String?
-  platter                  Platter?    @relation(fields: [platterId], references: [id])
+  platter                  Platter?     @relation(fields: [platterId], references: [id])
   experienceId             String?
-  experience               Experience? @relation(fields: [experienceId], references: [id])
+  experience               Experience?  @relation(fields: [experienceId], references: [id])
   headcount                Int
   // Board configurator only: quantity of boards ordered (fixedPrice x quantity) and,
   // for "build your own", the customer's chosen BoardComponent labels (overrides platter.items
   // for prep-sheet purposes). Null for regular catering platters/experiences.
   quantity                 Int?
   customItems              Json?
-  total                    Decimal     @db.Decimal(10, 2)
-  deposit                  Decimal     @db.Decimal(10, 2)
-  depositStatus            String      @default("pending") // pending | paid | refunded
+  // v2 line-item order: full itemisation of boards + add-ons. platterId above is the
+  // primary/first board (kept for back-compat with prep-sheet/stats/serialize).
+  items                    OrderItem[]
+  addOns                   OrderAddOn[]
+  // Event-planner occasion, for future marketing segmentation.
+  occasion                 String? // Birthday | Corporate | Family gathering | Other
+  total                    Decimal      @db.Decimal(10, 2)
+  deposit                  Decimal      @db.Decimal(10, 2)
+  depositStatus            String       @default("pending") // pending | paid | refunded
   // gift delivery
-  isGift                   Boolean     @default(false)
+  isGift                   Boolean      @default(false)
   recipientName            String?
   deliveryAddress          String?
   giftMessage              String?
-  collectionOrDeliveryDate DateTime    @db.Date
+  collectionOrDeliveryDate DateTime     @db.Date
   locationId               String
-  location                 Location    @relation(fields: [locationId], references: [id])
+  location                 Location     @relation(fields: [locationId], references: [id])
   customerName             String
   phone                    String
   email                    String
   notes                    String?
   freebie                  String? // first-order hook note, e.g. "FREE: box of sausage rolls"
-  status                   String      @default("new") // new | confirmed | in_prep | ready | completed | cancelled
-  src                      String      @default("direct") // direct | qr | instagram | referral
+  // v2 manual staff flow: new -> deposit_requested -> confirmed -> collected, plus cancelled.
+  // (Legacy values in_prep/ready/completed tolerated on old rows.)
+  status                   String       @default("new")
+  src                      String       @default("direct") // direct | qr | instagram | referral
   referralCodeUsed         String?
   customerId               String?
-  customer                 Customer?   @relation(fields: [customerId], references: [id])
+  customer                 Customer?    @relation(fields: [customerId], references: [id])
   // Set once, atomically, the first time the order is marked completed — so the
   // review-request + referral notifications fire exactly once even if the status
   // is bounced out of and back into "completed".
   completedNotifiedAt      DateTime?
-  createdAt                DateTime    @default(now())
-  updatedAt                DateTime    @updatedAt
+  createdAt                DateTime     @default(now())
+  updatedAt                DateTime     @updatedAt
 
   @@index([locationId, collectionOrDeliveryDate])
   @@index([status])
   @@index([src])
   @@index([type])
+}
+
+// A board line on a v2 order (signature/gallery board × quantity). unitPrice is a
+// snapshot of the board's price at order time so later admin price edits don't rewrite history.
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  platterId String
+  platter   Platter  @relation(fields: [platterId], references: [id])
+  quantity  Int
+  unitPrice Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+}
+
+// An add-on line on a v2 order. name + unitPrice are snapshots (add-ons can be renamed/deleted).
+model OrderAddOn {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  addOnId   String
+  addOn     AddOn    @relation(fields: [addOnId], references: [id])
+  name      String
+  quantity  Int
+  unitPrice Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
 }
 
 model Customer {

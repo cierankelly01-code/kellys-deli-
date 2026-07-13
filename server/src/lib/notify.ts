@@ -44,15 +44,17 @@ async function sendEmail(to: string, subject: string, body: string): Promise<voi
   }
 }
 
-/** Sent when an order is placed. */
+/** Sent when an order request is placed. */
 export async function notifyOrderReceived(
   t: NotifyTarget,
   o: { ref: string; total: number; deposit: number; collectionDate: string; locationName: string },
 ): Promise<void> {
+  const balance = Math.max(0, Math.round((o.total - o.deposit) * 100) / 100);
   const msg =
-    `Hi ${t.name}, thanks for your Kelly's Deli catering order ${o.ref}! ` +
-    `Collection ${o.collectionDate} at ${o.locationName}. Total £${o.total.toFixed(2)}, ` +
-    `deposit £${o.deposit.toFixed(2)} (pending). We'll confirm shortly.`;
+    `Thanks ${t.name} — your Kelly's Deli order request ${o.ref} is in. ` +
+    `Collection ${o.collectionDate} at ${o.locationName}. Total £${o.total.toFixed(2)}. ` +
+    `We'll contact you shortly with a secure payment link for a 25% deposit (£${o.deposit.toFixed(2)}) to confirm your order. ` +
+    `The balance (£${balance.toFixed(2)}) is payable on collection.`;
   await Promise.all([sendSms(t.phone, msg), sendEmail(t.email, `Order ${o.ref} received`, msg)]);
 }
 

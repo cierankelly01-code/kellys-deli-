@@ -31,9 +31,17 @@ export function hoursUntilDate(dateStr: string, now: Date): number {
   return (parseDate(dateStr).getTime() - now.getTime()) / 3_600_000;
 }
 
-/** A collection date meets notice if its start is at least 48h from now. */
+/**
+ * A collection date meets the lead time if its start is at least `leadHours` from now.
+ * The lead time is admin-configurable (Setting "orderLeadTimeHours"); defaults to 48h.
+ */
+export function meetsLeadTime(dateStr: string, now: Date, leadHours: number = MIN_NOTICE_HOURS): boolean {
+  return hoursUntilDate(dateStr, now) >= leadHours;
+}
+
+/** Back-compat alias for the fixed 48h notice check. Prefer meetsLeadTime. */
 export function meetsNotice(dateStr: string, now: Date): boolean {
-  return hoursUntilDate(dateStr, now) >= MIN_NOTICE_HOURS;
+  return meetsLeadTime(dateStr, now, MIN_NOTICE_HOURS);
 }
 
 /** Availability for a single (location-)date given that day's booked count. */
@@ -42,9 +50,10 @@ export function getDayAvailability(
   capacity: number,
   booked: number,
   now: Date,
+  leadHours: number = MIN_NOTICE_HOURS,
 ): DayAvailability {
   const remaining = Math.max(0, capacity - booked);
-  const notice = meetsNotice(dateStr, now);
+  const notice = meetsLeadTime(dateStr, now, leadHours);
   let status: DayStatus;
   if (!notice) status = "closed";
   else if (remaining <= 0) status = "full";
@@ -70,18 +79,25 @@ export function buildAvailability(
   capacity: number,
   bookedByDate: Record<string, number>,
   now: Date,
+  leadHours: number = MIN_NOTICE_HOURS,
 ): DayAvailability[] {
   const start = parseDate(fromDateStr);
   const out: DayAvailability[] = [];
   for (let i = 0; i < days; i++) {
     const d = new Date(start.getTime() + i * 86_400_000);
     const dateStr = formatDate(d);
-    out.push(getDayAvailability(dateStr, capacity, bookedByDate[dateStr] ?? 0, now));
+    out.push(getDayAvailability(dateStr, capacity, bookedByDate[dateStr] ?? 0, now, leadHours));
   }
   return out;
 }
 
 /** Can an order be placed for this date? (server-side gate). */
-export function canBook(dateStr: string, capacity: number, booked: number, now: Date): boolean {
-  return getDayAvailability(dateStr, capacity, booked, now).bookable;
+export function canBook(
+  dateStr: string,
+  capacity: number,
+  booked: number,
+  now: Date,
+  leadHours: number = MIN_NOTICE_HOURS,
+): boolean {
+  return getDayAvailability(dateStr, capacity, booked, now, leadHours).bookable;
 }

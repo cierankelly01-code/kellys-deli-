@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import request from "supertest";
 import { createApp } from "../src/app";
 
@@ -19,10 +19,6 @@ const uniqPhone = () => `07${Math.floor(700000000 + Math.random() * 99999999)}`;
 async function token(): Promise<string> {
   return (await request(app).post("/api/auth/login").send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })).body.token;
 }
-async function setTastingsOpen(open: boolean): Promise<void> {
-  const t = await token();
-  await request(app).patch("/api/admin/settings/tastingsComingSoon").set("Authorization", `Bearer ${t}`).send({ value: open ? "off" : "on" });
-}
 
 d("admin auth", () => {
   it("rejects admin routes without a token", async () => {
@@ -41,18 +37,18 @@ d("admin auth", () => {
 
 d("re-order + prep sheet", () => {
   let t = "";
-  let fixedId = "";
+  let boardId = "";
   let locationId = "";
   const phone = uniqPhone();
   const date = farDate();
 
   beforeAll(async () => {
     t = await token();
-    const platters = (await request(app).get("/api/platters")).body as any[];
-    fixedId = platters.find((p) => p.isFixed).id;
+    const boards = (await request(app).get("/api/platters?category=board")).body as any[];
+    boardId = boards[0].id;
     locationId = ((await request(app).get("/api/locations")).body as any[])[0].id;
     await request(app).post("/api/orders").send({
-      platterId: fixedId, headcount: 10, collectionOrDeliveryDate: date, locationId,
+      items: [{ platterId: boardId, quantity: 1 }], headcount: 10, collectionOrDeliveryDate: date, locationId,
       customerName: "Repeat Customer", phone, email: "repeat@example.com", src: "qr",
     });
   });
@@ -60,7 +56,7 @@ d("re-order + prep sheet", () => {
   it("finds a returning customer's last order by phone", async () => {
     const res = await request(app).get(`/api/reorder?contact=${phone}`);
     expect(res.status).toBe(200);
-    expect(res.body.platterId).toBe(fixedId);
+    expect(res.body.platterId).toBe(boardId);
   });
 
   it("aggregates that day into a prep sheet", async () => {
@@ -71,84 +67,165 @@ d("re-order + prep sheet", () => {
   });
 });
 
-d("tastings coming soon (default)", () => {
-  beforeAll(() => setTastingsOpen(false)); // ensure "coming soon"
+d("admin orders — itemisation, deposit/balance, status cycle", () => {
+  let t = "";
+  let boardId = "";
+  let cutlery: any;
+  let locationId = "";
 
-  it("categories flags coming soon", async () => {
-    expect((await request(app).get("/api/categories")).body.tastingsComingSoon).toBe(true);
+  beforeAll(async () => {
+    t = await token();
+    const boards = (await request(app).get("/api/platters?category=board")).body as any[];
+    boardId = (boards.find((b: any) => b.name === "Medium Platter") ?? boards[0]).id;
+    cutlery = ((await request(app).get("/api/add-ons")).body as any[]).find((a: any) => a.unitType === "per_person");
+    locationId = ((await request(app).get("/api/locations")).body as any[])[0].id;
   });
-  it("blocks booking with 403 while coming soon", async () => {
-    const exp = (await request(app).get("/api/experiences")).body[0];
-    const loc = (await request(app).get("/api/locations")).body[0];
-    const res = await request(app).post("/api/bookings").send({ experienceId: exp.id, partySize: 2, date: farDate(), locationId: loc.id, customerName: "Early", phone: uniqPhone(), email: "e@e.com" });
-    expect(res.status).toBe(403);
+
+  it("shows a new order itemised with boards + add-ons, deposit and balance", async () => {
+    const created = await request(app).post("/api/orders").send({
+      items: [{ platterId: boardId, quantity: 1 }],
+      addOns: [{ addOnId: cutlery.id, quantity: 6 }],
+      headcount: 6, collectionOrDeliveryDate: farDate(), locationId,
+      customerName: "Itemised", phone: uniqPhone(), email: "item@example.com",
+    });
+    expect(created.status).toBe(201);
+    const id = created.body.order.id;
+
+    const orders = (await request(app).get("/api/admin/orders").set("Authorization", `Bearer ${t}`)).body as any[];
+    const found = orders.find((o) => o.id === id);
+    expect(found).toBeTruthy();
+    expect(found.items.length).toBe(1);
+    expect(found.addOns.length).toBe(1);
+    expect(found.balance).toBeCloseTo(found.total - found.deposit, 2);
+  });
+
+  it("cycles status new → deposit_requested → confirmed → collected", async () => {
+    const created = await request(app).post("/api/orders").send({
+      items: [{ platterId: boardId, quantity: 1 }],
+      headcount: 6, collectionOrDeliveryDate: farDate(), locationId,
+      customerName: "Cycler", phone: uniqPhone(), email: "cycle@example.com",
+    });
+    const id = created.body.order.id;
+    for (const status of ["deposit_requested", "confirmed", "collected"]) {
+      const res = await request(app).patch(`/api/admin/orders/${id}/status`).set("Authorization", `Bearer ${t}`).send({ status });
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe(status);
+    }
+  });
+
+  it("rejects an unknown status (400)", async () => {
+    const created = await request(app).post("/api/orders").send({
+      items: [{ platterId: boardId, quantity: 1 }],
+      headcount: 6, collectionOrDeliveryDate: farDate(), locationId,
+      customerName: "Bad", phone: uniqPhone(), email: "bad@example.com",
+    });
+    const res = await request(app).patch(`/api/admin/orders/${created.body.order.id}/status`).set("Authorization", `Bearer ${t}`).send({ status: "in_prep" });
+    expect(res.status).toBe(400);
   });
 });
 
-d("board config admin (groups, components, platter delete)", () => {
+d("admin add-on CRUD", () => {
   let t = "";
-  beforeAll(async () => {
-    t = await token();
-  });
+  let locationId = "";
   const authed = (method: "get" | "post" | "patch" | "delete", url: string) =>
     request(app)[method](url).set("Authorization", `Bearer ${t}`);
 
-  it("lists the five fixed group rules", async () => {
-    const res = await authed("get", "/api/admin/board-groups");
-    expect(res.status).toBe(200);
-    const keys = res.body.map((g: any) => g.key).sort();
-    expect(keys).toEqual(["cheese", "cracker", "jam", "meat", "savoury"]);
+  beforeAll(async () => {
+    t = await token();
+    locationId = ((await request(app).get("/api/locations")).body as any[])[0].id;
   });
 
-  it("updates group rules and restores them", async () => {
-    const meat = (await authed("get", "/api/admin/board-groups")).body.find((g: any) => g.key === "meat");
-    const res = await authed("patch", `/api/admin/board-groups/${meat.id}`).send({
-      heading: "Test Meats", maxSelections: 2, includedFree: 1,
-    });
-    expect(res.status).toBe(200);
-    expect(res.body.heading).toBe("Test Meats");
-    expect(res.body.maxSelections).toBe(2);
-    expect(res.body.includedFree).toBe(1);
-    const restored = await authed("patch", `/api/admin/board-groups/${meat.id}`).send({
-      heading: meat.heading, maxSelections: meat.maxSelections ?? null, includedFree: meat.includedFree,
-    });
-    expect(restored.body.heading).toBe(meat.heading);
-  });
-
-  it("rejects invalid group rules (400)", async () => {
-    const meat = (await authed("get", "/api/admin/board-groups")).body.find((g: any) => g.key === "meat");
-    expect((await authed("patch", `/api/admin/board-groups/${meat.id}`).send({ includedFree: -1 })).status).toBe(400);
-  });
-
-  it("creates a component with price + isDefault, updates it, then deletes it", async () => {
-    const label = `Test Chilli Jam ${Math.floor(Math.random() * 1e6)}`;
-    const created = await authed("post", "/api/admin/board-components").send({
-      category: "jam", label, price: 1.25, isDefault: false,
+  it("creates, updates and deletes an add-on", async () => {
+    const created = await authed("post", "/api/admin/add-ons").send({
+      name: `Test Balloons ${Math.floor(Math.random() * 1e6)}`, price: 5, unitType: "per_order", unitLabel: "per pack",
     });
     expect(created.status).toBe(201);
-    expect(created.body.price).toBe(1.25);
-    expect(created.body.isDefault).toBe(false);
+    expect(created.body.price).toBe(5);
 
-    const patched = await authed("patch", `/api/admin/board-components/${created.body.id}`).send({
-      category: "jam", label, price: 2, isDefault: true,
+    const patched = await authed("patch", `/api/admin/add-ons/${created.body.id}`).send({
+      name: created.body.name, price: 6, unitType: "per_person", suggestFromHeadcount: true,
     });
-    expect(patched.body.price).toBe(2);
-    expect(patched.body.isDefault).toBe(true);
+    expect(patched.body.price).toBe(6);
+    expect(patched.body.unitType).toBe("per_person");
+    expect(patched.body.suggestFromHeadcount).toBe(true);
 
-    expect((await authed("delete", `/api/admin/board-components/${created.body.id}`)).body.ok).toBe(true);
-    const all = (await authed("get", "/api/admin/board-components")).body as any[];
-    expect(all.some((c) => c.id === created.body.id)).toBe(false);
+    expect((await authed("delete", `/api/admin/add-ons/${created.body.id}`)).body.ok).toBe(true);
+    const all = (await request(app).get("/api/add-ons")).body as any[];
+    expect(all.some((a) => a.id === created.body.id)).toBe(false);
   });
 
-  it("rejects component labels containing commas (400)", async () => {
-    const res = await authed("post", "/api/admin/board-components").send({ category: "jam", label: "Fig, Chilli" });
-    expect(res.status).toBe(400);
+  it("409s deleting an add-on that is on a past order", async () => {
+    const addon = await authed("post", "/api/admin/add-ons").send({
+      name: `Used Addon ${Math.floor(Math.random() * 1e6)}`, price: 4, unitType: "per_order",
+    });
+    const boards = (await request(app).get("/api/platters?category=board")).body as any[];
+    await request(app).post("/api/orders").send({
+      items: [{ platterId: boards[0].id, quantity: 1 }],
+      addOns: [{ addOnId: addon.body.id, quantity: 1 }],
+      headcount: 6, collectionOrDeliveryDate: farDate(), locationId,
+      customerName: "Addon User", phone: uniqPhone(), email: "au@example.com",
+    });
+    const res = await authed("delete", `/api/admin/add-ons/${addon.body.id}`);
+    expect(res.status).toBe(409);
+    // tidy: hide it instead
+    await authed("patch", `/api/admin/add-ons/${addon.body.id}`).send({ name: addon.body.name, price: 4, unitType: "per_order", active: false });
+  });
+});
+
+d("admin edits reflect on the public site", () => {
+  let t = "";
+  const authed = (method: "get" | "post" | "patch" | "delete", url: string) =>
+    request(app)[method](url).set("Authorization", `Bearer ${t}`);
+
+  beforeAll(async () => {
+    t = await token();
   });
 
-  it("deletes a platter with no orders; 409s one that has orders", async () => {
+  it("a board price edit shows on GET /api/platters", async () => {
+    const board = ((await authed("get", "/api/admin/platters")).body as any[]).find((p) => p.name === "Small Platter");
+    const original = board.fixedPrice;
+    const newPrice = original + 7;
+    try {
+      const patched = await authed("patch", `/api/admin/platters/${board.id}`).send({ ...board, fixedPrice: newPrice });
+      expect(patched.status).toBe(200);
+      const publicBoard = ((await request(app).get("/api/platters?category=board")).body as any[]).find((p) => p.id === board.id);
+      expect(publicBoard.fixedPrice).toBe(newPrice);
+    } finally {
+      await authed("patch", `/api/admin/platters/${board.id}`).send({ ...board, fixedPrice: original });
+    }
+  });
+
+  it("a recommender priority change reorders GET /api/recommend", async () => {
+    const boards = (await authed("get", "/api/admin/platters")).body as any[];
+    const cheese = boards.find((p) => p.name === "Cheese Board");
+    const originalPriority = cheese.recommendPriority;
+    // Default winner for a 9-cover is the highest-priority mid-9 board (Medium Platter, priority 90).
+    const before = (await request(app).get("/api/recommend?headcount=9")).body;
+    const beforeTop = before.items[0].board.name;
+    try {
+      await authed("patch", `/api/admin/platters/${cheese.id}`).send({ ...cheese, recommendPriority: 999 });
+      const after = (await request(app).get("/api/recommend?headcount=9")).body;
+      expect(after.items[0].board.name).toBe("Cheese Board");
+      expect(after.items[0].board.name).not.toBe(beforeTop);
+    } finally {
+      await authed("patch", `/api/admin/platters/${cheese.id}`).send({ ...cheese, recommendPriority: originalPriority });
+    }
+  });
+});
+
+d("platter delete guard", () => {
+  let t = "";
+  const authed = (method: "get" | "post" | "patch" | "delete", url: string) =>
+    request(app)[method](url).set("Authorization", `Bearer ${t}`);
+
+  beforeAll(async () => {
+    t = await token();
+  });
+
+  it("deletes a board with no orders; 409s one that has orders", async () => {
     const payload = {
-      category: "home", name: `Test Platter ${Math.floor(Math.random() * 1e6)}`, description: "temp",
-      fixedPrice: 30, cost: 10, minHeadcount: 1, items: [{ label: "Thing", qtyPerUnit: 1 }],
+      category: "board", tier: "gallery", name: `Test Board ${Math.floor(Math.random() * 1e6)}`, description: "temp",
+      fixedPrice: 30, cost: 10, minHeadcount: 1, feedsMin: 4, feedsMax: 6, items: [{ label: "Thing", qtyPerUnit: 1 }],
     };
     const clean = await authed("post", "/api/admin/platters").send(payload);
     expect(clean.status).toBe(201);
@@ -157,52 +234,12 @@ d("board config admin (groups, components, platter delete)", () => {
     const withOrder = await authed("post", "/api/admin/platters").send({ ...payload, name: `${payload.name} B` });
     const locationId = ((await request(app).get("/api/locations")).body as any[])[0].id;
     await request(app).post("/api/orders").send({
-      platterId: withOrder.body.id, headcount: 1, collectionOrDeliveryDate: farDate(), locationId,
+      items: [{ platterId: withOrder.body.id, quantity: 1 }], headcount: 1, collectionOrDeliveryDate: farDate(), locationId,
       customerName: "Blocker", phone: uniqPhone(), email: "b@example.com",
     });
     const res = await authed("delete", `/api/admin/platters/${withOrder.body.id}`);
     expect(res.status).toBe(409);
     expect(res.body.error).toMatch(/Active toggle/);
-    // tidy: hide the temp platter (can't delete it now, by design)
     await authed("patch", `/api/admin/platters/${withOrder.body.id}`).send({ ...payload, name: `${payload.name} B`, active: false });
-  });
-});
-
-d("experience booking + capacity", () => {
-  let experience: any;
-  let locationId = "";
-  const date = farDate();
-
-  beforeAll(async () => {
-    await setTastingsOpen(true); // open tastings so bookings work
-    experience = ((await request(app).get("/api/experiences")).body as any[])[0];
-    locationId = ((await request(app).get("/api/locations")).body as any[])[0].id;
-  });
-  afterAll(() => setTastingsOpen(false)); // restore "coming soon"
-
-  it("books a session and charges 25% deposit", async () => {
-    const res = await request(app).post("/api/bookings").send({
-      experienceId: experience.id, partySize: 2, date, locationId,
-      customerName: "Taster", phone: uniqPhone(), email: "taste@example.com",
-    });
-    expect(res.status).toBe(201);
-    expect(res.body.order.type).toBe("experience");
-    expect(res.body.pricing.total).toBe(experience.pricePerHead * 2);
-    expect(res.body.pricing.deposit).toBeCloseTo(experience.pricePerHead * 2 * 0.25, 2);
-  });
-
-  it("blocks a booking that exceeds session capacity (409)", async () => {
-    const capDate = farDate();
-    // fill to capacity
-    const res1 = await request(app).post("/api/bookings").send({
-      experienceId: experience.id, partySize: experience.capacity, date: capDate, locationId,
-      customerName: "Big Party", phone: uniqPhone(), email: "big@example.com",
-    });
-    expect(res1.status).toBe(201);
-    const res2 = await request(app).post("/api/bookings").send({
-      experienceId: experience.id, partySize: 1, date: capDate, locationId,
-      customerName: "One More", phone: uniqPhone(), email: "one@example.com",
-    });
-    expect(res2.status).toBe(409);
   });
 });

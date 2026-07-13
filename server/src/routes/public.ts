@@ -5,13 +5,15 @@ import {
   createBookingSchema,
   availabilityQuerySchema,
   experienceAvailabilityQuerySchema,
+  recommendQuerySchema,
 } from "../lib/validation";
-import { priceOrder, calcBoardExtras, REFERRAL_DISCOUNT, type ExtrasGroupInput } from "../lib/money";
-import { buildAvailability, canBook, getDayAvailability, meetsNotice, parseDate, formatDate } from "../lib/capacity";
+import { priceOrder, priceLineItemOrder, REFERRAL_DISCOUNT } from "../lib/money";
+import { buildAvailability, canBook, getDayAvailability, meetsNotice, meetsLeadTime, parseDate, formatDate } from "../lib/capacity";
+import { recommendBoards, midpoint, type RecBoard } from "../lib/recommender";
 import { genRef, randomReferralCode } from "../lib/ref";
 import { captureDepositIntent } from "../lib/payments";
 import { notifyOrderReceived } from "../lib/notify";
-import { platterDTO, experienceDTO, locationDTO, orderDTO, publicOrderDTO, boardComponentDTO, boardGroupDTO } from "../lib/serialize";
+import { platterDTO, experienceDTO, locationDTO, orderDTO, publicOrderDTO, boardComponentDTO, boardGroupDTO, addOnDTO } from "../lib/serialize";
 
 export const publicRouter = asyncRouter();
 
@@ -20,6 +22,13 @@ class CapacityError extends Error {}
 async function getSetting(key: string): Promise<string | null> {
   const s = await prisma.setting.findUnique({ where: { key } });
   return s?.value ?? null;
+}
+
+/** Configured collection lead time in hours (Setting "orderLeadTimeHours"), default 48. */
+async function getLeadHours(): Promise<number> {
+  const raw = await getSetting("orderLeadTimeHours");
+  const n = raw != null ? parseInt(raw, 10) : NaN;
+  return Number.isFinite(n) && n >= 0 ? n : 48;
 }
 
 // Generate a unique order ref within a transaction. Always returns a value that
@@ -44,11 +53,54 @@ async function uniqueReferralCode(tx: { customer: { findUnique: (a: any) => Prom
 // --- Menu ---
 publicRouter.get("/platters", async (req, res) => {
   const category = typeof req.query.category === "string" ? req.query.category : undefined;
+  const tier = typeof req.query.tier === "string" ? req.query.tier : undefined;
   const platters = await prisma.platter.findMany({
-    where: { active: true, ...(category ? { category } : {}) },
+    where: { active: true, ...(category ? { category } : {}), ...(tier ? { tier } : {}) },
     orderBy: [{ category: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
   });
   res.json(platters.map((p) => platterDTO(p)));
+});
+
+// --- Add-ons (upsell items shown in every order flow) ---
+publicRouter.get("/add-ons", async (_req, res) => {
+  const rows = await prisma.addOn.findMany({
+    where: { active: true },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+  res.json(rows.map(addOnDTO));
+});
+
+// --- "Plan My Event" recommender: a board combination for a headcount ---
+publicRouter.get("/recommend", async (req, res) => {
+  const parsed = recommendQuerySchema.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ error: "Enter a valid headcount" });
+  const headcount = parsed.data.headcount;
+
+  const boards = await prisma.platter.findMany({
+    where: { active: true, category: "board", recommendEligible: true, feedsMin: { not: null }, feedsMax: { not: null } },
+  });
+  const recBoards: RecBoard[] = boards.map((b) => ({
+    id: b.id,
+    feedsMin: b.feedsMin ?? 0,
+    feedsMax: b.feedsMax ?? 0,
+    priority: b.recommendPriority,
+    price: b.fixedPrice ? Number(b.fixedPrice) : 0,
+  }));
+  const lines = recommendBoards(recBoards, headcount);
+  const byId = new Map(boards.map((b) => [b.id, b]));
+
+  const items = lines.map((l) => {
+    const b = byId.get(l.boardId)!;
+    return {
+      boardId: l.boardId,
+      qty: l.qty,
+      board: platterDTO(b),
+      feedsEach: midpoint({ feedsMin: b.feedsMin ?? 0, feedsMax: b.feedsMax ?? 0 }),
+    };
+  });
+  const totalFeeds = items.reduce((s, i) => s + i.feedsEach * i.qty, 0);
+  const totalPrice = items.reduce((s, i) => s + (i.board.fixedPrice ?? 0) * i.qty, 0);
+  res.json({ headcount, items, totalFeeds, totalPrice, undercatered: totalFeeds < headcount });
 });
 
 publicRouter.get("/platters/:id", async (req, res) => {
@@ -225,86 +277,84 @@ publicRouter.get("/referral/check", async (req, res) => {
   res.json({ valid, discount: valid ? REFERRAL_DISCOUNT : 0 });
 });
 
-// --- Create a platter order (collection) or gift (delivery) ---
+// --- Create a v2 line-item order (1+ boards + optional add-ons, collection) ---
 publicRouter.post("/orders", async (req, res) => {
   const parsed = createOrderSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid order", details: parsed.error.flatten() });
   const input = parsed.data;
   const now = new Date();
 
+  // Normalise the legacy single-board shape ({ platterId, quantity }) to items[].
+  const itemInputs =
+    input.items && input.items.length > 0
+      ? input.items
+      : input.platterId
+        ? [{ platterId: input.platterId, quantity: input.quantity ?? 1 }]
+        : [];
+  if (itemInputs.length === 0) return res.status(400).json({ error: "Add at least one board" });
+
   if (Number.isNaN(parseDate(input.collectionOrDeliveryDate).getTime())) {
     return res.status(400).json({ error: "Invalid date" });
   }
-  const platter = await prisma.platter.findUnique({ where: { id: input.platterId } });
-  if (!platter || !platter.active) return res.status(404).json({ error: "Platter not available" });
+
+  // Load + validate the chosen boards (must all exist, be active, and be fixed-price).
+  const boardIds = [...new Set(itemInputs.map((i) => i.platterId))];
+  const boards = await prisma.platter.findMany({ where: { id: { in: boardIds }, active: true } });
+  const boardById = new Map(boards.map((b) => [b.id, b]));
+  for (const it of itemInputs) {
+    const b = boardById.get(it.platterId);
+    if (!b) return res.status(404).json({ error: "A selected board is no longer available" });
+    if (b.fixedPrice == null) return res.status(400).json({ error: `${b.name} can't be ordered directly` });
+    if (input.headcount < b.minHeadcount) {
+      return res.status(400).json({ error: `Minimum headcount for ${b.name} is ${b.minHeadcount}` });
+    }
+  }
+
   const location = await prisma.location.findUnique({ where: { id: input.locationId } });
   if (!location || !location.active) return res.status(404).json({ error: "Location not available" });
-  if (input.headcount < platter.minHeadcount) {
-    return res.status(400).json({ error: `Minimum headcount for ${platter.name} is ${platter.minHeadcount}` });
+
+  const leadHours = await getLeadHours();
+  if (!meetsLeadTime(input.collectionOrDeliveryDate, now, leadHours)) {
+    return res.status(400).json({ error: `Orders need at least ${leadHours} hours notice` });
   }
-  if (!meetsNotice(input.collectionOrDeliveryDate, now)) {
-    return res.status(400).json({ error: "Orders need at least 48 hours notice" });
+
+  // Load + validate any add-ons.
+  const addOnInputs = input.addOns ?? [];
+  const addOnIds = [...new Set(addOnInputs.map((a) => a.addOnId))];
+  const addOnRows = addOnIds.length ? await prisma.addOn.findMany({ where: { id: { in: addOnIds }, active: true } }) : [];
+  const addOnById = new Map(addOnRows.map((a) => [a.id, a]));
+  for (const a of addOnInputs) {
+    if (!addOnById.get(a.addOnId)) return res.status(404).json({ error: "A selected add-on is no longer available" });
   }
 
   // referral validity (no self-referral)
   let referrerCode: string | null = null;
   if (input.referralCodeUsed) {
     const referrer = await prisma.customer.findUnique({ where: { referralCode: input.referralCodeUsed } });
-    // No self-referral: reject if the referrer matches the buyer on phone OR email
-    // (matching phone alone let a customer self-refer with a second number).
     const isSelf = referrer && (referrer.phone === input.phone || referrer.email === input.email);
     if (referrer && !isSelf) referrerCode = input.referralCodeUsed;
   }
 
-  const isBoardOrder = platter.category === "platters";
-  const quantity = isBoardOrder ? input.quantity ?? 1 : undefined;
+  // Build authoritative line items (unitPrice snapshots taken server-side).
+  const boardLines = itemInputs.map((it) => ({
+    platterId: it.platterId,
+    quantity: it.quantity,
+    unitPrice: Number(boardById.get(it.platterId)!.fixedPrice),
+  }));
+  const addOnLines = addOnInputs.map((a) => ({
+    addOnId: a.addOnId,
+    name: addOnById.get(a.addOnId)!.name,
+    quantity: a.quantity,
+    unitPrice: Number(addOnById.get(a.addOnId)!.price),
+  }));
 
-  // "Build your own" — validate chosen ingredients are real, active BoardComponent labels,
-  // enforce each group's selection limit, and price any extras beyond the free allowance.
-  let customItems: string[] | null = null;
-  let extrasPerBoard = 0;
-  if (isBoardOrder && input.customItems && input.customItems.length > 0) {
-    const [active, groups] = await Promise.all([
-      prisma.boardComponent.findMany({ where: { active: true }, select: { label: true, category: true, price: true } }),
-      prisma.boardComponentGroup.findMany({ where: { active: true } }),
-    ]);
-    const byLabel = new Map(active.map((c) => [c.label, c]));
-    // Dedupe: the client dedupes via a Set, so the server must too — otherwise a
-    // tampered `?customItems=Brie,Brie` would be priced twice while the customer
-    // was shown it once. Keep only known, active, distinct labels.
-    const chosen = [...new Set(input.customItems)].filter((l) => byLabel.has(l));
-    if (chosen.length === 0) return res.status(400).json({ error: "Chosen board items are no longer available" });
-    customItems = chosen;
-
-    const groupKeys = new Set(groups.map((g) => g.key));
-    // Fail closed: an active, possibly-priced item whose group is inactive/missing
-    // would otherwise be charged £0 and escape the per-group limit. Reject instead.
-    const ungrouped = chosen.filter((l) => !groupKeys.has(byLabel.get(l)!.category));
-    if (ungrouped.length > 0) {
-      return res.status(400).json({ error: "Some chosen board items aren't available right now" });
-    }
-
-    const extrasInput: ExtrasGroupInput[] = [];
-    for (const group of groups) {
-      const picks = chosen.filter((l) => byLabel.get(l)!.category === group.key);
-      if (group.maxSelections != null && picks.length > group.maxSelections) {
-        return res.status(400).json({
-          error: `You can only pick ${group.maxSelections} from "${group.heading}"`,
-        });
-      }
-      extrasInput.push({ includedFree: group.includedFree, prices: picks.map((l) => Number(byLabel.get(l)!.price)) });
-    }
-    extrasPerBoard = calcBoardExtras(extrasInput);
-  }
-
-  const pricing = priceOrder(
-    { pricePerHead: platter.pricePerHead ? Number(platter.pricePerHead) : null, fixedPrice: platter.fixedPrice ? Number(platter.fixedPrice) : null },
-    input.headcount,
+  const pricing = priceLineItemOrder(
+    boardLines.map((b) => ({ unitPrice: b.unitPrice, quantity: b.quantity })),
+    addOnLines.map((a) => ({ unitPrice: a.unitPrice, quantity: a.quantity })),
     referrerCode != null,
-    { isBoardOrder, quantity, extrasPerBoard },
   );
 
-  // First-order hook: free item for a customer's first catering order, if enabled.
+  // First-order hook: free item for a customer's first order, if enabled.
   const priorOrders = await prisma.order.count({ where: { phone: input.phone, type: { in: ["platter", "gift"] } } });
   let freebie: string | null = null;
   if (priorOrders === 0 && (await getSetting("firstOrderHook")) === "on") {
@@ -313,15 +363,12 @@ publicRouter.post("/orders", async (req, res) => {
 
   try {
     const order = await prisma.$transaction(async (tx) => {
-      // Lock the location row for the duration of the transaction so two orders
-      // racing for the last slot can't both pass the capacity check (READ COMMITTED
-      // wouldn't see each other's uncommitted insert). Serializes order creation
-      // per location, which prevents overbooking.
+      // Lock the location row so racing orders can't both take the last slot.
       await tx.$queryRaw`SELECT 1 FROM "Location" WHERE id = ${input.locationId} FOR UPDATE`;
       const booked = await tx.order.count({
         where: { locationId: input.locationId, collectionOrDeliveryDate: parseDate(input.collectionOrDeliveryDate), type: { in: ["platter", "gift"] }, status: { not: "cancelled" } },
       });
-      if (!canBook(input.collectionOrDeliveryDate, location.weeklyCapacity, booked, now)) throw new CapacityError();
+      if (!canBook(input.collectionOrDeliveryDate, location.weeklyCapacity, booked, now, leadHours)) throw new CapacityError();
 
       const ref = await uniqueRef(tx);
       const referralCode = await uniqueReferralCode(tx);
@@ -334,18 +381,13 @@ publicRouter.post("/orders", async (req, res) => {
       const created = await tx.order.create({
         data: {
           ref,
-          type: input.isGift ? "gift" : "platter",
-          platterId: input.platterId,
+          type: "platter",
+          platterId: boardLines[0].platterId, // primary/first board (back-compat)
           headcount: input.headcount,
-          quantity: quantity ?? null,
-          customItems: customItems ?? undefined,
+          occasion: input.occasion ?? null,
           total: pricing.total,
           deposit: pricing.deposit,
           depositStatus: "pending",
-          isGift: !!input.isGift,
-          recipientName: input.isGift ? input.recipientName ?? null : null,
-          deliveryAddress: input.isGift ? input.deliveryAddress ?? null : null,
-          giftMessage: input.isGift ? input.giftMessage ?? null : null,
           collectionOrDeliveryDate: parseDate(input.collectionOrDeliveryDate),
           locationId: input.locationId,
           customerName: input.customerName,
@@ -356,8 +398,10 @@ publicRouter.post("/orders", async (req, res) => {
           src: input.src ?? "direct",
           referralCodeUsed: referrerCode,
           customerId: customer.id,
+          items: { create: boardLines.map((b) => ({ platterId: b.platterId, quantity: b.quantity, unitPrice: b.unitPrice })) },
+          addOns: { create: addOnLines.map((a) => ({ addOnId: a.addOnId, name: a.name, quantity: a.quantity, unitPrice: a.unitPrice })) },
         },
-        include: { platter: true, location: true },
+        include: { platter: true, location: true, items: { include: { platter: true } }, addOns: true },
       });
       await tx.customer.update({ where: { id: customer.id }, data: { lastOrderId: created.id } });
       if (referrerCode) await tx.referral.create({ data: { code: referrerCode, orderId: created.id, discount: pricing.discount } });

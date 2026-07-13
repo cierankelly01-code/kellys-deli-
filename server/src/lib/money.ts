@@ -99,6 +99,59 @@ export function priceOrder(
   return { base, discount, total, deposit };
 }
 
+// --- v2 line-item order pricing (signature boards, gallery boards, event planner) ---
+// v2 orders are a set of fixed-price board line items plus optional add-on line items.
+// The deposit is 25% of the (post-discount) total, rounded to the nearest 5p (build spec §1).
+
+/** Round to the nearest 5p (£0.05). Used for the v2 deposit so staff quote clean figures. */
+export function roundTo5p(n: number): number {
+  return toMoney(Math.round(n / 0.05) * 0.05);
+}
+
+export interface LineItem {
+  unitPrice: number;
+  quantity: number;
+}
+
+/** Sum of unitPrice × quantity across line items, rounded to 2dp. */
+export function lineItemsTotal(items: LineItem[]): number {
+  return toMoney(items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0));
+}
+
+/** Add-on line items total (alias of lineItemsTotal, named for call-site clarity). */
+export function addOnsTotal(items: LineItem[]): number {
+  return lineItemsTotal(items);
+}
+
+export interface LineItemPricing {
+  base: number; // boards + add-ons, before discount
+  boardsTotal: number;
+  addOnsTotal: number;
+  discount: number; // referral discount applied
+  total: number; // what the customer owes
+  deposit: number; // 25% of total, rounded to nearest 5p
+  balance: number; // payable on collection = total - deposit
+}
+
+/**
+ * Full pricing for a v2 line-item order (boards + add-ons). The 25% deposit is rounded
+ * to the nearest 5p; the balance is the remainder, due on collection.
+ */
+export function priceLineItemOrder(
+  boards: LineItem[],
+  addOns: LineItem[],
+  hasValidReferral: boolean,
+): LineItemPricing {
+  const boardsTotal = lineItemsTotal(boards);
+  const addOns_ = addOnsTotal(addOns);
+  const base = toMoney(boardsTotal + addOns_);
+  const total = applyReferral(base, hasValidReferral);
+  const discount = toMoney(base - total);
+  const deposit = roundTo5p(total * DEPOSIT_RATE);
+  const balance = toMoney(total - deposit);
+  return { base, boardsTotal, addOnsTotal: addOns_, discount, total, deposit, balance };
+}
+
 export interface Margin {
   profit: number;
   marginPct: number;
