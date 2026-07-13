@@ -6,14 +6,15 @@ import {
   type PlatterUpsertInput,
   type ExperienceUpsertInput,
 } from "../../lib/admin";
-import { type LocationT, type PlatterItem, type Category, type BoardType, type BoardSize } from "../../lib/api";
+import { type LocationT, type PlatterItem, type Category, type BoardType, type BoardSize, type BoardTier } from "../../lib/api";
 import { MarginMeter } from "../../components/MarginMeter";
 import { ImageUpload } from "../../components/ImageUpload";
 
 type PricingType = "perHead" | "fixed";
-const CATEGORY_LABEL: Record<Category, string> = { home: "At Home", events: "Events & Office", seasonal: "Seasonal", platters: "Platters (Boards)" };
+const CATEGORY_LABEL: Record<Category, string> = { board: "Boards", home: "At Home", events: "Events & Office", seasonal: "Seasonal", platters: "Platters (legacy)" };
 const BOARD_TYPE_LABEL: Record<BoardType, string> = { charcuterie: "Charcuterie", savoury: "Savoury", cheese: "Cheese", salmon: "Smoked Salmon" };
 const BOARD_SIZE_LABEL: Record<BoardSize, string> = { small: "Small", medium: "Medium", large: "Large" };
+const TIER_LABEL: Record<BoardTier, string> = { signature: "Signature", gallery: "More Boards" };
 
 interface Draft {
   id: string | null;
@@ -30,6 +31,11 @@ interface Draft {
   active: boolean;
   boardType: BoardType | "";
   size: BoardSize | "";
+  tier: BoardTier | "";
+  feedsMin: string;
+  feedsMax: string;
+  recommendEligible: boolean;
+  recommendPriority: string;
 }
 
 function toDraft(p: AdminPlatter): Draft {
@@ -40,6 +46,9 @@ function toDraft(p: AdminPlatter): Draft {
     cost: String(p.cost), serves: p.serves ?? "", minHeadcount: String(p.minHeadcount),
     items: p.items.map((i) => ({ ...i })), imageUrl: p.imageUrl ?? "", active: p.active,
     boardType: p.boardType ?? "", size: p.size ?? "",
+    tier: p.tier ?? "", feedsMin: p.feedsMin != null ? String(p.feedsMin) : "",
+    feedsMax: p.feedsMax != null ? String(p.feedsMax) : "",
+    recommendEligible: p.recommendEligible, recommendPriority: String(p.recommendPriority),
   };
 }
 // The API takes the whole platter on every save, so quick edits send the full
@@ -51,14 +60,18 @@ function toUpsert(p: AdminPlatter): PlatterUpsertInput {
     serves: p.serves, minHeadcount: p.minHeadcount, items: p.items.map((i) => ({ ...i })),
     imageUrl: p.imageUrl, active: p.active, sortOrder: p.sortOrder,
     boardType: p.boardType, size: p.size,
+    tier: p.tier, feedsMin: p.feedsMin, feedsMax: p.feedsMax,
+    recommendEligible: p.recommendEligible, recommendPriority: p.recommendPriority,
   };
 }
 
-function blankDraft(category: Category = "home"): Draft {
+function blankDraft(category: Category = "board"): Draft {
   return {
     id: null, category, name: "", description: "", pricingType: "fixed", price: "", cost: "", serves: "",
     minHeadcount: "1", items: [{ label: "", qtyPerUnit: 1 }], imageUrl: "", active: true,
     boardType: category === "platters" ? "charcuterie" : "", size: category === "platters" ? "medium" : "",
+    tier: category === "board" ? "signature" : "", feedsMin: "", feedsMax: "",
+    recommendEligible: category === "board", recommendPriority: "0",
   };
 }
 
@@ -103,6 +116,11 @@ export default function MenuEditor() {
       active: draft.active,
       boardType: draft.category === "platters" ? (draft.boardType || null) : null,
       size: draft.category === "platters" ? (draft.size || null) : null,
+      tier: draft.category === "board" ? (draft.tier || null) : null,
+      feedsMin: draft.feedsMin.trim() ? parseInt(draft.feedsMin, 10) : null,
+      feedsMax: draft.feedsMax.trim() ? parseInt(draft.feedsMax, 10) : null,
+      recommendEligible: draft.recommendEligible,
+      recommendPriority: Math.max(0, parseInt(draft.recommendPriority, 10) || 0),
     };
     setSaving(true); setError(null); setMsg(null);
     try {
@@ -124,7 +142,7 @@ export default function MenuEditor() {
     set("items", items);
   }
 
-  const grouped: Record<Category, AdminPlatter[]> = { home: [], events: [], seasonal: [], platters: [] };
+  const grouped: Record<Category, AdminPlatter[]> = { board: [], home: [], events: [], seasonal: [], platters: [] };
   for (const p of platters) grouped[p.category]?.push(p);
 
   return (
@@ -160,11 +178,31 @@ export default function MenuEditor() {
           <div className="field">
             <label>Category</label>
             <div className="seg wide">
-              {(["platters", "home", "events", "seasonal"] as Category[]).map((c) => (
+              {(["board", "home", "events", "seasonal", "platters"] as Category[]).map((c) => (
                 <button key={c} className={draft.category === c ? "active" : ""} onClick={() => set("category", c)}>{CATEGORY_LABEL[c]}</button>
               ))}
             </div>
           </div>
+          {draft.category === "board" && (
+            <>
+              <div className="field">
+                <label>Tier</label>
+                <div className="seg wide">
+                  {(Object.keys(TIER_LABEL) as BoardTier[]).map((t) => (
+                    <button key={t} className={draft.tier === t ? "active" : ""} onClick={() => set("tier", t)}>{TIER_LABEL[t]}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="price-row">
+                <div className="field"><label>Feeds — minimum</label><input className="input" inputMode="numeric" value={draft.feedsMin} onChange={(e) => set("feedsMin", e.target.value)} placeholder="e.g. 8" /></div>
+                <div className="field"><label>Feeds — maximum</label><input className="input" inputMode="numeric" value={draft.feedsMax} onChange={(e) => set("feedsMax", e.target.value)} placeholder="e.g. 10" /></div>
+              </div>
+              <div className="price-row">
+                <label className="toggle inline"><input type="checkbox" checked={draft.recommendEligible} onChange={(e) => set("recommendEligible", e.target.checked)} /><span>Eligible for event recommendations</span></label>
+                <div className="field"><label>Recommender priority (higher first)</label><input className="input" inputMode="numeric" value={draft.recommendPriority} onChange={(e) => set("recommendPriority", e.target.value)} placeholder="0" /></div>
+              </div>
+            </>
+          )}
           {draft.category === "platters" && (
             <div className="price-row">
               <div className="field">

@@ -405,3 +405,110 @@
 .legal ul { padding-left: 20px; }
 .legal li { margin-bottom: 6px; }
 .legal a { color: var(--navy); }
+
+/* =====================  v2: boards, add-ons, event planner  ===================== */
+.page-h { font-family: var(--serif); font-size: 1.8rem; color: var(--ink); margin: 8px 0 14px; }
+.section-h { font-family: var(--serif); font-size: 1.3rem; color: var(--ink); margin: 20px 0 12px; }
+.step-h { font-size: 1.1rem; color: var(--ink); margin: 14px 0 8px; }
+.link-back { background: none; border: none; color: var(--ink-soft); font: inherit; cursor: pointer; padding: 6px 0; }
+.small { font-size: 0.82rem; }
+
+/* Hero CTAs + trust strip */
+.hero-ctas { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.hero-cta-2 { background: rgba(255,255,255,0.9); }
+.trust-strip {
+  display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; align-items: center;
+  padding: 10px 12px; font-size: 0.8rem; font-weight: 600; color: var(--ink-soft);
+  background: var(--cream); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+
+/* Plan-my-event banner */
+.plan-banner {
+  display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; cursor: pointer;
+  padding: 16px; margin: 16px 0; border: 2px solid var(--mustard); border-radius: var(--radius-sm);
+  background: var(--warn-bg, #fdf6e3); font-family: inherit; color: var(--ink);
+}
+.plan-banner .pb-title { font-weight: 700; font-size: 1.05rem; }
+.plan-banner .pb-sub { color: var(--brick); font-weight: 600; font-size: 0.9rem; }
+
+/* Board grid + cards */
+.board-section { margin: 18px 0; }
+.board-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 560px) { .board-grid { grid-template-columns: repeat(2, 1fr); } }
+.board-card, .gallery-card {
+  display: flex; flex-direction: column; text-align: left; padding: 0; overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--radius-sm); background: #fff; cursor: pointer; font: inherit; color: var(--ink);
+}
+.board-card-img {
+  width: 100%; aspect-ratio: 3/2; background-size: cover; background-position: center; background-color: var(--cream);
+}
+.board-card-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 4px; }
+.board-card-name { font-family: var(--serif); font-size: 1.15rem; margin: 0; color: var(--ink); }
+.board-card-price { font-weight: 700; color: var(--brick); margin: 0; }
+.board-card-desc { font-size: 0.85rem; margin: 4px 0 0; }
+.board-card-actions { display: flex; gap: 8px; margin-top: 10px; }
+.board-card-go { color: var(--brick); font-weight: 600; font-size: 0.9rem; margin-top: 6px; }
+
+/* Steps bar */
+.steps-bar { list-style: none; display: flex; gap: 8px; padding: 0; margin: 4px 0 16px; font-size: 0.78rem; }
+.steps-dot { flex: 1; text-align: center; padding: 6px 4px; border-radius: 999px; background: var(--cream); color: var(--ink-soft); border: 1px solid var(--line); }
+.steps-dot.active { background: var(--brick); color: #fff; border-color: var(--brick); }
+.steps-dot.done { color: var(--good); }
+
+/* Compact stepper (boards + add-ons + headcount) */
+.stepper { display: inline-flex; align-items: center; gap: 8px; }
+.stepper button {
+  width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line); background: #fff;
+  font-size: 1.2rem; color: var(--brick); cursor: pointer; line-height: 1;
+}
+.stepper input { width: 56px; text-align: center; font-size: 1rem; padding: 6px; border: 1px solid var(--line); border-radius: 8px; }
+.stepper .stepper-val { min-width: 24px; text-align: center; font-weight: 700; }
+
+/* Order line summary */
+.order-boards { padding: 14px; }
+.order-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.order-line .ol-name { font-weight: 600; }
+.order-line .ol-price { font-weight: 700; color: var(--brick); min-width: 56px; text-align: right; }
+
+/* Add-ons step */
+.addons-step { margin: 16px 0; }
+.addons-sub { margin: 0 0 12px; }
+.addon-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.addon-card { display: flex; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #fff; }
+.addon-card.is-added { border-color: var(--brick); box-shadow: 0 0 0 2px rgba(122,46,29,0.1); }
+.addon-thumb { width: 54px; height: 54px; border-radius: 8px; background-size: cover; background-position: center; flex-shrink: 0; background-color: var(--cream); }
+.addon-body { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.addon-head { display: flex; justify-content: space-between; gap: 8px; }
+.addon-name { font-weight: 600; }
+.addon-price { color: var(--ink-soft); font-size: 0.85rem; white-space: nowrap; }
+.addons-running { display: flex; justify-content: space-between; padding: 12px 2px 0; font-size: 1.05rem; }
+
+/* Running total + totals */
+.running-total { display: flex; flex-direction: column; gap: 2px; padding: 12px 0; }
+.running-total strong { color: var(--brick); font-size: 1.15rem; }
+.deposit-policy { font-size: 0.85rem; color: var(--ink-soft); background: var(--cream); border-radius: var(--radius-sm); padding: 10px 12px; }
+.form-error { color: var(--danger); font-weight: 600; margin: 8px 0; }
+.step-actions { display: flex; gap: 10px; margin: 16px 0; }
+.step-actions .btn { flex: 1; }
+
+/* Fields */
+.field { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+.field > span { font-weight: 600; font-size: 0.9rem; }
+.field input, .field select, .field textarea {
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); font: inherit; background: #fff; color: var(--ink);
+}
+.review-summary .review-row.total { font-weight: 700; font-size: 1.1rem; border-top: 1px solid var(--line); padding-top: 8px; margin-top: 4px; }
+
+/* Event planner */
+.chip-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 14px; }
+.chip { padding: 10px 16px; border: 2px solid var(--line); border-radius: 999px; background: #fff; font: inherit; font-weight: 700; cursor: pointer; color: var(--ink); }
+.chip.selected { border-color: var(--brick); background: var(--brick); color: #fff; }
+.combo-list { list-style: none; padding: 0; margin: 12px 0; display: flex; flex-direction: column; gap: 10px; }
+.combo-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; }
+.combo-info { display: flex; flex-direction: column; gap: 2px; }
+.combo-name { font-weight: 600; }
+.combo-add { display: flex; gap: 8px; margin: 12px 0; }
+.combo-add select { flex: 1; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); font: inherit; }
+.combo-totals { padding: 12px 14px; margin: 12px 0; }
+.undercater-warning { color: var(--warn, #a6761d); background: var(--warn-bg, #fdf6e3); border-radius: var(--radius-sm); padding: 10px 12px; font-weight: 600; }
+.confirm-copy { max-width: 34ch; margin: 6px auto 14px; color: var(--ink-soft); }

@@ -1,36 +1,35 @@
 import { useEffect, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, type Platter } from "../lib/api";
+import { saveCart } from "../lib/cart";
 import { gbp } from "../lib/format";
 import { Header } from "../components/Header";
+import { usePageTitle } from "../lib/title";
 
 export default function PlatterDetail() {
   const { id } = useParams();
-  const [params] = useSearchParams();
+  const navigate = useNavigate();
   const [platter, setPlatter] = useState<Platter | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const src = params.get("src");
-  const category = params.get("category");
+  usePageTitle(platter?.name);
 
   useEffect(() => {
     if (!id) return;
     api.platter(id).then(setPlatter).catch((e) => setError(e.message));
   }, [id]);
 
-  const orderHref = () => {
-    const q = new URLSearchParams({ platter: id ?? "" });
-    if (category) q.set("category", category);
-    if (src) q.set("src", src);
-    return `/order?${q.toString()}`;
+  const order = () => {
+    if (!platter) return;
+    saveCart({ boards: [{ platterId: platter.id, quantity: 1 }], addOns: [], headcount: 0, origin: "direct" });
+    navigate("/order");
   };
-  const backHref = category ? `/menu/${category}${src ? `?src=${src}` : ""}` : "/";
 
   if (error) {
     return (
       <div className="app">
         <Header />
         <div className="notice danger">{error}</div>
-        <Link className="btn btn-secondary" to="/">Back to menu</Link>
+        <Link className="btn btn-secondary" to="/platters">Back to boards</Link>
       </div>
     );
   }
@@ -38,34 +37,38 @@ export default function PlatterDetail() {
     return <div className="app"><Header /><p className="muted center">Loading…</p></div>;
   }
 
+  const cleanDesc = platter.description.replace(/\s*\[CHECK PRICE.*?\]\s*$/i, "");
+
   return (
     <div className="app">
       <Header />
-      <Link to={backHref} className="btn-ghost back">← Back</Link>
+      <Link to="/platters" className="btn-ghost back">← Back to boards</Link>
 
-      {platter.imageUrl && <div className="detail-photo" style={{ backgroundImage: `url(${platter.imageUrl})` }} />}
+      {platter.imageUrl && <div className="detail-photo" style={{ backgroundImage: `url(${platter.imageUrl})` }} role="img" aria-label={platter.name} />}
 
       <div className="spread" style={{ marginTop: 18, alignItems: "flex-start" }}>
         <h1 style={{ margin: 0 }}>{platter.name}</h1>
         <div className="price">
-          {platter.isFixed ? <strong>{gbp(platter.fixedPrice!)}</strong> : <><strong>{gbp(platter.pricePerHead!)}</strong><span className="muted">/head</span></>}
+          <strong>{gbp(platter.fixedPrice ?? platter.fromPrice)}</strong>
         </div>
       </div>
-      {platter.serves && (
-        <p className="serves">Serves {platter.serves}{!platter.isFixed && platter.minHeadcount > 1 ? ` · minimum ${platter.minHeadcount}` : ""}</p>
+      {platter.serves && <p className="serves">Feeds {platter.serves}</p>}
+
+      <p className="detail-desc">{cleanDesc}</p>
+
+      {platter.items.length > 0 && (
+        <>
+          <h2 className="detail-h2">What&apos;s inside</h2>
+          <ul className="detail-items">
+            {platter.items.map((it) => <li key={it.label}>{it.label}</li>)}
+          </ul>
+        </>
       )}
 
-      <p className="detail-desc">{platter.description}</p>
-
-      <h2 className="detail-h2">What&apos;s inside</h2>
-      <ul className="detail-items">
-        {platter.items.map((it) => <li key={it.label}>{it.label}</li>)}
-      </ul>
-
-      <p className="muted footnote">25% deposit secures your date · 48 hours&apos; notice · collect or send as a gift.</p>
+      <p className="muted footnote">A 25% deposit confirms your order · 48 hours&apos; notice · collect from your chosen shop.</p>
 
       <div className="nav-row">
-        <Link className="btn" to={orderHref()}>Order this — from {gbp(platter.fromPrice)}</Link>
+        <button className="btn" onClick={order}>Add &amp; continue — {gbp(platter.fixedPrice ?? platter.fromPrice)}</button>
       </div>
     </div>
   );

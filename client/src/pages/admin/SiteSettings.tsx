@@ -17,6 +17,7 @@ export default function SiteSettings() {
   const [founderNote, setFounderNote] = useState("");
   const [reviewRating, setReviewRating] = useState("");
   const [reviewCount, setReviewCount] = useState("");
+  const [leadHours, setLeadHours] = useState("48");
   const [clickCollectOpen, setClickCollectOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -31,6 +32,7 @@ export default function SiteSettings() {
       setFounderNote(s.founderNote ?? "");
       setReviewRating(s.reviewRating ?? "");
       setReviewCount(s.reviewCount ?? "");
+      setLeadHours(s.orderLeadTimeHours ?? "48");
       setClickCollectOpen(s.clickCollectComingSoon === "off");
     }).catch((e) => setError(e.message));
   }
@@ -46,6 +48,7 @@ export default function SiteSettings() {
       await adminApi.setSetting("founderNote", founderNote.trim());
       await adminApi.setSetting("reviewRating", reviewRating.trim());
       await adminApi.setSetting("reviewCount", reviewCount.trim());
+      await adminApi.setSetting("orderLeadTimeHours", String(Math.max(0, parseInt(leadHours || "48", 10) || 48)));
       setMsg("Saved — live on the homepage now.");
       refresh();
     } catch (e: any) {
@@ -79,6 +82,13 @@ export default function SiteSettings() {
             <strong>Open Click &amp; Collect</strong> — {clickCollectOpen ? "live on the homepage" : "currently showing “Coming soon”"}
           </span>
         </label>
+      </div>
+
+      <h2>Collection lead time</h2>
+      <div className="field">
+        <label>Minimum notice before collection (hours)</label>
+        <input className="input" type="number" min={0} value={leadHours} onChange={(e) => setLeadHours(e.target.value)} placeholder="e.g. 48" />
+        <span className="muted small">Customers can&apos;t book a collection date sooner than this. Protects the kitchen.</span>
       </div>
 
       <h2>Homepage hero</h2>

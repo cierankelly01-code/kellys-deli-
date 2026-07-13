@@ -1,33 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { api, type CategoryCounts, type OpeningHours, type Platter, type BoardType } from "../lib/api";
+import { api, type CategoryCounts, type OpeningHours, type Platter } from "../lib/api";
+import { saveCart } from "../lib/cart";
 import { gbp } from "../lib/format";
 import { Ticker } from "../components/Header";
 import { StickyCta } from "../components/StickyCta";
 
 const DAY_LABELS: Array<{ key: keyof OpeningHours; label: string }> = [
-  { key: "mon", label: "Mon" },
-  { key: "tue", label: "Tue" },
-  { key: "wed", label: "Wed" },
-  { key: "thu", label: "Thu" },
-  { key: "fri", label: "Fri" },
-  { key: "sat", label: "Sat" },
-  { key: "sun", label: "Sun" },
+  { key: "mon", label: "Mon" }, { key: "tue", label: "Tue" }, { key: "wed", label: "Wed" },
+  { key: "thu", label: "Thu" }, { key: "fri", label: "Fri" }, { key: "sat", label: "Sat" }, { key: "sun", label: "Sun" },
 ];
-
-const BOARD_ORDER: BoardType[] = ["charcuterie", "savoury", "cheese", "salmon"];
-const BOARD_TITLES: Record<BoardType, string> = {
-  charcuterie: "Charcuterie Board",
-  savoury: "Savoury Board",
-  cheese: "Cheese Board",
-  salmon: "Smoked Salmon Board",
-};
-const BOARD_BADGE: Record<BoardType, string> = {
-  charcuterie: "Bestseller",
-  savoury: "Crowd favourite",
-  cheese: "Simple & fresh",
-  salmon: "Light & elegant",
-};
 
 const DEFAULT_HERO_IMG = "https://images.unsplash.com/photo-1695606392727-d8b959879721?auto=format&fit=crop&w=1400&q=70";
 const DEFAULT_MISSION = "The deli your grandparents would recognise — local produce, no shortcuts, boards built the same way every time.";
@@ -35,13 +17,8 @@ const DEFAULT_FOUNDER_NOTE = "We've been doing this the same way for years — p
 
 function parseHours(raw: string | null): OpeningHours | null {
   if (!raw) return null;
-  try {
-    return JSON.parse(raw) as OpeningHours;
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(raw) as OpeningHours; } catch { return null; }
 }
-
 function toMinutes(t: string): number | null {
   const m = t.trim().match(/^(\d{1,2}):(\d{2})$/);
   return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : null;
@@ -54,11 +31,8 @@ function parseRange(str: string | undefined): [number, number] | null {
   return start != null && end != null ? [start, end] : null;
 }
 function fmtMinutes(mins: number): string {
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return `${h}:${String(m).padStart(2, "0")}`;
+  return `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, "0")}`;
 }
-
 function computeOpenStatus(hours: OpeningHours): { open: boolean; text: string } {
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
@@ -77,10 +51,14 @@ function computeOpenStatus(hours: OpeningHours): { open: boolean; text: string }
   return { open: false, text: "Closed" };
 }
 
+function priceFeeds(p: Platter): string {
+  const price = gbp(p.fixedPrice ?? p.fromPrice ?? 0);
+  return p.serves ? `${price} · feeds ${p.serves}` : price;
+}
+
 export default function Choice() {
   const [counts, setCounts] = useState<CategoryCounts | null>(null);
   const [boards, setBoards] = useState<Platter[] | null>(null);
-  const [catering, setCatering] = useState<Platter[] | null>(null);
   const [showHours, setShowHours] = useState(false);
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -88,32 +66,19 @@ export default function Choice() {
   const suffix = src ? `?src=${encodeURIComponent(src)}` : "";
 
   useEffect(() => {
-    api
-      .categories()
-      .then(setCounts)
-      .catch(() =>
-        setCounts({
-          home: 1, events: 1, seasonal: 0, platters: 1, experiences: 1,
-          tastingsComingSoon: true, clickCollectComingSoon: true, openingHours: null, aboutText: null,
-          heroImageUrl: null, missionTagline: null, founderNote: null, reviewRating: null, reviewCount: null,
-        }),
-      );
-    api.platters("platters" as any).then(setBoards).catch(() => setBoards([]));
-    Promise.all([api.platters("home"), api.platters("events")])
-      .then(([h, e]) => setCatering([...h.slice(0, 1), ...e.slice(0, 1)]))
-      .catch(() => setCatering([]));
+    api.categories().then(setCounts).catch(() => setCounts(null));
+    api.boards("signature").then(setBoards).catch(() => setBoards([]));
   }, []);
 
   const go = (path: string) => navigate(`${path}${suffix}`);
-  const tastingsComingSoon = counts ? counts.tastingsComingSoon : true;
-  const clickCollectComingSoon = counts ? counts.clickCollectComingSoon : true;
+  const startOrder = (p: Platter) => {
+    saveCart({ boards: [{ platterId: p.id, quantity: 1 }], addOns: [], headcount: 0, origin: "direct" });
+    go("/order");
+  };
+
   const hours = parseHours(counts?.openingHours ?? null);
   const today = DAY_LABELS[(new Date().getDay() + 6) % 7];
-
-  const boardCards = BOARD_ORDER.map((boardType) => {
-    const p = boards?.find((x) => x.boardType === boardType && x.size === "medium" && !x.name.includes("Build Your Own"));
-    return p ? { boardType, platter: p } : null;
-  }).filter((x): x is { boardType: BoardType; platter: Platter } => !!x);
+  const signature = boards ?? [];
 
   return (
     <div className="choice">
@@ -123,57 +88,63 @@ export default function Choice() {
           <p className="lh-eyebrow">Independent · family-run</p>
           <h1 className="lh-mark">Kelly&apos;s Deli</h1>
           <p className="lh-tag">
-            {counts?.aboutText ??
-              "Proper food from the people you know — grazing boards for delivery, platters for home and work."}
+            {counts?.aboutText ?? "Proper food from the people you know — grazing boards for collection, made fresh."}
           </p>
-          <button className="btn hero-cta" onClick={() => go("/platters")}>Order platters</button>
+          <div className="hero-ctas">
+            <button className="btn hero-cta" onClick={() => go("/platters")}>Order a board</button>
+            <button className="btn-ghost hero-cta-2" onClick={() => go("/plan")}>Plan my event</button>
+          </div>
           {counts?.reviewRating && (
             <div className="lh-trust">
               <span className="stars" aria-hidden="true">★</span>
-              <span>
-                {counts.reviewRating} {counts.reviewCount ? `· ${counts.reviewCount} Google reviews` : ""}
-              </span>
+              <span>{counts.reviewRating} {counts.reviewCount ? `· ${counts.reviewCount} Google reviews` : ""}</span>
             </div>
           )}
         </div>
       </header>
 
-      <div className="mission-band">
-        <p>{counts?.missionTagline || DEFAULT_MISSION}</p>
+      <div className="mission-band"><p>{counts?.missionTagline || DEFAULT_MISSION}</p></div>
+
+      {/* Trust strip (build spec §5.3) */}
+      <div className="trust-strip">
+        <span>Family-run</span>
+        <span aria-hidden="true">·</span>
+        <span>Three local shops</span>
+        <span aria-hidden="true">·</span>
+        <span>Collect from your chosen shop</span>
       </div>
 
       <div className="app">
-        {boardCards.length > 0 && (
-          <section className="shelf">
-            <div className="spread shelf-head">
-              <h2 className="choice-h" style={{ margin: 0 }}>Shop by board</h2>
-              <button className="btn-ghost" onClick={() => go("/platters")}>See all →</button>
-            </div>
-            <div className="shelf-scroll">
-              {boardCards.map(({ boardType, platter }) => (
-                <button key={boardType} className="shelf-card" onClick={() => go("/platters")}>
-                  <div className="shelf-card-img" style={{ backgroundImage: platter.imageUrl ? `url(${platter.imageUrl})` : undefined }}>
-                    <span className="badge dark shelf-card-badge">{BOARD_BADGE[boardType]}</span>
+        <section className="board-section">
+          <div className="spread shelf-head">
+            <h2 className="section-h" style={{ margin: 0 }}>Signature boards</h2>
+            <button className="btn-ghost" onClick={() => go("/platters")}>See all →</button>
+          </div>
+          {signature.length === 0 ? (
+            <p className="muted">Loading boards…</p>
+          ) : (
+            <div className="board-grid">
+              {signature.map((p) => (
+                <article key={p.id} className="board-card card">
+                  <div className="board-card-img" style={{ backgroundImage: p.imageUrl ? `url(${p.imageUrl})` : undefined }} role="img" aria-label={p.name} />
+                  <div className="board-card-body">
+                    <h3 className="board-card-name">{p.name}</h3>
+                    <p className="board-card-price">{priceFeeds(p)}</p>
+                    <div className="board-card-actions">
+                      <button className="btn" onClick={() => startOrder(p)}>Order · {gbp(p.fixedPrice ?? 0)}</button>
+                      <button className="btn-ghost" onClick={() => go(`/platter/${p.id}`)}>Details</button>
+                    </div>
                   </div>
-                  <span className="shelf-card-title">{BOARD_TITLES[boardType]}</span>
-                  <span className="shelf-card-price">From {gbp(platter.fixedPrice!)}</span>
-                </button>
+                </article>
               ))}
-              {boardCards.some((b) => b.boardType === "charcuterie") && (
-                <button className="shelf-card" onClick={() => go("/configure")}>
-                  <div
-                    className="shelf-card-img"
-                    style={{ backgroundImage: boardCards.find((b) => b.boardType === "charcuterie")?.platter.imageUrl ? `url(${boardCards.find((b) => b.boardType === "charcuterie")!.platter.imageUrl})` : undefined }}
-                  >
-                    <span className="badge gold shelf-card-badge">Build your own</span>
-                  </div>
-                  <span className="shelf-card-title">Configure your own</span>
-                  <span className="shelf-card-price">Pick your own extras</span>
-                </button>
-              )}
             </div>
-          </section>
-        )}
+          )}
+        </section>
+
+        <button className="plan-banner" onClick={() => go("/plan")}>
+          <span className="pb-title">Catering for a group?</span>
+          <span className="pb-sub">Plan my event — tell us your numbers and we&apos;ll suggest the spread →</span>
+        </button>
 
         <section className="founder-note">
           <p className="founder-eyebrow">A note from the deli counter</p>
@@ -181,8 +152,8 @@ export default function Choice() {
           <p className="founder-sign">— Kelly</p>
         </section>
 
-        <div className="info-row">
-          {hours && (
+        {hours && (
+          <div className="info-row">
             <div className="card hours-card">
               <button className="hours-status" onClick={() => setShowHours((s) => !s)}>
                 <span className={`status-dot ${computeOpenStatus(hours).open ? "open" : "closed"}`} aria-hidden="true" />
@@ -200,56 +171,7 @@ export default function Choice() {
                 </div>
               )}
             </div>
-          )}
-
-          <div className="choice-strip coming-soon" aria-disabled="true">
-            <span>Click &amp; Collect</span>
-            <span className="cs-badge">{clickCollectComingSoon ? "Coming soon" : ""}</span>
           </div>
-        </div>
-
-        {catering && catering.length > 0 && (
-          <section className="shelf">
-            <h2 className="choice-h">Catering &amp; events</h2>
-            <div className="choice-grid">
-              {catering[0] && (
-                <button className="choice-card photo" onClick={() => go("/menu/home")}>
-                  {catering[0].imageUrl && <div className="choice-card-img" style={{ backgroundImage: `url(${catering[0].imageUrl})` }} />}
-                  <span className="choice-title">At Home</span>
-                  <span className="choice-sub">Dinner, date night, family &amp; friends</span>
-                  <span className="choice-go">Browse platters →</span>
-                </button>
-              )}
-              {catering[1] && (
-                <button className="choice-card photo" onClick={() => go("/menu/events")}>
-                  {catering[1].imageUrl && <div className="choice-card-img" style={{ backgroundImage: `url(${catering[1].imageUrl})` }} />}
-                  <span className="choice-title">Events &amp; Office</span>
-                  <span className="choice-sub">Work lunches, parties, larger groups</span>
-                  <span className="choice-go">Browse platters →</span>
-                </button>
-              )}
-            </div>
-          </section>
-        )}
-
-        {counts && counts.seasonal > 0 && (
-          <button className="choice-strip seasonal" onClick={() => go("/menu/seasonal")}>
-            <span>Seasonal spreads — limited time</span>
-            <span className="arrow">→</span>
-          </button>
-        )}
-        {(!counts || counts.experiences > 0) && (
-          tastingsComingSoon ? (
-            <div className="choice-strip coming-soon" aria-disabled="true">
-              <span>Tastings &amp; Experiences</span>
-              <span className="cs-badge">Coming soon</span>
-            </div>
-          ) : (
-            <button className="choice-strip" onClick={() => go("/tastings")}>
-              <span>Tastings &amp; Experiences — book a cheese tasting &amp; more</span>
-              <span className="arrow">→</span>
-            </button>
-          )
         )}
 
         <div className="referral-teaser">
@@ -258,10 +180,10 @@ export default function Choice() {
         </div>
 
         <p className="center muted footnote">
-          Order in under a minute · £25 deposit secures a platter order · we confirm by text &amp; email
+          Order in under a minute · a 25% deposit confirms your order · we confirm by text &amp; email
         </p>
       </div>
-      <StickyCta label="Order platters" to={`/platters${suffix}`} />
+      <StickyCta label="Order a board" to={`/platters${suffix}`} />
     </div>
   );
 }

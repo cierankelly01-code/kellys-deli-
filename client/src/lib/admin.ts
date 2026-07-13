@@ -1,5 +1,5 @@
 // Admin API client + JWT token storage.
-import { ApiError, type OrderDTO, type Platter, type PlatterItem, type LocationT, type Experience, type Category, type BoardComponent, type BoardComponentCategory, type BoardGroup, type BoardType, type BoardSize } from "./api";
+import { ApiError, type OrderDTO, type Platter, type PlatterItem, type LocationT, type Experience, type Category, type BoardComponent, type BoardComponentCategory, type BoardGroup, type BoardType, type BoardSize, type BoardTier, type AddOn, type AddOnUnitType } from "./api";
 
 const BASE = import.meta.env.VITE_API_URL || "";
 const TOKEN_KEY = "kd_admin_token";
@@ -124,6 +124,26 @@ export interface PlatterUpsertInput {
   sortOrder?: number;
   boardType?: BoardType | null;
   size?: BoardSize | null;
+  tier?: BoardTier | null;
+  feedsMin?: number | null;
+  feedsMax?: number | null;
+  recommendEligible?: boolean;
+  recommendPriority?: number;
+}
+
+export type AdminAddOn = AddOn;
+
+export interface AddOnUpsertInput {
+  name: string;
+  description?: string | null;
+  price: number;
+  unitType: AddOnUnitType;
+  unitLabel?: string | null;
+  servesPerUnit?: number | null;
+  suggestFromHeadcount?: boolean;
+  imageUrl?: string | null;
+  active?: boolean;
+  sortOrder?: number;
 }
 
 export interface BoardComponentUpsertInput {
@@ -234,6 +254,14 @@ export const adminApi = {
     authedReq<AdminExperience>(`/api/admin/experiences`, { method: "POST", body: JSON.stringify(input) }),
   updateExperience: (id: string, input: ExperienceUpsertInput) =>
     authedReq<AdminExperience>(`/api/admin/experiences/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+
+  // Add-ons (upsell items)
+  addOns: () => authedReq<AdminAddOn[]>(`/api/admin/add-ons`),
+  createAddOn: (input: AddOnUpsertInput) =>
+    authedReq<AdminAddOn>(`/api/admin/add-ons`, { method: "POST", body: JSON.stringify(input) }),
+  updateAddOn: (id: string, input: AddOnUpsertInput) =>
+    authedReq<AdminAddOn>(`/api/admin/add-ons/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  deleteAddOn: (id: string) => authedReq<{ ok: boolean }>(`/api/admin/add-ons/${id}`, { method: "DELETE" }),
 
   // Settings (global toggles)
   settings: () => authedReq<Record<string, string>>(`/api/admin/settings`),

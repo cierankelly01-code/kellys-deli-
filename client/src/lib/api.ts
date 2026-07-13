@@ -7,9 +7,10 @@ export interface PlatterItem {
   qtyPerUnit: number;
 }
 
-export type Category = "home" | "events" | "seasonal" | "platters";
+export type Category = "home" | "events" | "seasonal" | "platters" | "board";
 export type BoardType = "charcuterie" | "savoury" | "cheese" | "salmon";
 export type BoardSize = "small" | "medium" | "large";
+export type BoardTier = "signature" | "gallery";
 export type BoardComponentCategory = "cheese" | "meat" | "savoury" | "cracker" | "jam";
 
 export interface Platter {
@@ -29,8 +30,48 @@ export interface Platter {
   fromPrice: number;
   boardType: BoardType | null;
   size: BoardSize | null;
+  // v2 board catalogue
+  tier: BoardTier | null;
+  feedsMin: number | null;
+  feedsMax: number | null;
+  recommendEligible: boolean;
+  recommendPriority: number;
   cost?: number; // admin only
 }
+
+export type AddOnUnitType = "per_person" | "per_order" | "serves";
+
+export interface AddOn {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  unitType: AddOnUnitType;
+  unitLabel: string | null;
+  servesPerUnit: number | null;
+  suggestFromHeadcount: boolean;
+  imageUrl: string | null;
+  active: boolean;
+  sortOrder: number;
+}
+
+export interface RecommendItem {
+  boardId: string;
+  qty: number;
+  board: Platter;
+  feedsEach: number;
+}
+
+export interface RecommendResponse {
+  headcount: number;
+  items: RecommendItem[];
+  totalFeeds: number;
+  totalPrice: number;
+  undercatered: boolean;
+}
+
+export const OCCASIONS = ["Birthday", "Corporate", "Family gathering", "Other"] as const;
+export type Occasion = (typeof OCCASIONS)[number];
 
 export interface BoardComponent {
   id: string;
@@ -118,6 +159,27 @@ export interface Pricing {
   discount: number;
   total: number;
   deposit: number;
+  balance?: number;
+  boardsTotal?: number;
+  addOnsTotal?: number;
+}
+
+export interface OrderItemDTO {
+  id: string;
+  platterId: string;
+  platterName: string | null;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+export interface OrderAddOnDTO {
+  id: string;
+  addOnId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
 }
 
 export interface OrderDTO {
@@ -130,9 +192,13 @@ export interface OrderDTO {
   experienceName: string | null;
   headcount: number;
   quantity: number | null;
+  occasion: string | null;
   customItems: string[] | null;
+  items: OrderItemDTO[];
+  addOns: OrderAddOnDTO[];
   total: number;
   deposit: number;
+  balance: number;
   depositStatus: string;
   isGift: boolean;
   recipientName: string | null;
@@ -162,9 +228,20 @@ export interface ReorderResult {
   notes: string | null;
 }
 
-export interface CreateOrderInput {
+export interface OrderItemInput {
   platterId: string;
+  quantity: number;
+}
+export interface OrderAddOnInput {
+  addOnId: string;
+  quantity: number;
+}
+
+export interface CreateOrderInput {
+  items: OrderItemInput[];
+  addOns?: OrderAddOnInput[];
   headcount: number;
+  occasion?: Occasion;
   collectionOrDeliveryDate: string;
   locationId: string;
   customerName: string;
@@ -173,12 +250,6 @@ export interface CreateOrderInput {
   notes?: string;
   src?: string;
   referralCodeUsed?: string;
-  isGift?: boolean;
-  recipientName?: string;
-  deliveryAddress?: string;
-  giftMessage?: string;
-  quantity?: number;
-  customItems?: string[];
 }
 
 export interface CreateBookingInput {
@@ -223,7 +294,12 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   platters: (category?: Category) =>
     req<Platter[]>(`/api/platters${category ? `?category=${category}` : ""}`),
+  // v2 boards by tier (signature | gallery); omit for all boards.
+  boards: (tier?: BoardTier) =>
+    req<Platter[]>(`/api/platters?category=board${tier ? `&tier=${tier}` : ""}`),
   platter: (id: string) => req<Platter>(`/api/platters/${id}`),
+  addOns: () => req<AddOn[]>("/api/add-ons"),
+  recommend: (headcount: number) => req<RecommendResponse>(`/api/recommend?headcount=${headcount}`),
   experiences: () => req<Experience[]>("/api/experiences"),
   categories: () => req<CategoryCounts>("/api/categories"),
   locations: () => req<LocationT[]>("/api/locations"),

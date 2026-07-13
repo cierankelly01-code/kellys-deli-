@@ -1,151 +1,100 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { api, type Platter, type BoardType, type BoardSize, type DayAvailability } from "../lib/api";
+import { useNavigate } from "react-router-dom";
+import { api, type Platter } from "../lib/api";
+import { saveCart } from "../lib/cart";
 import { gbp } from "../lib/format";
-import { Header } from "../components/Header";
-import { Faq } from "../components/Faq";
 import { usePageTitle } from "../lib/title";
+import { StickyCta } from "../components/StickyCta";
 
-const BOARD_ORDER: BoardType[] = ["charcuterie", "savoury", "cheese", "salmon"];
-const BOARD_TITLES: Record<BoardType, string> = {
-  charcuterie: "Charcuterie Board",
-  savoury: "Savoury Board",
-  cheese: "Cheese Board",
-  salmon: "Smoked Salmon Board",
-};
-const BOARD_BADGE: Record<BoardType, string> = {
-  charcuterie: "Bestseller",
-  savoury: "Crowd favourite",
-  cheese: "Simple & fresh",
-  salmon: "Light & elegant",
-};
-const SIZE_ORDER: BoardSize[] = ["small", "medium", "large"];
-const SIZE_LABEL: Record<BoardSize, string> = { small: "Small", medium: "Medium", large: "Large" };
-
-function BoardFeature({ boardType, sizes, onAdd, configureHref }: { boardType: BoardType; sizes: Platter[]; onAdd: (platterId: string, qty: number) => void; configureHref?: string }) {
-  const [size, setSize] = useState<BoardSize>(sizes.find((p) => p.size === "medium")?.size ?? (sizes[0].size as BoardSize));
-  const [qty, setQty] = useState(1);
-  const platter = sizes.find((p) => p.size === size) ?? sizes[0];
-
-  return (
-    <section className="board-feature">
-      <div className="board-feature-img" style={{ backgroundImage: platter.imageUrl ? `url(${platter.imageUrl})` : undefined }}>
-        <span className="badge dark board-feature-badge">{BOARD_BADGE[boardType]}</span>
-        {boardType === "charcuterie" && <span className="badge gold board-feature-badge badge-2">Customisable</span>}
-      </div>
-      <div className="board-feature-body">
-        <h2 className="board-feature-h">{BOARD_TITLES[boardType]}</h2>
-        <p className="muted board-feature-desc">{platter.description}</p>
-
-        <div className="size-select" role="group" aria-label="Board size">
-          {SIZE_ORDER.filter((s) => sizes.some((p) => p.size === s)).map((s) => {
-            const p = sizes.find((x) => x.size === s)!;
-            return (
-              <button key={s} className={`chip ${size === s ? "selected" : ""}`} onClick={() => setSize(s)}>
-                {SIZE_LABEL[s]} <span className="chip-price">{gbp(p.fixedPrice!)}</span>
-              </button>
-            );
-          })}
-        </div>
-        <p className="muted board-feature-serves">Serves {platter.serves}</p>
-
-        <div className="buy-bar">
-          <div className="buy-bar-qty">
-            <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="fewer">−</button>
-            <span>{qty}</span>
-            <button onClick={() => setQty((q) => q + 1)} aria-label="more">＋</button>
-          </div>
-          <button className="btn buy-bar-add" onClick={() => onAdd(platter.id, qty)}>
-            Add · {gbp(platter.fixedPrice! * qty)}
-          </button>
-        </div>
-        <p className="buy-reassure">Just £25 today · balance on delivery · 48hrs notice</p>
-
-        {configureHref && (
-          <Link to={configureHref} className="configure-cta">
-            Or configure your own board →
-          </Link>
-        )}
-      </div>
-    </section>
-  );
-}
-
-/** Real, verified scarcity only — pulls from actual delivery-slot capacity, not a fake countdown. */
-function urgencyMessage(days: DayAvailability[] | null): string | null {
-  if (!days) return null;
-  const tightest = days
-    .filter((d) => d.bookable)
-    .slice(0, 7)
-    .filter((d) => d.status === "limited")
-    .sort((a, b) => a.remaining - b.remaining)[0];
-  if (!tightest) return null;
-  const [y, m, dNum] = tightest.date.split("-").map(Number);
-  const label = new Date(Date.UTC(y, m - 1, dNum)).toLocaleDateString("en-GB", {
-    weekday: "long", day: "numeric", month: "short", timeZone: "UTC",
-  });
-  const slot = tightest.remaining === 1 ? "slot" : "slots";
-  return `Only ${tightest.remaining} delivery ${slot} left for ${label} — order soon.`;
+/** Price + feeds line, e.g. "£60 · feeds 8–10". */
+function priceFeeds(p: Platter): string {
+  const price = gbp(p.fixedPrice ?? p.fromPrice ?? 0);
+  return p.serves ? `${price} · feeds ${p.serves}` : price;
 }
 
 export default function Platters() {
-  usePageTitle("Grazing Boards for Delivery");
-  const [platters, setPlatters] = useState<Platter[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [availability, setAvailability] = useState<DayAvailability[] | null>(null);
-  const [params] = useSearchParams();
+  usePageTitle("Order a board");
   const navigate = useNavigate();
-  const src = params.get("src");
+  const [boards, setBoards] = useState<Platter[] | null>(null);
 
   useEffect(() => {
-    api.platters("platters" as any).then(setPlatters).catch((e) => setError(e.message));
-    api.locations()
-      .then((ls) => (ls[0] ? api.availability(ls[0].id) : null))
-      .then((r) => r && setAvailability(r.days))
-      .catch(() => {});
+    api.boards().then(setBoards).catch(() => setBoards([]));
   }, []);
 
-  const urgency = urgencyMessage(availability);
+  const startOrder = (p: Platter) => {
+    saveCart({ boards: [{ platterId: p.id, quantity: 1 }], addOns: [], headcount: 0, origin: "direct" });
+    navigate("/order");
+  };
 
-  function addToOrder(platterId: string, qty: number, customItems?: string[]) {
-    const q = new URLSearchParams({ platter: platterId, category: "platters", quantity: String(qty) });
-    if (src) q.set("src", src);
-    if (customItems && customItems.length) q.set("customItems", customItems.join(","));
-    navigate(`/order?${q.toString()}`);
-  }
+  const signature = boards?.filter((b) => b.tier === "signature") ?? [];
+  const gallery = boards?.filter((b) => b.tier !== "signature") ?? [];
 
   return (
     <div className="app platters-page">
-      <Header />
-      <Link to={src ? `/?src=${src}` : "/"} className="btn-ghost back">← Back</Link>
-      <section className="hero platters-hero">
-        <h1>Platters</h1>
-        <p className="muted">Grazing boards for delivery — pick a size, or build your own charcuterie board.</p>
-        {urgency && <p className="scarcity-note">{urgency}</p>}
-      </section>
+      <h1 className="page-h">Order a board</h1>
 
-      {error && <div className="notice danger">{error}</div>}
-      {!platters && !error && <p className="muted center">Loading…</p>}
+      <button className="plan-banner" onClick={() => navigate("/plan")}>
+        <span className="pb-title">Catering for a group?</span>
+        <span className="pb-sub">Plan my event — we&apos;ll suggest the right spread →</span>
+      </button>
 
-      {platters && BOARD_ORDER.map((boardType) => {
-        const sizes = SIZE_ORDER
-          .map((size) => platters.find((p) => p.boardType === boardType && p.size === size && !p.name.includes("Build Your Own")))
-          .filter((p): p is Platter => !!p);
-        if (sizes.length === 0) return null;
-        const hasCustom = boardType === "charcuterie" && platters.some((p) => p.boardType === boardType && p.name.includes("Build Your Own"));
+      {boards === null && <p className="muted">Loading boards…</p>}
 
-        return (
-          <BoardFeature
-            key={boardType}
-            boardType={boardType}
-            sizes={sizes}
-            onAdd={addToOrder}
-            configureHref={hasCustom ? `/configure${src ? `?src=${src}` : ""}` : undefined}
-          />
-        );
-      })}
+      {signature.length > 0 && (
+        <section className="board-section">
+          <h2 className="section-h">Signature boards</h2>
+          <div className="board-grid">
+            {signature.map((p) => (
+              <article key={p.id} className="board-card card">
+                <div
+                  className="board-card-img"
+                  style={{ backgroundImage: p.imageUrl ? `url(${p.imageUrl})` : undefined }}
+                  role="img"
+                  aria-label={p.name}
+                />
+                <div className="board-card-body">
+                  <h3 className="board-card-name">{p.name}</h3>
+                  <p className="board-card-price">{priceFeeds(p)}</p>
+                  <p className="board-card-desc muted">{p.description.replace(/\s*\[CHECK PRICE.*?\]\s*$/i, "")}</p>
+                  <div className="board-card-actions">
+                    <button className="btn" onClick={() => startOrder(p)}>Order · {gbp(p.fixedPrice ?? 0)}</button>
+                    <button className="btn-ghost" onClick={() => navigate(`/platter/${p.id}`)}>Details</button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
-      {platters && <Faq />}
+      {gallery.length > 0 && (
+        <section className="board-section">
+          <h2 className="section-h">More boards</h2>
+          <div className="board-grid">
+            {gallery.map((p) => (
+              <button key={p.id} className="gallery-card card" onClick={() => navigate(`/platter/${p.id}`)}>
+                <div
+                  className="board-card-img"
+                  style={{ backgroundImage: p.imageUrl ? `url(${p.imageUrl})` : undefined }}
+                  role="img"
+                  aria-label={p.name}
+                />
+                <div className="board-card-body">
+                  <h3 className="board-card-name">{p.name}</h3>
+                  <p className="board-card-price">{priceFeeds(p)}</p>
+                  <span className="board-card-go">View →</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {boards !== null && boards.length === 0 && (
+        <p className="muted">Our boards are being updated — please check back shortly.</p>
+      )}
+
+      <StickyCta label="Plan my event" to="/plan" />
     </div>
   );
 }

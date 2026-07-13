@@ -1,5 +1,22 @@
 /* Admin / staff console. Still mobile-friendly (prices updated from a phone). */
 .admin { max-width: 920px; margin: 0 auto; padding: 0 16px 80px; }
+
+/* v2 admin helpers */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 480px) { .grid-2 { grid-template-columns: 1fr; } }
+.toggle.inline { display: flex; align-items: center; gap: 8px; margin: 8px 0; cursor: pointer; }
+.toggle.inline input { width: auto; }
+.rec-row { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 12px 14px; }
+.rec-info { flex: 1 1 180px; }
+.rec-priority { flex-direction: row; align-items: center; gap: 8px; margin: 0; }
+.rec-priority .input { width: 80px; }
+.status-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.status-btn {
+  padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; background: #fff;
+  font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; color: var(--ink);
+}
+.status-btn.active { background: var(--brick); color: #fff; border-color: var(--brick); }
+.status-btn.cancel.active { background: var(--danger, #b3261e); border-color: var(--danger, #b3261e); }
 .admin-top { display: flex; align-items: center; gap: 10px; padding: 16px 0 8px; }
 .admin-top .brand-mark { font-family: var(--serif); font-size: 1.3rem; color: var(--brick); font-weight: 700; }
 .admin-tag { font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mustard); font-weight: 700; }
