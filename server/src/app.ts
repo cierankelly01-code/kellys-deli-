@@ -1,3 +1,5 @@
+import path from "path";
+import fs from "fs";
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -20,7 +22,19 @@ export function createApp(): Express {
   app.set("trust proxy", 1);
 
   // Security headers. Allow images to be loaded cross-origin (client + API differ).
-  app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+  // CSP applies to the client HTML we now serve: menu photos live on Supabase Storage
+  // and the hero image on Unsplash, so img-src must allow external https origins.
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+      contentSecurityPolicy: {
+        directives: {
+          ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+          "img-src": ["'self'", "data:", "https:"],
+        },
+      },
+    })
+  );
 
   app.use(cors({ origin: env.clientOrigins, credentials: true }));
   app.use(express.json({ limit: "1mb" })); // cap body size (DoS)
@@ -42,6 +56,38 @@ export function createApp(): Express {
   app.use("/api/auth", authLimiter, authRouter);
   app.use("/api", publicRouter);
   app.use("/api/admin", requireAdmin, adminRouter);
+
+  // In production (VPS/Coolify) this server also serves the built client from the same
+  // origin. __dirname differs between tsx (src/) and compiled output (dist/src/), hence
+  // two candidates. On Vercel the CDN serves the client and client/dist isn't bundled
+  // with the function, so no candidate exists and this block is skipped.
+  const clientDist = [
+    path.resolve(__dirname, "../../../client/dist"), // compiled: server/dist/src -> repo root
+    path.resolve(__dirname, "../../client/dist"), // tsx: server/src -> repo root
+  ].find((p) => fs.existsSync(path.join(p, "index.html")));
+
+  if (env.isProd) {
+    if (clientDist) {
+      app.use(
+        express.static(clientDist, {
+          index: false,
+          setHeaders(res, filePath) {
+            // Vite asset filenames are content-hashed — safe to cache hard.
+            if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+              res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+            }
+          },
+        })
+      );
+      // SPA fallback: client-side routes get index.html; API/uploads 404 as JSON-land paths.
+      app.get("*", (req, res, next) => {
+        if (req.path.startsWith("/api") || req.path.startsWith("/uploads")) return next();
+        res.sendFile(path.join(clientDist, "index.html"));
+      });
+    } else {
+      console.warn("[app] client/dist not found — running API-only (no static client).");
+    }
+  }
 
   // Generic error handler — never leak stack traces / internals to clients.
   app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {

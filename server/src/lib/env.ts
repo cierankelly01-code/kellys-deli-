@@ -10,7 +10,8 @@ export const env = {
   isProd,
   databaseUrl: process.env.DATABASE_URL ?? "",
   jwtSecret: process.env.JWT_SECRET ?? WEAK_SECRET,
-  port: Number(process.env.PORT ?? 4000),
+  // VPS (Coolify) expects 3000 by default; local dev tooling (vite proxy, launch.json) targets 4000.
+  port: Number(process.env.PORT ?? (isProd ? 3000 : 4000)),
   // CLIENT_ORIGIN may be a comma-separated list of allowed origins.
   clientOrigins: (process.env.CLIENT_ORIGIN ?? "http://localhost:5173").split(",").map((s) => s.trim()).filter(Boolean),
 };

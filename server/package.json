@@ -6,7 +6,7 @@
     "dev": "tsx watch src/index.ts",
     "postinstall": "prisma generate",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js",
+    "start": "node dist/src/index.js",
     "db:local": "node scripts/start-db.mjs",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
