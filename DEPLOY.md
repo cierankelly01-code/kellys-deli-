@@ -1,5 +1,19 @@
 # Deploying Kelly's Deli (Supabase + Vercel)
 
+> **⚠️ v2 upgrade — run the migration before/at deploy.** The v2 release adds new
+> tables (`AddOn`, `OrderItem`, `OrderAddOn`) and columns (`Platter.tier/feedsMin/
+> feedsMax/recommendEligible/recommendPriority`, `Order.occasion`). The deploy does
+> **not** auto-migrate (`postinstall` only runs `prisma generate`), so the API will
+> 500 on `/api/add-ons`, `/api/recommend` and order creation until you apply it:
+> ```bash
+> cd server
+> DATABASE_URL="<direct Supabase string>" npx prisma migrate deploy
+> ```
+> The migration is additive (new nullable columns / new tables) and safe to run on the
+> live DB. After migrating, the existing rows are untouched; the new catalogue is seeded
+> create-only (`npm run db:seed` fills the 9 boards + 7 add-ons + settings without
+> clobbering admin edits).
+
 Architecture: **client** (static, Vercel) → **API** (Express, Vercel serverless or a Node host) → **Postgres** (Supabase).
 
 ## 1. Database — Supabase
