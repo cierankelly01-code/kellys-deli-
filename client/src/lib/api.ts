@@ -131,6 +131,8 @@ export interface CategoryCounts {
   founderNote: string | null;
   reviewRating: string | null;
   reviewCount: string | null;
+  firstOrderHook: boolean;
+  firstOrderHookText: string | null;
 }
 
 export interface OpeningHours {

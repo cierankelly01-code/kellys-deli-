@@ -6,6 +6,7 @@ import { gbp } from "../lib/format";
 import { usePageTitle } from "../lib/title";
 import { StickyCta } from "../components/StickyCta";
 import { Header } from "../components/Header";
+import { Faq } from "../components/Faq";
 
 /** Price + feeds line, e.g. "£60 · feeds 8–10". */
 function priceFeeds(p: Platter): string {
@@ -98,6 +99,8 @@ export default function Platters() {
       {boards !== null && boards.length === 0 && (
         <p className="muted">Our boards are being updated — please check back shortly.</p>
       )}
+
+      <Faq />
 
       <StickyCta label="Plan my event" to="/plan" />
     </div>

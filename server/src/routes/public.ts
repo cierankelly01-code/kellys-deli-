@@ -173,6 +173,10 @@ publicRouter.get("/categories", async (_req, res) => {
     founderNote: (await getSetting("founderNote")) ?? null,
     reviewRating: (await getSetting("reviewRating")) ?? null,
     reviewCount: (await getSetting("reviewCount")) ?? null,
+    // First-order incentive — surfaced up front on the storefront to win the order.
+    // Actual eligibility (prior-order check) is still enforced server-side at checkout.
+    firstOrderHook: (await getSetting("firstOrderHook")) === "on",
+    firstOrderHookText: (await getSetting("firstOrderHookText")) ?? null,
   });
 });
 

@@ -184,6 +184,15 @@
 }
 .referral-teaser-title { font-weight: 700; color: var(--ink); }
 
+/* First-order incentive — a calm treat band, not a pop-up. */
+.firstorder-band {
+  display: flex; align-items: center; gap: 10px; justify-content: center; flex-wrap: wrap;
+  text-align: center; padding: 12px 18px; font-size: 0.9rem; font-weight: 600; color: var(--ink);
+  background: var(--good-bg); border-bottom: 1px solid var(--line);
+}
+.firstorder-band .fob-gift { font-size: 1.05rem; }
+.firstorder-band b { color: var(--good); }
+
 /* Founder note — personal, letter-style section */
 .founder-note {
   text-align: center; padding: 30px 12px; margin: 30px 0; border-top: 1px solid var(--line);

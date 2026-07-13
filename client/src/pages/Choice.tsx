@@ -5,6 +5,7 @@ import { saveCart } from "../lib/cart";
 import { gbp } from "../lib/format";
 import { Header } from "../components/Header";
 import { StickyCta } from "../components/StickyCta";
+import { Faq } from "../components/Faq";
 
 const DAY_LABELS: Array<{ key: keyof OpeningHours; label: string }> = [
   { key: "mon", label: "Mon" }, { key: "tue", label: "Tue" }, { key: "wed", label: "Wed" },
@@ -114,6 +115,13 @@ export default function Choice() {
         <span>Collect from your chosen shop</span>
       </div>
 
+      {counts?.firstOrderHook && counts.firstOrderHookText && (
+        <div className="firstorder-band">
+          <span className="fob-gift" aria-hidden="true">🎁</span>
+          <span><b>First order?</b> {counts.firstOrderHookText} — on us.</span>
+        </div>
+      )}
+
       <div className="app">
         <section className="board-section">
           <div className="spread shelf-head">
@@ -178,6 +186,8 @@ export default function Choice() {
           <span className="referral-teaser-title">Refer a friend, you both get £15 off</span>
           <span className="muted">Every order gives you a code to share — turns up on your confirmation page.</span>
         </div>
+
+        <Faq />
 
         <p className="center muted footnote">
           Order in under a minute · a 25% deposit confirms your order · we confirm by text &amp; email
