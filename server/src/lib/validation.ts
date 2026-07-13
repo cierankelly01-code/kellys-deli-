@@ -88,7 +88,7 @@ export const platterUpsertSchema = z
     cost: z.number().nonnegative(),
     serves: z.string().max(40).nullable().optional(),
     minHeadcount: z.number().int().positive().default(1),
-    items: z.array(platterItemSchema).min(1, "Add at least one item"),
+    items: z.array(platterItemSchema).default([]), // prep items optional — photo/description/price is enough
     imageUrl: z.string().max(500).nullable().optional(), // absolute URL or /uploads/... path
     active: z.boolean().optional(),
     sortOrder: z.number().int().optional(),

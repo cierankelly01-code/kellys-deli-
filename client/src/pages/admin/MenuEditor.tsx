@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   adminApi,
   type AdminPlatter,
@@ -84,6 +84,16 @@ export default function MenuEditor() {
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const editorRef = useRef<HTMLDivElement>(null);
+  // Bumped every time the editor is opened (new/edit). The editor renders below
+  // the category lists, so on a phone it opens off-screen — jump to it so the
+  // owner actually sees the form (previously felt like "nothing happened").
+  const [openNonce, setOpenNonce] = useState(0);
+  function openEditor(d: Draft) { setDraft(d); setMsg(null); setError(null); setOpenNonce((n) => n + 1); }
+  useEffect(() => {
+    if (openNonce === 0) return;
+    editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [openNonce]);
 
   function refresh() {
     Promise.all([adminApi.platters(), adminApi.experiences(), adminApi.locations(), adminApi.settings()])
@@ -100,8 +110,9 @@ export default function MenuEditor() {
     if (!draft) return;
     if (!draft.name.trim()) return setError("Give the platter a name");
     if (priceNum <= 0) return setError("Set a price greater than zero");
+    // Prep items are optional — the owner mainly needs photo, description and price.
+    // Any blank rows are dropped; an empty list is fine (prep sheet just shows none).
     const cleanItems = draft.items.filter((i) => i.label.trim() !== "");
-    if (cleanItems.length === 0) return setError("Add at least one item");
     const input: PlatterUpsertInput = {
       category: draft.category,
       name: draft.name.trim(),
@@ -162,19 +173,19 @@ export default function MenuEditor() {
                 key={`${p.id}-${p.fixedPrice}-${p.pricePerHead}-${p.active}`}
                 platter={p}
                 editing={draft?.id === p.id}
-                onEdit={() => { setDraft(toDraft(p)); setMsg(null); setError(null); }}
+                onEdit={() => openEditor(toDraft(p))}
                 onChanged={refresh}
                 onError={setError}
               />
             ))}
           </div>
-          <button className="chip add" style={{ marginTop: 8 }} onClick={() => { setDraft(blankDraft(cat)); setMsg(null); setError(null); }}>+ New</button>
+          <button className="chip add" style={{ marginTop: 8 }} onClick={() => openEditor(blankDraft(cat))}>+ New</button>
         </div>
       ))}
 
       {/* Platter editor */}
       {draft && (
-        <div className="card editor">
+        <div className="card editor" ref={editorRef}>
           <div className="field">
             <label>Category</label>
             <div className="seg wide">
