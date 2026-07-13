@@ -44,7 +44,9 @@ export function createApp(): Express {
 
   // Rate limits. NOTE: in-memory store — effective for a long-running/warm instance.
   // For multi-instance serverless, back this with a shared store (Redis) or a WAF.
-  const skip = () => process.env.NODE_ENV === "test"; // don't throttle the test suite
+  // Don't throttle the test suite, or a local/E2E run that opts out explicitly
+  // (DISABLE_RATE_LIMIT=1). Never set DISABLE_RATE_LIMIT in production.
+  const skip = () => process.env.NODE_ENV === "test" || process.env.DISABLE_RATE_LIMIT === "1";
   const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 600, standardHeaders: true, legacyHeaders: false, skip });
   const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, skip, message: { error: "Too many attempts — try again later" } });
 
