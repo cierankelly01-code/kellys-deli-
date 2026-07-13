@@ -1,5 +1,30 @@
+# Kelly's Deli — https://www.kellysdeli.com
+# Search + social crawlers: index everything except the staff area.
 User-agent: *
 Allow: /
 Disallow: /admin
 
-Sitemap: https://kellys-deli-client.vercel.app/sitemap.xml
+# AI answer engines — explicitly welcomed so ChatGPT, Gemini, Perplexity, Claude
+# and others can read the deli's info and recommend/cite it in their answers.
+User-agent: GPTBot
+Allow: /
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: Perplexity-User
+Allow: /
+User-agent: Google-Extended
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: Claude-User
+Allow: /
+User-agent: Applebot-Extended
+Allow: /
+User-agent: Bytespider
+Allow: /
+
+Sitemap: https://www.kellysdeli.com/sitemap.xml

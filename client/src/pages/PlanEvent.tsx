@@ -10,7 +10,10 @@ import { Header } from "../components/Header";
 const CHIPS = [10, 15, 20, 30, 40];
 
 export default function PlanEvent() {
-  usePageTitle("Plan my event");
+  usePageTitle(
+    "Plan my event",
+    "Catering for a party, office or celebration in Solihull? Tell Kelly's Deli your headcount and occasion and we'll recommend the right grazing boards, platters and add-ons.",
+  );
   const navigate = useNavigate();
 
   const [step, setStep] = useState<"count" | "combo">("count");
