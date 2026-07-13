@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 const DEFAULT = "Kelly's Deli Bentley Heath — Grazing Boards & Platters, Solihull";
 const DEFAULT_DESC =
-  "Family-run deli in Bentley Heath, Solihull. Order charcuterie, cheese and grazing boards for delivery or collection, plus catering platters for home and work.";
+  "Family-run deli in Bentley Heath, Solihull. Order charcuterie, cheese and grazing boards and catering platters for collection, made fresh. A 25% deposit secures your order.";
 const SITE = "https://www.kellysdeli.com";
 
 function setMeta(name: string, content: string) {
