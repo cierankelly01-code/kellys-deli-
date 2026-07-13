@@ -5,6 +5,7 @@ import { saveCart } from "../lib/cart";
 import { gbp } from "../lib/format";
 import { usePageTitle } from "../lib/title";
 import { StickyCta } from "../components/StickyCta";
+import { Header } from "../components/Header";
 
 /** Price + feeds line, e.g. "£60 · feeds 8–10". */
 function priceFeeds(p: Platter): string {
@@ -31,6 +32,7 @@ export default function Platters() {
 
   return (
     <div className="app platters-page">
+      <Header />
       <h1 className="page-h">Order a board</h1>
 
       <button className="plan-banner" onClick={() => navigate("/plan")}>

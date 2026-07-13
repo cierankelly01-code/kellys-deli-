@@ -14,6 +14,7 @@ import { computeTotals, feedsMid } from "../lib/addOnPricing";
 import { gbp, formatDate } from "../lib/format";
 import { CapacityCalendar } from "../components/CapacityCalendar";
 import { AddOnsStep } from "../components/AddOnsStep";
+import { Header } from "../components/Header";
 import { usePageTitle } from "../lib/title";
 
 type Step = "extras" | "details" | "review";
@@ -174,6 +175,7 @@ export default function Order() {
 
   return (
     <div className="app order-page">
+      <Header />
       <button className="link-back" onClick={() => navigate("/platters")}>← Keep shopping</button>
       <h1 className="page-h">Your order</h1>
 

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, type CategoryCounts, type OpeningHours, type Platter } from "../lib/api";
 import { saveCart } from "../lib/cart";
 import { gbp } from "../lib/format";
-import { Ticker } from "../components/Header";
+import { Header } from "../components/Header";
 import { StickyCta } from "../components/StickyCta";
 
 const DAY_LABELS: Array<{ key: keyof OpeningHours; label: string }> = [
@@ -82,7 +82,7 @@ export default function Choice() {
 
   return (
     <div className="choice">
-      <Ticker />
+      <Header />
       <header className="landing-hero" style={{ backgroundImage: `url(${counts?.heroImageUrl || DEFAULT_HERO_IMG})` }}>
         <div className="lh-scrim">
           <p className="lh-eyebrow">Independent · family-run</p>

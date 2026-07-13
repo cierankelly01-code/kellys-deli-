@@ -24,6 +24,15 @@ for (const path of PAGES) {
   });
 }
 
+test("the Staff link is reachable from the main customer pages", async ({ page }) => {
+  for (const path of ["/", "/platters", "/plan"]) {
+    await page.goto(path);
+    const staff = page.getByRole("link", { name: "Staff" });
+    await expect(staff).toBeVisible();
+    await expect(staff).toHaveAttribute("href", "/admin");
+  }
+});
+
 test("customer copy hides the [CHECK PRICE] admin marker", async ({ page }) => {
   await page.goto("/platters");
   await expect(page.getByText(/\[CHECK PRICE/i)).toHaveCount(0);

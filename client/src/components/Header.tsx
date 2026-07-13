@@ -2,9 +2,9 @@ import { Link } from "react-router-dom";
 
 const ANNOUNCEMENTS = [
   "Local British produce, styled beautifully",
-  "48 hours' notice for delivery orders",
-  "£25 deposit secures your board",
-  "Ask in-store about our seasonal boards",
+  "48 hours' notice for collection orders",
+  "A 25% deposit confirms your order",
+  "Catering for a group? Plan your event online",
 ];
 
 export function Ticker() {

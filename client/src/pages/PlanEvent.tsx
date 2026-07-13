@@ -5,6 +5,7 @@ import { feedsMid } from "../lib/addOnPricing";
 import { saveCart } from "../lib/cart";
 import { gbp } from "../lib/format";
 import { usePageTitle } from "../lib/title";
+import { Header } from "../components/Header";
 
 const CHIPS = [10, 15, 20, 30, 40];
 
@@ -84,6 +85,7 @@ export default function PlanEvent() {
 
   return (
     <div className="app plan-event">
+      <Header />
       <button className="link-back" onClick={() => (step === "combo" ? setStep("count") : navigate("/"))}>← Back</button>
       <h1 className="page-h">Plan my event</h1>
 
