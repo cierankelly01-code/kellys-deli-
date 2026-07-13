@@ -1,5 +1,6 @@
-// Lightweight order cart persisted in sessionStorage. Replaces the old single-platter
-// URL-param contract so an order can carry multiple boards + add-ons + a headcount
+// Lightweight order cart persisted in localStorage so a half-finished order survives
+// the customer closing the tab (abandoned-basket recovery), with a freshness window so
+// a weeks-old cart doesn't reappear. Carries multiple boards + add-ons + a headcount
 // through the flow (direct order or event planner). The server always reprices on submit.
 import type { Occasion } from "./api";
 
@@ -23,6 +24,12 @@ export interface Cart {
 }
 
 const KEY = "kd-cart";
+const MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000; // drop carts older than 14 days
+
+interface StoredCart {
+  savedAt: number;
+  cart: Cart;
+}
 
 export const emptyCart = (origin: Cart["origin"] = "direct"): Cart => ({
   boards: [],
@@ -33,10 +40,22 @@ export const emptyCart = (origin: Cart["origin"] = "direct"): Cart => ({
 
 export function loadCart(): Cart | null {
   try {
-    const raw = sessionStorage.getItem(KEY);
+    const raw = localStorage.getItem(KEY);
     if (!raw) return null;
-    const c = JSON.parse(raw) as Partial<Cart>;
-    if (!Array.isArray(c.boards)) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredCart> & Partial<Cart>;
+    // Support both the new {savedAt, cart} envelope and any legacy bare-cart value.
+    const stored: StoredCart | null =
+      parsed && typeof parsed === "object" && "cart" in parsed && parsed.cart
+        ? (parsed as StoredCart)
+        : Array.isArray((parsed as Partial<Cart>).boards)
+          ? { savedAt: Date.now(), cart: parsed as Cart }
+          : null;
+    if (!stored || !Array.isArray(stored.cart.boards)) return null;
+    if (Date.now() - stored.savedAt > MAX_AGE_MS) {
+      clearCart();
+      return null;
+    }
+    const c = stored.cart;
     return {
       boards: c.boards,
       addOns: c.addOns ?? [],
@@ -52,7 +71,8 @@ export function loadCart(): Cart | null {
 
 export function saveCart(cart: Cart): void {
   try {
-    sessionStorage.setItem(KEY, JSON.stringify(cart));
+    const payload: StoredCart = { savedAt: Date.now(), cart };
+    localStorage.setItem(KEY, JSON.stringify(payload));
   } catch {
     /* storage full / unavailable — the flow still works in-memory */
   }
@@ -60,7 +80,7 @@ export function saveCart(cart: Cart): void {
 
 export function clearCart(): void {
   try {
-    sessionStorage.removeItem(KEY);
+    localStorage.removeItem(KEY);
   } catch {
     /* ignore */
   }
