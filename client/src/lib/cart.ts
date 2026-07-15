@@ -88,3 +88,13 @@ export function clearCart(): void {
 
 /** Total number of boards in the cart. */
 export const boardCount = (cart: Cart): number => cart.boards.reduce((n, b) => n + b.quantity, 0);
+
+/** Merge one board into the saved cart (incrementing if already present) and persist. */
+export function addBoard(platterId: string, origin: Cart["origin"] = "direct"): Cart {
+  const cart = loadCart() ?? emptyCart(origin);
+  const existing = cart.boards.find((b) => b.platterId === platterId);
+  if (existing) existing.quantity += 1;
+  else cart.boards.push({ platterId, quantity: 1 });
+  saveCart(cart);
+  return cart;
+}

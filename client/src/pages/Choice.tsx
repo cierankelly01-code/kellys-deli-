@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, type CategoryCounts, type OpeningHours, type Platter } from "../lib/api";
-import { saveCart } from "../lib/cart";
+import { addBoard } from "../lib/cart";
+import { openCartDrawer } from "../components/CartDrawer";
 import { gbp } from "../lib/format";
 import { Header } from "../components/Header";
 import { StickyCta } from "../components/StickyCta";
@@ -75,8 +76,8 @@ export default function Choice() {
 
   const go = (path: string) => navigate(`${path}${suffix}`);
   const startOrder = (p: Platter) => {
-    saveCart({ boards: [{ platterId: p.id, quantity: 1 }], addOns: [], headcount: 0, origin: "direct" });
-    go("/order");
+    addBoard(p.id);
+    openCartDrawer();
   };
 
   const hours = parseHours(counts?.openingHours ?? null);

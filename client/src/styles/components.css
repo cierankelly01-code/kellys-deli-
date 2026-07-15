@@ -697,3 +697,62 @@ a.stars-widget:hover strong { text-decoration: underline; }
   .detail-buy h1 { font-size: 2.3rem; }
   .detail-buy .price strong { font-size: 1.5rem; }
 }
+
+/* Smart Cart drawer — the add-to-basket slide-over. */
+.drawer-root { position: fixed; inset: 0; z-index: 90; }
+.drawer-overlay {
+  position: absolute; inset: 0; border: none; cursor: pointer;
+  background: rgba(20, 17, 14, 0.45); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+  animation: drawer-fade var(--dur-std) var(--ease-enter);
+}
+.drawer {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: min(420px, 100vw);
+  display: flex; flex-direction: column;
+  background: var(--card); box-shadow: -12px 0 40px rgba(36, 31, 26, 0.18);
+  animation: drawer-in var(--dur-std) var(--ease-enter);
+  overscroll-behavior: contain;
+}
+@keyframes drawer-in { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes drawer-fade { from { opacity: 0; } to { opacity: 1; } }
+.drawer-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px 14px; border-bottom: 1px solid var(--line);
+}
+.drawer-h { font-size: 1.3rem; margin: 0; }
+.drawer-close {
+  width: 40px; height: 40px; border: none; background: var(--cream); border-radius: 50%;
+  font-size: 1.4rem; line-height: 1; color: var(--ink); cursor: pointer;
+}
+.drawer-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+.drawer-line { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.drawer-thumb {
+  width: 62px; height: 62px; flex: 0 0 auto; border-radius: var(--radius-sm);
+  background-size: cover; background-position: center; background-color: var(--cream);
+}
+.drawer-thumb.sm { width: 46px; height: 46px; }
+.drawer-line-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.drawer-line-name { font-weight: 700; }
+.drawer-line-price { font-weight: 700; color: var(--brick); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.drawer-upsells { margin-top: 18px; }
+.drawer-upsell-h {
+  margin: 0 0 8px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--gold-text);
+}
+.drawer-upsell { display: flex; gap: 10px; align-items: center; padding: 8px 0; }
+.drawer-add {
+  min-height: 38px; padding: 0 18px; border: 1.5px solid var(--ink); border-radius: 999px;
+  background: #fff; font-weight: 700; font-size: 0.85rem; color: var(--ink); cursor: pointer;
+  transition: background var(--dur-micro) ease, color var(--dur-micro) ease;
+}
+.drawer-add:hover { background: var(--ink); color: #fff; }
+.drawer-foot {
+  padding: 14px 20px calc(14px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line); background: var(--card);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.drawer-foot .btn { margin-top: 4px; }
+.drawer-keep { align-self: center; }
+@media (prefers-reduced-motion: reduce) {
+  .drawer, .drawer-overlay { animation: none; }
+}

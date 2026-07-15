@@ -8,6 +8,7 @@ import Confirm from "./pages/Confirm";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import { Footer } from "./components/Footer";
+import { CartDrawer } from "./components/CartDrawer";
 import NotFound from "./pages/NotFound";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Login from "./pages/admin/Login";
@@ -28,6 +29,7 @@ function CustomerLayout() {
       <main id="main">
         <Outlet />
       </main>
+      <CartDrawer />
       <Footer />
     </>
   );

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, type CategoryCounts, type Platter } from "../lib/api";
-import { saveCart } from "../lib/cart";
+import { addBoard } from "../lib/cart";
+import { openCartDrawer } from "../components/CartDrawer";
 import { gbp } from "../lib/format";
 import { usePageTitle } from "../lib/title";
 import { StickyCta } from "../components/StickyCta";
@@ -31,8 +32,8 @@ export default function Platters() {
   }, []);
 
   const startOrder = (p: Platter) => {
-    saveCart({ boards: [{ platterId: p.id, quantity: 1 }], addOns: [], headcount: 0, origin: "direct" });
-    navigate("/order");
+    addBoard(p.id);
+    openCartDrawer();
   };
 
   const signature = boards?.filter((b) => b.tier === "signature") ?? [];

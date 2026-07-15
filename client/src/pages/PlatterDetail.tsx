@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { api, type Platter } from "../lib/api";
-import { saveCart } from "../lib/cart";
+import { addBoard } from "../lib/cart";
+import { openCartDrawer } from "../components/CartDrawer";
 import { gbp } from "../lib/format";
 import { Header } from "../components/Header";
 import { usePageTitle } from "../lib/title";
@@ -9,7 +10,6 @@ import { DeadlineChip, TrustChips } from "../components/Trust";
 
 export default function PlatterDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const [platter, setPlatter] = useState<Platter | null>(null);
   const [error, setError] = useState<string | null>(null);
   usePageTitle(platter?.name);
@@ -49,8 +49,8 @@ export default function PlatterDetail() {
 
   const order = () => {
     if (!platter) return;
-    saveCart({ boards: [{ platterId: platter.id, quantity: 1 }], addOns: [], headcount: 0, origin: "direct" });
-    navigate("/order");
+    addBoard(platter.id);
+    openCartDrawer();
   };
 
   if (error) {

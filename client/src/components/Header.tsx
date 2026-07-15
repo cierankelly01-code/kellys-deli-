@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { boardCount, loadCart } from "../lib/cart";
+import { CART_CHANGED_EVENT } from "./CartDrawer";
 
 const ANNOUNCEMENTS = [
   "Local British produce, styled beautifully",
@@ -22,6 +24,13 @@ export function Ticker() {
 
 export function Header() {
   const location = useLocation();
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const bump = () => setTick((t) => t + 1);
+    window.addEventListener(CART_CHANGED_EVENT, bump);
+    return () => window.removeEventListener(CART_CHANGED_EVENT, bump);
+  }, []);
+  void tick;
   const cart = loadCart();
   const count = cart ? boardCount(cart) : 0;
   const showBasket = count > 0 && location.pathname !== "/order";
