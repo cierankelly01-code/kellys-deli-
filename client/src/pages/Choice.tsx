@@ -6,6 +6,8 @@ import { gbp } from "../lib/format";
 import { Header } from "../components/Header";
 import { StickyCta } from "../components/StickyCta";
 import { Faq } from "../components/Faq";
+import { DeadlineChip, Stars, TrustChips } from "../components/Trust";
+import { morphNavigate } from "../lib/motion";
 
 const DAY_LABELS: Array<{ key: keyof OpeningHours; label: string }> = [
   { key: "mon", label: "Mon" }, { key: "tue", label: "Tue" }, { key: "wed", label: "Wed" },
@@ -87,14 +89,15 @@ export default function Choice() {
       <header className="landing-hero" style={{ backgroundImage: `url(${counts?.heroImageUrl || DEFAULT_HERO_IMG})` }}>
         <div className="lh-scrim">
           <p className="lh-eyebrow">Independent · family-run</p>
-          <h1 className="lh-mark">Kelly&apos;s Deli</h1>
+          <h1 className="lh-promise">Feed the room without cooking a thing.</h1>
           <p className="lh-tag">
-            {counts?.aboutText ?? "Proper food from the people you know — grazing boards for collection, made fresh."}
+            {counts?.aboutText ?? "Grazing boards and platters built by hand in Bentley Heath — order in a minute, collect from the deli."}
           </p>
           <div className="hero-ctas">
             <button className="btn hero-cta" onClick={() => go("/platters")}>Order a board</button>
             <button className="btn-ghost hero-cta-2" onClick={() => go("/plan")}>Plan my event</button>
           </div>
+          <p className="hero-reassure">Order in under a minute — no account needed</p>
           {counts?.reviewRating && (
             <div className="lh-trust">
               <span className="stars" aria-hidden="true">★</span>
@@ -122,31 +125,67 @@ export default function Choice() {
         </div>
       )}
 
-      <div className="app">
+      <div className="app app-wide">
         <section className="board-section">
-          <div className="spread shelf-head">
+          <div className="spread shelf-head" data-reveal>
             <h2 className="section-h" style={{ margin: 0 }}>Signature boards</h2>
             <button className="btn-ghost" onClick={() => go("/platters")}>See all →</button>
           </div>
+          {counts?.reviewRating && (
+            <div data-reveal><Stars rating={counts.reviewRating} count={counts.reviewCount} /></div>
+          )}
           {signature.length === 0 ? (
             <p className="muted">Loading boards…</p>
           ) : (
             <div className="board-grid">
-              {signature.map((p) => (
-                <article key={p.id} className="board-card card">
+              {signature.map((p, i) => (
+                <article key={p.id} className="board-card card" data-reveal data-reveal-delay={String(i % 2)}>
                   <div className="board-card-img" style={{ backgroundImage: p.imageUrl ? `url(${p.imageUrl})` : undefined }} role="img" aria-label={p.name} />
                   <div className="board-card-body">
                     <h3 className="board-card-name">{p.name}</h3>
                     <p className="board-card-price">{priceFeeds(p)}</p>
                     <div className="board-card-actions">
                       <button className="btn" onClick={() => startOrder(p)}>Order · {gbp(p.fixedPrice ?? 0)}</button>
-                      <button className="btn-ghost" onClick={() => go(`/platter/${p.id}`)}>Details</button>
+                      <button
+                        className="btn-ghost"
+                        onClick={(e) =>
+                          morphNavigate(
+                            navigate,
+                            `/platter/${p.id}${suffix}`,
+                            e.currentTarget.closest("article")?.querySelector(".board-card-img") as HTMLElement | null,
+                          )
+                        }
+                      >
+                        Details
+                      </button>
                     </div>
                   </div>
                 </article>
               ))}
             </div>
           )}
+          <div data-reveal><DeadlineChip /></div>
+        </section>
+
+        <section className="how-it-works" data-reveal>
+          <h2 className="section-h">From our counter to your table</h2>
+          <ol className="hiw-steps">
+            <li>
+              <span className="hiw-num" aria-hidden="true">1</span>
+              <h3 className="hiw-h">Pick your board</h3>
+              <p>Choose a size, add any extras — it takes under a minute, and 25% secures it.</p>
+            </li>
+            <li>
+              <span className="hiw-num" aria-hidden="true">2</span>
+              <h3 className="hiw-h">We build it fresh</h3>
+              <p>Your board is made by hand the day you collect — never the night before.</p>
+            </li>
+            <li>
+              <span className="hiw-num" aria-hidden="true">3</span>
+              <h3 className="hiw-h">Collect &amp; serve</h3>
+              <p>Pick it up from your chosen shop, lift the lid, take the credit.</p>
+            </li>
+          </ol>
         </section>
 
         <button className="plan-banner" onClick={() => go("/plan")}>
@@ -154,10 +193,19 @@ export default function Choice() {
           <span className="pb-sub">Plan my event — tell us your numbers and we&apos;ll suggest the spread →</span>
         </button>
 
-        <section className="founder-note">
+        <section className="founder-note" data-reveal>
           <p className="founder-eyebrow">A note from the deli counter</p>
           <p className="founder-copy">{counts?.founderNote || DEFAULT_FOUNDER_NOTE}</p>
           <p className="founder-sign">— Kelly</p>
+        </section>
+
+        <section className="family-promise grain" data-reveal>
+          <h2 className="fp-h">The Family Promise</h2>
+          <p className="fp-copy">
+            Every board leaves the counter fresh, full and built the way we&apos;d serve our own family.
+            Change your plans up to 48 hours before and your deposit comes straight back — no forms, no fuss.
+          </p>
+          <TrustChips />
         </section>
 
         {hours && (
@@ -188,10 +236,6 @@ export default function Choice() {
         </div>
 
         <Faq />
-
-        <p className="center muted footnote">
-          Order in under a minute · a 25% deposit confirms your order · we confirm by text &amp; email
-        </p>
       </div>
       <StickyCta label="Order a board" to={`/platters${suffix}`} />
     </div>

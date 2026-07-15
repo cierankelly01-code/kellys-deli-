@@ -22,13 +22,17 @@ export function Ticker() {
 export function Header() {
   return (
     <>
+      <a className="skip-link" href="#main">Skip to content</a>
       <Ticker />
       <header className="hdr spread">
         <Link to="/" className="brand">
           <span className="brand-mark">Kelly&apos;s Deli</span>
           <span className="brand-sub">Family Deli</span>
         </Link>
-        <Link to="/admin" className="staff-link">Staff</Link>
+        <nav className="hdr-nav" aria-label="Main">
+          <Link className="u-link" to="/platters">Boards</Link>
+          <Link className="u-link" to="/plan">Plan an event</Link>
+        </nav>
       </header>
     </>
   );

@@ -8,6 +8,7 @@ import Confirm from "./pages/Confirm";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import { Footer } from "./components/Footer";
+import NotFound from "./pages/NotFound";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Login from "./pages/admin/Login";
 import Dashboard from "./pages/admin/Dashboard";
@@ -24,7 +25,9 @@ import FillSlots from "./pages/admin/FillSlots";
 function CustomerLayout() {
   return (
     <>
-      <Outlet />
+      <main id="main">
+        <Outlet />
+      </main>
       <Footer />
     </>
   );
@@ -43,6 +46,7 @@ export default function App() {
         <Route path="/confirm/:ref" element={<Confirm />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
+        <Route path="*" element={<NotFound />} />
       </Route>
 
       {/* Admin */}
@@ -59,7 +63,6 @@ export default function App() {
         <Route path="fill-slots" element={<FillSlots />} />
       </Route>
 
-      <Route path="*" element={<Choice />} />
     </Routes>
   );
 }

@@ -25,7 +25,7 @@
 .brand-mark { font-family: var(--serif); font-size: 1.5rem; font-weight: 500; color: var(--ink); }
 .brand-sub {
   font-size: 0.66rem; letter-spacing: 0.2em; text-transform: uppercase;
-  color: var(--mustard); font-weight: 700;
+  color: var(--gold-text); font-weight: 700;
 }
 
 /* Hero */
@@ -46,7 +46,7 @@
 .platter-body { padding: 16px; }
 .platter .price { font-size: 1.25rem; color: var(--brick); white-space: nowrap; }
 .platter .price .muted { font-size: 0.85rem; margin-left: 2px; }
-.serves { font-size: 0.85rem; color: var(--mustard); font-weight: 700; margin: 2px 0 8px; }
+.serves { font-size: 0.85rem; color: var(--gold-text); font-weight: 700; margin: 2px 0 8px; }
 .items { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; margin: 8px 0 16px; }
 .items li {
   font-size: 0.8rem; background: var(--cream); border: 1px solid var(--line);
@@ -135,7 +135,7 @@
 .lh-eyebrow { margin: 0 0 10px; font-size: 0.66rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.75); }
 .lh-mark { font-family: var(--serif); font-size: 2.9rem; line-height: 1; margin: 0 0 12px; color: #fff; font-weight: 500; }
 .lh-tag { max-width: 36ch; margin: 0 auto 20px; color: rgba(255,255,255,0.9); font-size: 1rem; line-height: 1.55; }
-.hero-cta { width: auto; padding: 14px 32px; background: #fff; color: var(--ink); margin: 0 auto; }
+.hero-cta { width: auto; padding: 14px 32px; background: #fff; color: var(--ink); }
 .hero-cta:hover { background: var(--cream); }
 .lh-trust {
   display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 18px;
@@ -198,7 +198,7 @@
   text-align: center; padding: 30px 12px; margin: 30px 0; border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
-.founder-eyebrow { font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mustard); font-weight: 700; margin: 0 0 12px; }
+.founder-eyebrow { font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold-text); font-weight: 700; margin: 0 0 12px; }
 .founder-copy { font-size: 1.05rem; line-height: 1.6; max-width: 42ch; margin: 0 auto; color: var(--ink); }
 .founder-sign { font-family: var(--serif); font-style: italic; font-size: 1.3rem; margin: 14px 0 0; color: var(--ink); }
 
@@ -218,7 +218,7 @@
 .choice-card.photo .choice-title, .choice-card.photo .choice-sub, .choice-card.photo .choice-go { padding: 0 18px; }
 .choice-title { font-family: var(--serif); font-size: 1.4rem; color: var(--ink); font-weight: 500; }
 .choice-sub { color: var(--ink-soft); font-size: 0.95rem; }
-.choice-go { margin-top: 8px; color: var(--mustard); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.choice-go { margin-top: 8px; color: var(--gold-text); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .choice-strip {
   display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%;
   margin-top: 14px; padding: 16px 18px; border-radius: var(--radius-sm); border: 1px solid var(--line);
@@ -270,7 +270,7 @@
 .platter-link:active { transform: translateY(1px); }
 .clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .items li.more { background: transparent; border: none; color: var(--mustard); font-weight: 700; }
-.view-cta { display: inline-block; margin-top: 4px; color: var(--mustard); font-weight: 700; }
+.view-cta { display: inline-block; margin-top: 4px; color: var(--gold-text); font-weight: 700; }
 
 /* FAQ accordion */
 .faq { margin: 30px 0; }
@@ -424,7 +424,11 @@
 
 /* Hero CTAs + trust strip */
 .hero-ctas { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-.hero-cta-2 { background: rgba(255,255,255,0.9); }
+.hero-cta-2 {
+  background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,0.65);
+  min-height: 54px; padding: 14px 26px; font-size: 0.92rem;
+}
+.hero-cta-2:hover { background: rgba(255,255,255,0.12); color: #fff; }
 .trust-strip {
   display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; align-items: center;
   padding: 10px 12px; font-size: 0.8rem; font-weight: 600; color: var(--ink-soft);
@@ -521,3 +525,136 @@
 .combo-totals { padding: 12px 14px; margin: 12px 0; }
 .undercater-warning { color: var(--warn, #a6761d); background: var(--warn-bg, #fdf6e3); border-radius: var(--radius-sm); padding: 10px 12px; font-weight: 600; }
 .confirm-copy { max-width: 34ch; margin: 6px auto 14px; color: var(--ink-soft); }
+
+/* =====================  The Family Table — v3 conversion layer  ===================== */
+
+/* Ticker pauses when hovered (people read it). */
+.ticker:hover .ticker-track, .ticker:focus-within .ticker-track { animation-play-state: paused; }
+
+/* Hero promise line — the sales argument in one sentence. */
+.lh-promise {
+  font-family: var(--serif);
+  font-size: clamp(2.15rem, 6.5vw, 3.6rem);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  margin: 0 auto 14px;
+  max-width: 18ch;
+  color: #fff;
+}
+.hero-reassure { margin: 12px auto 0; font-size: 0.75rem; color: rgba(255,255,255,0.72); letter-spacing: 0.02em; }
+.lh-mark { font-size: clamp(2.4rem, 7vw, 3.4rem); }
+
+/* Aggregate Google rating widget. */
+.stars-widget { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 0.9rem; }
+.stars-widget .stars { font-size: 0.85rem; }
+.stars-widget strong { font-size: 0.95rem; }
+
+/* Honest order-deadline chip — computed from the real 48-hour rule. */
+.deadline-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  margin: 14px 0 0; padding: 8px 14px;
+  font-size: 0.82rem; font-weight: 700; color: #9c4520;
+  background: #fff; border: 1px solid var(--line); border-radius: 999px;
+}
+.deadline-chip svg { flex: 0 0 auto; }
+
+/* Trust chips — reassurance at decision points. */
+.trust-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 16px 0 0; }
+.trust-chips li {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 13px; font-size: 0.8rem; font-weight: 700;
+  color: var(--olive); background: var(--good-bg); border-radius: 999px;
+}
+.trust-chips svg { flex: 0 0 auto; }
+
+/* How it works — three steps, hand-numbered. */
+.how-it-works { margin: 34px 0; }
+.hiw-steps { list-style: none; display: grid; gap: 18px; padding: 0; margin: 18px 0 0; }
+@media (min-width: 560px) { .hiw-steps { grid-template-columns: repeat(3, 1fr); } }
+.hiw-steps li { position: relative; padding: 20px 18px 18px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+.hiw-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; margin-bottom: 10px;
+  font-family: var(--serif); font-size: 1.1rem; font-weight: 600; color: #9c4520;
+  border: 2px solid var(--terracotta); border-radius: 50% 46% 52% 48% / 48% 52% 46% 52%;
+}
+.hiw-h { font-size: 1.08rem; margin: 0 0 6px; }
+.hiw-steps p { margin: 0; font-size: 0.9rem; color: var(--ink-soft); line-height: 1.55; }
+
+/* The Family Promise — named guarantee block. */
+.family-promise {
+  margin: 30px 0; padding: 30px 24px;
+  background: var(--brick); color: #fff;
+  border-radius: var(--radius); text-align: center; overflow: hidden;
+}
+.family-promise .fp-h { color: #fff; font-size: 1.5rem; margin-bottom: 10px; }
+.family-promise .fp-copy { max-width: 46ch; margin: 0 auto; color: rgba(255,255,255,0.88); line-height: 1.6; font-size: 0.98rem; }
+.family-promise .trust-chips { justify-content: center; margin-top: 18px; }
+.family-promise .trust-chips li { background: rgba(255,255,255,0.12); color: #fff; }
+
+/* Card hover lift — no dead hovers. */
+@media (hover: hover) {
+  .board-card, .gallery-card { transition: transform var(--dur-std) var(--ease-enter), box-shadow var(--dur-std) var(--ease-enter); }
+  .board-card:hover, .gallery-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+  .board-card:hover .board-card-img, .gallery-card:hover .board-card-img { filter: saturate(1.06); }
+}
+
+/* Footer — a designed destination. */
+.site-footer { margin-top: 56px; border-top: none; background: var(--ink); color: rgba(255,255,255,0.85); overflow: hidden; }
+.site-footer-inner { display: block; max-width: 760px; padding: 36px 20px 28px; }
+.footer-word {
+  font-family: var(--serif); font-size: clamp(2.6rem, 10vw, 4.4rem); line-height: 1;
+  letter-spacing: -0.02em; color: rgba(255,255,255,0.95); margin: 0 0 26px;
+}
+.footer-cols { display: grid; gap: 22px; margin-bottom: 28px; }
+@media (min-width: 560px) { .footer-cols { grid-template-columns: repeat(3, 1fr); } }
+.footer-col { display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; }
+.footer-col a { color: rgba(255,255,255,0.85); width: fit-content; }
+.footer-col span { color: rgba(255,255,255,0.6); }
+.footer-col-h { margin: 0 0 2px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: #d9a75a; }
+.site-footer .footer-copy { color: rgba(255,255,255,0.45); font-size: 0.8rem; }
+
+/* 404 — the empty shelf. */
+.nf { text-align: center; padding: 48px 0 64px; }
+.nf-code { font-family: var(--serif); font-size: clamp(4.5rem, 20vw, 8rem); line-height: 1; color: var(--line); margin: 0; }
+.nf-h { font-size: 1.8rem; margin: 6px 0 8px; }
+.nf-sub { max-width: 34ch; margin: 0 auto 22px; }
+.nf-actions { display: flex; flex-direction: column; gap: 10px; max-width: 320px; margin: 0 auto; }
+
+/* Desktop exists: shop pages breathe at real widths. */
+@media (min-width: 1000px) {
+  .app-wide { max-width: 1140px; }
+  .app-wide .board-grid { grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .app-wide .board-section { margin: 44px 0; }
+  .app-wide .how-it-works { margin: 72px 0; }
+  .app-wide .hiw-steps { gap: 24px; }
+  .app-wide .hiw-steps li { padding: 28px 26px 24px; }
+  .app-wide .family-promise { padding: 52px 40px; margin: 56px 0; }
+  .app-wide .founder-note { padding: 48px 12px; margin: 48px 0; }
+  .app-wide .section-h { font-size: 1.7rem; }
+  .site-footer-inner { max-width: 1140px; }
+  .landing-hero { min-height: 72vh; }
+  .board-card-img { aspect-ratio: 4/3; }
+}
+
+/* Header nav — real navigation, 44px targets. */
+.hdr-nav { display: flex; align-items: center; gap: 18px; }
+.hdr-nav a { font-size: 0.92rem; font-weight: 600; color: var(--ink); }
+@media (max-width: 480px) { .hdr-nav { gap: 12px; } .hdr-nav a { font-size: 0.85rem; } }
+
+/* Skip link — visible on focus, in-brand. */
+.skip-link {
+  position: absolute; left: 12px; top: -48px; z-index: 100;
+  padding: 10px 16px; background: var(--brick); color: #fff; border-radius: var(--radius-sm);
+  font-weight: 700; text-decoration: none; transition: top var(--dur-micro) ease;
+}
+.skip-link:focus { top: 12px; }
+
+/* 44px-effective touch targets on nav + footer links. */
+.hdr-nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; }
+.footer-col a, .footer-links a { padding-block: 8px; }
+
+/* PDP: give the hero photo desktop presence. */
+@media (min-width: 1000px) {
+  .detail-photo { height: 380px; }
+}

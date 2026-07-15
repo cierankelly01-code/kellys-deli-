@@ -5,6 +5,7 @@ import { saveCart } from "../lib/cart";
 import { gbp } from "../lib/format";
 import { Header } from "../components/Header";
 import { usePageTitle } from "../lib/title";
+import { DeadlineChip, TrustChips } from "../components/Trust";
 
 export default function PlatterDetail() {
   const { id } = useParams();
@@ -72,7 +73,7 @@ export default function PlatterDetail() {
       <Header />
       <Link to="/platters" className="btn-ghost back">← Back to boards</Link>
 
-      {platter.imageUrl && <div className="detail-photo" style={{ backgroundImage: `url(${platter.imageUrl})` }} role="img" aria-label={platter.name} />}
+      {platter.imageUrl && <div className="detail-photo arch vt-hero" style={{ backgroundImage: `url(${platter.imageUrl})` }} role="img" aria-label={platter.name} />}
 
       <div className="spread" style={{ marginTop: 18, alignItems: "flex-start" }}>
         <h1 style={{ margin: 0 }}>{platter.name}</h1>
@@ -93,11 +94,18 @@ export default function PlatterDetail() {
         </>
       )}
 
-      <p className="muted footnote">A 25% deposit confirms your order · 48 hours&apos; notice · collect from your chosen shop.</p>
+      <TrustChips />
+      <DeadlineChip />
+      <p className="muted footnote">
+        Allergies or dietary needs? Every board can be adapted — tell us in the notes when you order and
+        we&apos;ll confirm with you directly. Extras like plates, cutlery and napkins are offered at the
+        next step, sized to your numbers.
+      </p>
 
       <div className="nav-row">
         <button className="btn" onClick={order}>Add &amp; continue — {gbp(platter.fixedPrice ?? platter.fromPrice)}</button>
       </div>
+      <p className="buy-reassure">Only 25% today · balance on collection · fully refundable up to 48 hrs before</p>
     </div>
   );
 }

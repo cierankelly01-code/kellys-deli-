@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, type Platter } from "../lib/api";
+import { api, type CategoryCounts, type Platter } from "../lib/api";
 import { saveCart } from "../lib/cart";
 import { gbp } from "../lib/format";
 import { usePageTitle } from "../lib/title";
 import { StickyCta } from "../components/StickyCta";
 import { Header } from "../components/Header";
 import { Faq } from "../components/Faq";
+import { DeadlineChip, Stars } from "../components/Trust";
+import { morphNavigate } from "../lib/motion";
 
 /** Price + feeds line, e.g. "£60 · feeds 8–10". */
 function priceFeeds(p: Platter): string {
@@ -21,9 +23,11 @@ export default function Platters() {
   );
   const navigate = useNavigate();
   const [boards, setBoards] = useState<Platter[] | null>(null);
+  const [counts, setCounts] = useState<CategoryCounts | null>(null);
 
   useEffect(() => {
     api.boards().then(setBoards).catch(() => setBoards([]));
+    api.categories().then(setCounts).catch(() => setCounts(null));
   }, []);
 
   const startOrder = (p: Platter) => {
@@ -35,9 +39,11 @@ export default function Platters() {
   const gallery = boards?.filter((b) => b.tier !== "signature") ?? [];
 
   return (
-    <div className="app platters-page">
+    <div className="app app-wide platters-page">
       <Header />
       <h1 className="page-h">Order a board</h1>
+      {counts?.reviewRating && <Stars rating={counts.reviewRating} count={counts.reviewCount} />}
+      <DeadlineChip />
 
       <button className="plan-banner" onClick={() => navigate("/plan")}>
         <span className="pb-title">Catering for a group?</span>
@@ -50,8 +56,8 @@ export default function Platters() {
         <section className="board-section">
           <h2 className="section-h">Signature boards</h2>
           <div className="board-grid">
-            {signature.map((p) => (
-              <article key={p.id} className="board-card card">
+            {signature.map((p, i) => (
+              <article key={p.id} className="board-card card" data-reveal data-reveal-delay={String(i % 2)}>
                 <div
                   className="board-card-img"
                   style={{ backgroundImage: p.imageUrl ? `url(${p.imageUrl})` : undefined }}
@@ -64,7 +70,18 @@ export default function Platters() {
                   <p className="board-card-desc muted">{p.description.replace(/\s*\[CHECK PRICE.*?\]\s*$/i, "")}</p>
                   <div className="board-card-actions">
                     <button className="btn" onClick={() => startOrder(p)}>Order · {gbp(p.fixedPrice ?? 0)}</button>
-                    <button className="btn-ghost" onClick={() => navigate(`/platter/${p.id}`)}>Details</button>
+                    <button
+                      className="btn-ghost"
+                      onClick={(e) =>
+                        morphNavigate(
+                          navigate,
+                          `/platter/${p.id}`,
+                          e.currentTarget.closest("article")?.querySelector(".board-card-img") as HTMLElement | null,
+                        )
+                      }
+                    >
+                      Details
+                    </button>
                   </div>
                 </div>
               </article>
@@ -78,7 +95,12 @@ export default function Platters() {
           <h2 className="section-h">More boards</h2>
           <div className="board-grid">
             {gallery.map((p) => (
-              <button key={p.id} className="gallery-card card" onClick={() => navigate(`/platter/${p.id}`)}>
+              <button
+                key={p.id}
+                className="gallery-card card"
+                data-reveal
+                onClick={(e) => morphNavigate(navigate, `/platter/${p.id}`, e.currentTarget.querySelector(".board-card-img") as HTMLElement | null)}
+              >
                 <div
                   className="board-card-img"
                   style={{ backgroundImage: p.imageUrl ? `url(${p.imageUrl})` : undefined }}

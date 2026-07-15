@@ -31,6 +31,33 @@ export default function PlanEvent() {
 
   const boardById = useMemo(() => new Map(boards.map((b) => [b.id, b])), [boards]);
 
+  // The server fills against its own feeds data; this page judges the combo with
+  // feedsMid(). If the two disagree, the fresh suggestion could trip our own
+  // under-catering warning — so top the suggestion up by OUR metric before showing
+  // it. User edits after this point are deliberately left alone (the warning is
+  // then genuinely useful).
+  useEffect(() => {
+    if (!rec || boards.length === 0) return;
+    setCombo((prev) => {
+      const next = new Map(prev);
+      let feeds = [...next.entries()].reduce((s, [id, q]) => {
+        const b = boardById.get(id);
+        return b ? s + feedsMid(b) * q : s;
+      }, 0);
+      if (feeds >= headcount) return prev;
+      const bySize = boards.filter((b) => feedsMid(b) > 0).sort((a, b) => feedsMid(a) - feedsMid(b));
+      let guard = 0;
+      while (feeds < headcount && bySize.length > 0 && guard++ < 50) {
+        const gap = headcount - feeds;
+        const pick = bySize.find((b) => feedsMid(b) >= gap) ?? bySize[bySize.length - 1];
+        next.set(pick.id, (next.get(pick.id) ?? 0) + 1);
+        feeds += feedsMid(pick);
+      }
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rec, boards]);
+
   async function getRecommendation(n: number) {
     setLoading(true);
     setError(null);
