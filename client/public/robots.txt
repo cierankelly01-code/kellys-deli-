@@ -1,4 +1,4 @@
-# Kelly's Deli — https://www.kellysdeli.com
+# Kelly's Deli — https://www.kellysdeli.co.uk
 # Search + social crawlers: index everything except the staff area.
 User-agent: *
 Allow: /
@@ -27,4 +27,4 @@ Allow: /
 User-agent: Bytespider
 Allow: /
 
-Sitemap: https://www.kellysdeli.com/sitemap.xml
+Sitemap: https://www.kellysdeli.co.uk/sitemap.xml

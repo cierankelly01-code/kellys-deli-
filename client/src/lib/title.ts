@@ -3,7 +3,7 @@ import { useEffect } from "react";
 const DEFAULT = "Kelly's Deli Bentley Heath — Grazing Boards & Platters, Solihull";
 const DEFAULT_DESC =
   "Family-run deli in Bentley Heath, Solihull. Order charcuterie, cheese and grazing boards and catering platters for collection, made fresh. A 25% deposit secures your order.";
-const SITE = "https://www.kellysdeli.com";
+const SITE = "https://www.kellysdeli.co.uk";
 
 function setMeta(name: string, content: string) {
   let el = document.head.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
