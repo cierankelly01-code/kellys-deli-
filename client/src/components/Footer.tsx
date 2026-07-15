@@ -17,7 +17,8 @@ export function Footer() {
           </div>
           <div className="footer-col">
             <p className="footer-col-h">The deli</p>
-            <span>Bentley Heath, Solihull</span>
+            <span>1 Slater Road, Bentley Heath</span>
+            <span>Solihull B93 8AQ</span>
             <span>Family-run · three local shops</span>
           </div>
           <div className="footer-col">
