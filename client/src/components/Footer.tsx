@@ -16,10 +16,10 @@ export function Footer() {
             <Link className="u-link" to="/plan">Plan an event</Link>
           </div>
           <div className="footer-col">
-            <p className="footer-col-h">The deli</p>
-            <span>1 Slater Road, Bentley Heath</span>
-            <span>Solihull B93 8AQ</span>
-            <span>Family-run · three local shops</span>
+            <p className="footer-col-h">Collect from</p>
+            <span>Bentley Heath — 1 Slater Road, Solihull B93 8AQ</span>
+            <span>Henley-in-Arden</span>
+            <span>Stratford-upon-Avon</span>
           </div>
           <div className="footer-col">
             <p className="footer-col-h">Get in touch</p>

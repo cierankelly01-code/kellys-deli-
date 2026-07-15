@@ -658,3 +658,42 @@
 @media (min-width: 1000px) {
   .detail-photo { height: 380px; }
 }
+
+/* Round-3 review fixes */
+
+/* Basket pill — appears in the header the moment the basket is non-empty. */
+.basket-pill {
+  display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px;
+  background: var(--brick); color: #fff; border-radius: 999px;
+  font-size: 0.85rem; font-weight: 700; text-decoration: none; white-space: nowrap;
+}
+.basket-pill:hover { background: var(--brick-dark); }
+
+/* Linked rating badge. */
+a.stars-widget { text-decoration: none; color: inherit; width: fit-content; }
+a.stars-widget:hover strong { text-decoration: underline; }
+
+/* Mobile header: one line, no wrapping. */
+@media (max-width: 479px) {
+  .brand-sub { display: none; }
+  .hdr-nav { gap: 8px; }
+  .hdr-nav a { font-size: 0.82rem; padding: 0 2px; }
+  .basket-pill { padding: 0 12px; }
+}
+
+/* Eyebrow labels: never below 12px. */
+.lh-eyebrow { font-size: 0.75rem; }
+.founder-eyebrow { font-size: 0.72rem; }
+.footer-col-h { font-size: 0.72rem; }
+.brand-sub { font-size: 0.7rem; }
+
+/* PDP: two-column buy layout on desktop, CTA above the fold. */
+.detail-buy .btn { margin-top: 16px; }
+.detail-buy .buy-reassure { margin-top: 10px; }
+@media (min-width: 1024px) {
+  .detail-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 44px; align-items: start; }
+  .detail-grid .detail-photo { position: sticky; top: 24px; height: 480px; }
+  .detail-buy .spread { margin-top: 0 !important; }
+  .detail-buy h1 { font-size: 2.3rem; }
+  .detail-buy .price strong { font-size: 1.5rem; }
+}

@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import { boardCount, loadCart } from "../lib/cart";
 
 const ANNOUNCEMENTS = [
   "Local British produce, styled beautifully",
@@ -20,6 +21,11 @@ export function Ticker() {
 }
 
 export function Header() {
+  const location = useLocation();
+  const cart = loadCart();
+  const count = cart ? boardCount(cart) : 0;
+  const showBasket = count > 0 && location.pathname !== "/order";
+
   return (
     <>
       <a className="skip-link" href="#main">Skip to content</a>
@@ -32,6 +38,11 @@ export function Header() {
         <nav className="hdr-nav" aria-label="Main">
           <Link className="u-link" to="/platters">Boards</Link>
           <Link className="u-link" to="/plan">Plan an event</Link>
+          {showBasket && (
+            <Link className="basket-pill" to="/order" aria-label={`Your basket, ${count} board${count === 1 ? "" : "s"}`}>
+              Basket · {count}
+            </Link>
+          )}
         </nav>
       </header>
     </>

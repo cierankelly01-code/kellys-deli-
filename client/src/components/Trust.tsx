@@ -63,13 +63,22 @@ export function TrustChips() {
   );
 }
 
-/** Aggregate Google rating — shown only when real settings data exists. */
+/** Aggregate Google rating — real settings data only, linked to the live Google listing. */
+const GOOGLE_LISTING =
+  "https://www.google.com/maps/search/?api=1&query=Kelly%27s%20Deli%2C%201%20Slater%20Road%2C%20Bentley%20Heath%2C%20Solihull%20B93%208AQ";
+
 export function Stars({ rating, count }: { rating: string; count?: string | number | null }) {
   return (
-    <p className="stars-widget" aria-label={`Rated ${rating} out of 5 on Google${count ? ` from ${count} reviews` : ""}`}>
+    <a
+      className="stars-widget"
+      href={GOOGLE_LISTING}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`Rated ${rating} out of 5 on Google${count ? ` from ${count} reviews` : ""} — read the reviews`}
+    >
       <span className="stars" aria-hidden="true">★★★★★</span>
       <strong>{rating}</strong>
       {count ? <span className="muted">· {count} Google reviews</span> : null}
-    </p>
+    </a>
   );
 }

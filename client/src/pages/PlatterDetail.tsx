@@ -69,43 +69,45 @@ export default function PlatterDetail() {
   const cleanDesc = platter.description.replace(/\s*\[CHECK PRICE.*?\]\s*$/i, "");
 
   return (
-    <div className="app">
+    <div className="app app-wide">
       <Header />
       <Link to="/platters" className="btn-ghost back">← Back to boards</Link>
 
-      {platter.imageUrl && <div className="detail-photo arch vt-hero" style={{ backgroundImage: `url(${platter.imageUrl})` }} role="img" aria-label={platter.name} />}
+      <div className="detail-grid">
+        {platter.imageUrl && <div className="detail-photo arch vt-hero" style={{ backgroundImage: `url(${platter.imageUrl})` }} role="img" aria-label={platter.name} />}
 
-      <div className="spread" style={{ marginTop: 18, alignItems: "flex-start" }}>
-        <h1 style={{ margin: 0 }}>{platter.name}</h1>
-        <div className="price">
-          <strong>{gbp(platter.fixedPrice ?? platter.fromPrice)}</strong>
+        <div className="detail-buy">
+          <div className="spread" style={{ marginTop: 18, alignItems: "flex-start" }}>
+            <h1 style={{ margin: 0 }}>{platter.name}</h1>
+            <div className="price">
+              <strong>{gbp(platter.fixedPrice ?? platter.fromPrice)}</strong>
+            </div>
+          </div>
+          {platter.serves && <p className="serves">Feeds {platter.serves}</p>}
+
+          <p className="detail-desc">{cleanDesc}</p>
+
+          <button className="btn" onClick={order}>Add &amp; continue — {gbp(platter.fixedPrice ?? platter.fromPrice)}</button>
+          <p className="buy-reassure">Only 25% today · balance on collection · fully refundable up to 48 hrs before</p>
+          <DeadlineChip />
+
+          {platter.items.length > 0 && (
+            <>
+              <h2 className="detail-h2">What&apos;s inside</h2>
+              <ul className="detail-items">
+                {platter.items.map((it) => <li key={it.label}>{it.label}</li>)}
+              </ul>
+            </>
+          )}
+
+          <TrustChips />
+          <p className="muted footnote">
+            Allergies or dietary needs? Every board can be adapted — tell us in the notes when you order and
+            we&apos;ll confirm with you directly. Extras like plates, cutlery and napkins are offered at the
+            next step, sized to your numbers.
+          </p>
         </div>
       </div>
-      {platter.serves && <p className="serves">Feeds {platter.serves}</p>}
-
-      <p className="detail-desc">{cleanDesc}</p>
-
-      {platter.items.length > 0 && (
-        <>
-          <h2 className="detail-h2">What&apos;s inside</h2>
-          <ul className="detail-items">
-            {platter.items.map((it) => <li key={it.label}>{it.label}</li>)}
-          </ul>
-        </>
-      )}
-
-      <TrustChips />
-      <DeadlineChip />
-      <p className="muted footnote">
-        Allergies or dietary needs? Every board can be adapted — tell us in the notes when you order and
-        we&apos;ll confirm with you directly. Extras like plates, cutlery and napkins are offered at the
-        next step, sized to your numbers.
-      </p>
-
-      <div className="nav-row">
-        <button className="btn" onClick={order}>Add &amp; continue — {gbp(platter.fixedPrice ?? platter.fromPrice)}</button>
-      </div>
-      <p className="buy-reassure">Only 25% today · balance on collection · fully refundable up to 48 hrs before</p>
     </div>
   );
 }
