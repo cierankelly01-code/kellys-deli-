@@ -231,6 +231,7 @@ describe("priceLineItemOrder", () => {
       base: 100,
       boardsTotal: 100,
       addOnsTotal: 0,
+      subscriptionDiscount: 0,
       discount: 0,
       total: 100,
       deposit: 25,
@@ -245,6 +246,7 @@ describe("priceLineItemOrder", () => {
       base: 67.5,
       boardsTotal: 45,
       addOnsTotal: 22.5,
+      subscriptionDiscount: 0,
       discount: 0,
       total: 67.5,
       deposit: 16.9,
@@ -259,6 +261,7 @@ describe("priceLineItemOrder", () => {
       base: 78,
       boardsTotal: 70,
       addOnsTotal: 8,
+      subscriptionDiscount: 0,
       discount: 15,
       total: 63,
       deposit: 15.75,
@@ -273,10 +276,41 @@ describe("priceLineItemOrder", () => {
       base: 255,
       boardsTotal: 255,
       addOnsTotal: 0,
+      subscriptionDiscount: 0,
       discount: 0,
       total: 255,
       deposit: 63.75,
       balance: 191.25,
+    });
+  });
+  it("applies Subscribe & Save % before the referral and deposit", () => {
+    // board £100 + top-up £20 = £120; 10% Subscribe & Save = £12 off → £108; 25% = £27; balance £81
+    expect(
+      priceLineItemOrder([{ unitPrice: 100, quantity: 1 }], [{ unitPrice: 20, quantity: 1 }], false, 10),
+    ).toEqual({
+      base: 120,
+      boardsTotal: 100,
+      addOnsTotal: 20,
+      subscriptionDiscount: 12,
+      discount: 0,
+      total: 108,
+      deposit: 27,
+      balance: 81,
+    });
+  });
+  it("stacks Subscribe & Save then a referral discount", () => {
+    // board £100; 10% sub = £10 off → £90; £15 referral → £75; 25% = £18.75; balance £56.25
+    expect(
+      priceLineItemOrder([{ unitPrice: 100, quantity: 1 }], [], true, 10),
+    ).toEqual({
+      base: 100,
+      boardsTotal: 100,
+      addOnsTotal: 0,
+      subscriptionDiscount: 10,
+      discount: 15,
+      total: 75,
+      deposit: 18.75,
+      balance: 56.25,
     });
   });
 });

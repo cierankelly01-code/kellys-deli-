@@ -6,6 +6,8 @@ import {
   availabilityQuerySchema,
   experienceAvailabilityQuerySchema,
   recommendQuerySchema,
+  corporateEnquirySchema,
+  reminderSchema,
 } from "../lib/validation";
 import { priceOrder, priceLineItemOrder, REFERRAL_DISCOUNT } from "../lib/money";
 import { buildAvailability, canBook, getDayAvailability, meetsNotice, meetsLeadTime, parseDate, formatDate } from "../lib/capacity";
@@ -13,7 +15,7 @@ import { recommendBoards, midpoint, type RecBoard } from "../lib/recommender";
 import { genRef, randomReferralCode } from "../lib/ref";
 import { captureDepositIntent } from "../lib/payments";
 import { notifyOrderReceived } from "../lib/notify";
-import { platterDTO, experienceDTO, locationDTO, orderDTO, publicOrderDTO, boardComponentDTO, boardGroupDTO, addOnDTO } from "../lib/serialize";
+import { platterDTO, experienceDTO, locationDTO, orderDTO, publicOrderDTO, boardComponentDTO, boardGroupDTO, addOnDTO, categoryDTO } from "../lib/serialize";
 
 export const publicRouter = asyncRouter();
 
@@ -177,7 +179,70 @@ publicRouter.get("/categories", async (_req, res) => {
     // Actual eligibility (prior-order check) is still enforced server-side at checkout.
     firstOrderHook: (await getSetting("firstOrderHook")) === "on",
     firstOrderHookText: (await getSetting("firstOrderHookText")) ?? null,
+    // Subscribe & Save (recurring boards) — drives the storefront picker + discount copy.
+    subscribeSave: (await getSetting("subscribeSave")) !== "off",
+    subscribeSaveDiscountPct: parseInt((await getSetting("subscribeSaveDiscountPct")) ?? "10", 10) || 10,
+    // Corporate next-day delivery — OFF until the owner confirms capability (honesty rule).
+    corporateNextDayDelivery: (await getSetting("corporateNextDayDelivery")) === "on",
   });
+});
+
+// --- Occasion categories (browse-by-occasion storefront) ---
+// Named /categories/browse (not /categories) so the existing /categories counts endpoint
+// above keeps working. Returns active categories with a live board count.
+publicRouter.get("/categories/browse", async (_req, res) => {
+  const cats = await prisma.category.findMany({
+    where: { active: true },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    include: { _count: { select: { platters: true } } },
+  });
+  res.json(cats.map((c) => categoryDTO(c, { boardCount: c._count.platters })));
+});
+
+// One category + its assigned, active boards (in assignment order) for the landing page.
+publicRouter.get("/categories/:slug", async (req, res) => {
+  const cat = await prisma.category.findUnique({
+    where: { slug: req.params.slug },
+    include: { platters: { include: { platter: true }, orderBy: { sortOrder: "asc" } } },
+  });
+  if (!cat || !cat.active) return res.status(404).json({ error: "Category not found" });
+  // Drop inactive boards; keep assignment order.
+  const activePlatters = cat.platters.filter((pc) => pc.platter.active);
+  res.json(categoryDTO({ ...cat, platters: activePlatters }));
+});
+
+// --- Corporate / office enquiry (lands in admin) ---
+publicRouter.post("/corporate-enquiry", async (req, res) => {
+  const parsed = corporateEnquirySchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid enquiry" });
+  const d = parsed.data;
+  await prisma.corporateEnquiry.create({
+    data: {
+      company: d.company,
+      contactName: d.contactName,
+      email: d.email,
+      phone: d.phone ?? null,
+      headcount: d.headcount ?? null,
+      frequency: d.frequency ?? null,
+      message: d.message ?? null,
+    },
+  });
+  res.status(201).json({ ok: true });
+});
+
+// --- "Never miss it" occasion reminder capture ---
+publicRouter.post("/reminders", async (req, res) => {
+  const parsed = reminderSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid reminder" });
+  const d = parsed.data;
+  await prisma.reminderSignup.create({
+    data: {
+      email: d.email,
+      occasion: d.occasion,
+      reminderDate: d.reminderDate ? parseDate(d.reminderDate) : null,
+    },
+  });
+  res.status(201).json({ ok: true });
 });
 
 // --- Availability (platters: per-day order count vs location capacity) ---
@@ -352,10 +417,18 @@ publicRouter.post("/orders", async (req, res) => {
     unitPrice: Number(addOnById.get(a.addOnId)!.price),
   }));
 
+  // Subscribe & Save: apply the % discount only when the customer opted in AND the feature
+  // is switched on in Site Settings. No card is taken here (payment-ready, not payment-live).
+  const wantsSub = !!input.isSubscription && !!input.subscriptionFrequency;
+  const subOn = (await getSetting("subscribeSave")) !== "off";
+  const subPctRaw = parseInt((await getSetting("subscribeSaveDiscountPct")) ?? "10", 10);
+  const subPct = wantsSub && subOn && Number.isFinite(subPctRaw) ? Math.max(0, Math.min(100, subPctRaw)) : 0;
+
   const pricing = priceLineItemOrder(
     boardLines.map((b) => ({ unitPrice: b.unitPrice, quantity: b.quantity })),
     addOnLines.map((a) => ({ unitPrice: a.unitPrice, quantity: a.quantity })),
     referrerCode != null,
+    subPct,
   );
 
   // First-order hook: free item for a customer's first order, if enabled.
@@ -382,6 +455,24 @@ publicRouter.post("/orders", async (req, res) => {
         create: { name: input.customerName, phone: input.phone, email: input.email, referralCode },
       });
 
+      // Subscribe & Save: record the recurring plan so the owner sees the intent and can
+      // set the schedule up manually. Corporate occasions are invoiced monthly. This maps
+      // cleanly onto a Stripe subscription when Stripe lands.
+      const subscription =
+        subPct > 0
+          ? await tx.subscription.create({
+              data: {
+                status: "pending",
+                frequency: input.subscriptionFrequency!,
+                discountPct: subPct,
+                customerName: input.customerName,
+                email: input.email,
+                phone: input.phone,
+                invoiced: input.occasion === "Corporate",
+              },
+            })
+          : null;
+
       const created = await tx.order.create({
         data: {
           ref,
@@ -402,6 +493,15 @@ publicRouter.post("/orders", async (req, res) => {
           src: input.src ?? "direct",
           referralCodeUsed: referrerCode,
           customerId: customer.id,
+          // Subscribe & Save snapshot on the order.
+          isSubscription: subPct > 0,
+          subscriptionFrequency: subPct > 0 ? input.subscriptionFrequency : null,
+          subscriptionDiscount: subPct > 0 ? pricing.subscriptionDiscount : null,
+          subscriptionId: subscription?.id ?? null,
+          // Gift-a-board.
+          isGift: input.isGift ?? false,
+          recipientName: input.recipientName?.trim() || null,
+          giftMessage: input.giftMessage?.trim() || null,
           items: { create: boardLines.map((b) => ({ platterId: b.platterId, quantity: b.quantity, unitPrice: b.unitPrice })) },
           addOns: { create: addOnLines.map((a) => ({ addOnId: a.addOnId, name: a.name, quantity: a.quantity, unitPrice: a.unitPrice })) },
         },
@@ -412,7 +512,10 @@ publicRouter.post("/orders", async (req, res) => {
       return created;
     });
 
-    await captureDepositIntent(pricing.deposit, order.ref);
+    // Record the (stub) deposit-intent id so a future Stripe webhook can reconcile it to
+    // this order and flip depositStatus -> paid.
+    const intent = await captureDepositIntent(pricing.deposit, order.ref);
+    await prisma.order.update({ where: { id: order.id }, data: { depositIntentId: intent.intentId } });
     await notifyOrderReceived(
       { name: order.customerName, phone: order.phone, email: order.email },
       { ref: order.ref, total: pricing.total, deposit: pricing.deposit, collectionDate: formatDate(order.collectionOrDeliveryDate), locationName: order.location.name },

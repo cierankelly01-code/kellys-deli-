@@ -4,12 +4,16 @@ import express, { type Express, type Request, type Response, type NextFunction }
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import { env } from "./lib/env";
+import { env, stripeEnabled } from "./lib/env";
 import { publicRouter } from "./routes/public";
 import { authRouter } from "./routes/auth";
 import { adminRouter } from "./routes/admin";
 import { requireAdmin } from "./lib/auth";
 import { UPLOAD_DIR } from "./lib/uploads";
+import { prisma } from "./lib/prisma";
+import { parseWebhook } from "./lib/payments";
+
+const SITE = "https://www.kellysdeli.co.uk";
 
 /**
  * Builds the Express app. Kept separate from index.ts so tests (supertest)
@@ -37,6 +41,27 @@ export function createApp(): Express {
   );
 
   app.use(cors({ origin: env.clientOrigins, credentials: true }));
+
+  // Stripe webhook — MUST see the raw body (signature verification), so it's mounted
+  // before express.json(). No-ops with 200 until Stripe is configured; when live, it
+  // reconciles a succeeded payment intent to its order and marks the deposit paid.
+  app.post("/api/payments/webhook", express.raw({ type: "*/*", limit: "1mb" }), async (req, res) => {
+    if (!stripeEnabled()) return res.status(200).json({ received: true, note: "payments not configured" });
+    try {
+      const result = parseWebhook(req.body as Buffer, req.header("stripe-signature"));
+      if (result.handled && result.paidOrderRef) {
+        await prisma.order.updateMany({
+          where: { ref: result.paidOrderRef, depositStatus: "pending" },
+          data: { depositStatus: "paid", depositPaidAt: new Date(), depositIntentId: result.intentId ?? undefined },
+        });
+      }
+      res.status(200).json({ received: true, handled: result.handled });
+    } catch (e) {
+      console.error("[payments:webhook] failed", e);
+      res.status(400).json({ error: "Webhook error" });
+    }
+  });
+
   app.use(express.json({ limit: "1mb" })); // cap body size (DoS)
 
   // Serve uploaded images (public).
@@ -52,6 +77,38 @@ export function createApp(): Express {
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, service: "kellys-deli-api", time: new Date().toISOString() });
+  });
+
+  // Whether live payments are configured. The storefront copy stays "payment-ready" until
+  // this is true, so we never promise automated billing that isn't wired up.
+  app.get("/api/payments/status", (_req, res) => {
+    res.json({ enabled: stripeEnabled() });
+  });
+
+  // Dynamic sitemap: static public routes + every active occasion category landing page.
+  // Generated (not a static file) so newly-added categories appear without a redeploy.
+  // Registered before the SPA static/fallback so it wins over any bundled sitemap.xml.
+  app.get("/sitemap.xml", async (_req, res) => {
+    const staticUrls: Array<{ loc: string; changefreq: string; priority: string }> = [
+      { loc: "/", changefreq: "weekly", priority: "1.0" },
+      { loc: "/platters", changefreq: "weekly", priority: "0.9" },
+      { loc: "/shop", changefreq: "weekly", priority: "0.8" },
+      { loc: "/plan", changefreq: "monthly", priority: "0.8" },
+      { loc: "/privacy", changefreq: "yearly", priority: "0.2" },
+      { loc: "/terms", changefreq: "yearly", priority: "0.2" },
+    ];
+    let categoryUrls: Array<{ loc: string; changefreq: string; priority: string }> = [];
+    try {
+      const cats = await prisma.category.findMany({ where: { active: true }, select: { slug: true } });
+      categoryUrls = cats.map((c) => ({ loc: `/shop/${c.slug}`, changefreq: "weekly", priority: "0.8" }));
+    } catch (e) {
+      console.error("[sitemap] could not load categories", e);
+    }
+    const urls = [...staticUrls, ...categoryUrls]
+      .map((u) => `  <url><loc>${SITE}${u.loc}</loc><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`)
+      .join("\n");
+    res.setHeader("Content-Type", "application/xml");
+    res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`);
   });
 
   app.use("/api", apiLimiter);

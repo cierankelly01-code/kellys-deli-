@@ -123,10 +123,14 @@ export function addOnsTotal(items: LineItem[]): number {
   return lineItemsTotal(items);
 }
 
+// Subscribe & Save discount, applied to the boards+add-ons subtotal (before any referral).
+export const SUBSCRIBE_SAVE_PCT = 10;
+
 export interface LineItemPricing {
-  base: number; // boards + add-ons, before discount
+  base: number; // boards + add-ons, before any discount
   boardsTotal: number;
   addOnsTotal: number;
+  subscriptionDiscount: number; // Subscribe & Save % off the subtotal
   discount: number; // referral discount applied
   total: number; // what the customer owes
   deposit: number; // 25% of total, rounded to nearest 5p
@@ -134,22 +138,29 @@ export interface LineItemPricing {
 }
 
 /**
- * Full pricing for a v2 line-item order (boards + add-ons). The 25% deposit is rounded
- * to the nearest 5p; the balance is the remainder, due on collection.
+ * Full pricing for a v2 line-item order (boards + add-ons). Subscribe & Save takes a % off
+ * the subtotal first; a referral then takes its flat £ off; the 25% deposit is rounded to
+ * the nearest 5p and the balance is the remainder, due on collection.
+ *
+ * `subscriptionDiscountPct` defaults to 0 (a normal one-off order).
  */
 export function priceLineItemOrder(
   boards: LineItem[],
   addOns: LineItem[],
   hasValidReferral: boolean,
+  subscriptionDiscountPct = 0,
 ): LineItemPricing {
   const boardsTotal = lineItemsTotal(boards);
   const addOns_ = addOnsTotal(addOns);
   const base = toMoney(boardsTotal + addOns_);
-  const total = applyReferral(base, hasValidReferral);
-  const discount = toMoney(base - total);
+  const pct = Math.max(0, Math.min(100, subscriptionDiscountPct));
+  const subscriptionDiscount = pct > 0 ? toMoney(base * (pct / 100)) : 0;
+  const afterSub = toMoney(base - subscriptionDiscount);
+  const total = applyReferral(afterSub, hasValidReferral);
+  const discount = toMoney(afterSub - total);
   const deposit = roundTo5p(total * DEPOSIT_RATE);
   const balance = toMoney(total - deposit);
-  return { base, boardsTotal, addOnsTotal: addOns_, discount, total, deposit, balance };
+  return { base, boardsTotal, addOnsTotal: addOns_, subscriptionDiscount, discount, total, deposit, balance };
 }
 
 export interface Margin {

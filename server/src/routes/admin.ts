@@ -2,7 +2,7 @@ import { asyncRouter } from "../lib/async-router";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { env } from "../lib/env";
-import { orderDTO, platterDTO, experienceDTO, locationDTO, boardComponentDTO, boardGroupDTO, addOnDTO, type PlatterItem } from "../lib/serialize";
+import { orderDTO, platterDTO, experienceDTO, locationDTO, boardComponentDTO, boardGroupDTO, addOnDTO, categoryDTO, corporateEnquiryDTO, subscriptionDTO, type PlatterItem } from "../lib/serialize";
 import {
   platterUpsertSchema,
   experienceUpsertSchema,
@@ -12,6 +12,10 @@ import {
   boardComponentUpsertSchema,
   boardGroupUpdateSchema,
   addOnUpsertSchema,
+  categoryUpsertSchema,
+  categoryAssignSchema,
+  enquiryStatusSchema,
+  subscriptionStatusSchema,
 } from "../lib/validation";
 import { calcMargin } from "../lib/money";
 import { parseDate, formatDate } from "../lib/capacity";
@@ -468,6 +472,134 @@ adminRouter.post("/upload", (req, res) => {
       res.status(500).json({ error: "Upload failed", detail: e instanceof Error ? e.message : String(e) });
     }
   });
+});
+
+// =====================  Occasion categories  =====================
+adminRouter.get("/categories", async (_req, res) => {
+  const cats = await prisma.category.findMany({
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    include: { platters: { include: { platter: true }, orderBy: { sortOrder: "asc" } } },
+  });
+  res.json(cats.map((c) => categoryDTO(c)));
+});
+
+function categoryData(d: import("../lib/validation").CategoryUpsertInput, fallback?: { active: boolean; sortOrder: number }) {
+  return {
+    slug: d.slug,
+    name: d.name,
+    tagline: d.tagline ?? null,
+    description: d.description ?? null,
+    heroImageUrl: d.heroImageUrl ?? null,
+    seoTitle: d.seoTitle ?? null,
+    seoDescription: d.seoDescription ?? null,
+    isCorporate: d.isCorporate ?? false,
+    promotePlanner: d.promotePlanner ?? false,
+    active: d.active ?? fallback?.active ?? true,
+    sortOrder: d.sortOrder ?? fallback?.sortOrder ?? 0,
+  };
+}
+
+adminRouter.post("/categories", async (req, res) => {
+  const parsed = categoryUpsertSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid category" });
+  const dup = await prisma.category.findUnique({ where: { slug: parsed.data.slug } });
+  if (dup) return res.status(409).json({ error: "A category with that web address (slug) already exists" });
+  const count = await prisma.category.count();
+  const created = await prisma.category.create({ data: categoryData(parsed.data, { active: true, sortOrder: count }) });
+  res.status(201).json(categoryDTO(created));
+});
+
+adminRouter.patch("/categories/:id", async (req, res) => {
+  const parsed = categoryUpsertSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid category" });
+  const exists = await prisma.category.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Category not found" });
+  // Guard the unique slug when it's being changed.
+  if (parsed.data.slug !== exists.slug) {
+    const dup = await prisma.category.findUnique({ where: { slug: parsed.data.slug } });
+    if (dup) return res.status(409).json({ error: "A category with that web address (slug) already exists" });
+  }
+  const updated = await prisma.category.update({
+    where: { id: req.params.id },
+    data: categoryData(parsed.data, { active: exists.active, sortOrder: exists.sortOrder }),
+    include: { platters: { include: { platter: true }, orderBy: { sortOrder: "asc" } } },
+  });
+  res.json(categoryDTO(updated));
+});
+
+adminRouter.delete("/categories/:id", async (req, res) => {
+  const exists = await prisma.category.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Category not found" });
+  // Assignments cascade-delete; boards and orders are untouched.
+  await prisma.category.delete({ where: { id: req.params.id } });
+  res.json({ ok: true });
+});
+
+// Replace a category's board assignments (ordered). Idempotent: wipe then re-add.
+adminRouter.put("/categories/:id/boards", async (req, res) => {
+  const parsed = categoryAssignSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid board list" });
+  const exists = await prisma.category.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Category not found" });
+  // Keep only ids that point at real boards, preserving the requested order.
+  const ids = [...new Set(parsed.data.platterIds)];
+  const boards = ids.length ? await prisma.platter.findMany({ where: { id: { in: ids } }, select: { id: true } }) : [];
+  const valid = new Set(boards.map((b) => b.id));
+  const ordered = parsed.data.platterIds.filter((id, i, arr) => valid.has(id) && arr.indexOf(id) === i);
+  await prisma.$transaction([
+    prisma.platterCategory.deleteMany({ where: { categoryId: req.params.id } }),
+    ...ordered.map((platterId, i) =>
+      prisma.platterCategory.create({ data: { categoryId: req.params.id, platterId, sortOrder: i } }),
+    ),
+  ]);
+  const updated = await prisma.category.findUnique({
+    where: { id: req.params.id },
+    include: { platters: { include: { platter: true }, orderBy: { sortOrder: "asc" } } },
+  });
+  res.json(categoryDTO(updated!));
+});
+
+// =====================  Corporate enquiries + reminders + subscriptions  =====================
+adminRouter.get("/corporate-enquiries", async (_req, res) => {
+  const rows = await prisma.corporateEnquiry.findMany({ orderBy: { createdAt: "desc" } });
+  res.json(rows.map(corporateEnquiryDTO));
+});
+
+adminRouter.patch("/corporate-enquiries/:id", async (req, res) => {
+  const parsed = enquiryStatusSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid status" });
+  const exists = await prisma.corporateEnquiry.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Enquiry not found" });
+  const updated = await prisma.corporateEnquiry.update({ where: { id: req.params.id }, data: { status: parsed.data.status } });
+  res.json(corporateEnquiryDTO(updated));
+});
+
+adminRouter.get("/reminders", async (_req, res) => {
+  const rows = await prisma.reminderSignup.findMany({ orderBy: { createdAt: "desc" } });
+  res.json(
+    rows.map((r) => ({
+      id: r.id,
+      email: r.email,
+      occasion: r.occasion,
+      reminderDate: r.reminderDate ? formatDate(r.reminderDate) : null,
+      notified: r.notified,
+      createdAt: r.createdAt.toISOString(),
+    })),
+  );
+});
+
+adminRouter.get("/subscriptions", async (_req, res) => {
+  const rows = await prisma.subscription.findMany({ orderBy: { createdAt: "desc" }, include: { orders: true } });
+  res.json(rows.map(subscriptionDTO));
+});
+
+adminRouter.patch("/subscriptions/:id", async (req, res) => {
+  const parsed = subscriptionStatusSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid status" });
+  const exists = await prisma.subscription.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Subscription not found" });
+  const updated = await prisma.subscription.update({ where: { id: req.params.id }, data: { status: parsed.data.status }, include: { orders: true } });
+  res.json(subscriptionDTO(updated));
 });
 
 // =====================  Settings (global toggles)  =====================

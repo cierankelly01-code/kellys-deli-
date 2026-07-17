@@ -16,6 +16,8 @@ const orderAddOnInput = z.object({
 
 export const OCCASIONS = ["Birthday", "Corporate", "Family gathering", "Other"] as const;
 
+export const SUBSCRIPTION_FREQUENCIES = ["weekly", "fortnightly", "monthly"] as const;
+
 export const createOrderSchema = z
   .object({
     items: z.array(orderItemInput).min(1, "Add at least one board").max(20).optional(),
@@ -30,6 +32,14 @@ export const createOrderSchema = z
     notes: z.string().max(1000).optional(),
     src: z.enum(["direct", "qr", "instagram", "referral"]).optional(),
     referralCodeUsed: z.string().max(40).optional(),
+    // Subscribe & Save recurring intent. The server reprices with the discount and creates
+    // a Subscription record; no card is taken (payment-ready, not payment-live).
+    isSubscription: z.boolean().optional(),
+    subscriptionFrequency: z.enum(SUBSCRIPTION_FREQUENCIES).optional(),
+    // Gift-a-board: a printed note tucked with the board (surfaces recipientName/giftMessage).
+    isGift: z.boolean().optional(),
+    recipientName: z.string().max(120).optional(),
+    giftMessage: z.string().max(500).optional(),
     // Legacy single-board shape (normalised to a one-item `items` array in the route).
     platterId: z.string().min(1).optional(),
     quantity: z.number().int().positive().max(50).optional(),
@@ -37,6 +47,10 @@ export const createOrderSchema = z
   .refine((d) => (d.items && d.items.length > 0) || !!d.platterId, {
     message: "Add at least one board",
     path: ["items"],
+  })
+  .refine((d) => !d.isSubscription || !!d.subscriptionFrequency, {
+    message: "Choose how often you'd like your board",
+    path: ["subscriptionFrequency"],
   });
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
@@ -199,3 +213,48 @@ export const blastSchema = z.object({
   message: z.string().min(1, "Message is required").max(640),
   audience: z.enum(["all", "big_spenders"]).default("all"),
 });
+
+// --- Occasion categories (admin-managed storefront) ---
+const slugRe = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+export const categoryUpsertSchema = z.object({
+  slug: z.string().min(1).max(60).regex(slugRe, "Slug must be lowercase words separated by hyphens"),
+  name: z.string().min(1).max(80),
+  tagline: z.string().max(160).nullable().optional(),
+  description: z.string().max(2000).nullable().optional(),
+  heroImageUrl: z.string().max(500).nullable().optional(),
+  seoTitle: z.string().max(200).nullable().optional(),
+  seoDescription: z.string().max(320).nullable().optional(),
+  isCorporate: z.boolean().optional(),
+  promotePlanner: z.boolean().optional(),
+  active: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+});
+export type CategoryUpsertInput = z.infer<typeof categoryUpsertSchema>;
+
+// Replace a category's assigned boards (ordered).
+export const categoryAssignSchema = z.object({
+  platterIds: z.array(z.string().min(1)).max(200),
+});
+
+// --- Corporate / office enquiry (lands in admin) ---
+export const corporateEnquirySchema = z.object({
+  company: z.string().min(1, "Company name is required").max(160),
+  contactName: z.string().min(1, "Your name is required").max(120),
+  email: z.string().email("A valid email is required"),
+  phone: z.string().max(30).optional(),
+  headcount: z.number().int().positive().max(100000).optional(),
+  frequency: z.enum(["one-off", "weekly", "fortnightly", "monthly"]).optional(),
+  message: z.string().max(2000).optional(),
+});
+export type CorporateEnquiryInput = z.infer<typeof corporateEnquirySchema>;
+
+// --- "Never miss it" reminder capture ---
+export const reminderSchema = z.object({
+  email: z.string().email("A valid email is required"),
+  occasion: z.string().min(1, "Tell us the occasion").max(120),
+  reminderDate: dateString.optional(),
+});
+export type ReminderInput = z.infer<typeof reminderSchema>;
+
+export const enquiryStatusSchema = z.object({ status: z.enum(["new", "contacted", "closed"]) });
+export const subscriptionStatusSchema = z.object({ status: z.enum(["pending", "active", "paused", "cancelled"]) });

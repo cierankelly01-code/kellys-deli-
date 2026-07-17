@@ -11,6 +11,9 @@ import type {
   AddOn,
   OrderItem,
   OrderAddOn,
+  Category,
+  CorporateEnquiry,
+  Subscription,
 } from "@prisma/client";
 import { formatDate } from "./capacity";
 import { toMoney } from "./money";
@@ -136,6 +139,64 @@ export function experienceDTO(e: Experience, opts: { includeCost?: boolean } = {
   return dto;
 }
 
+// Occasion category. `boardCount` / `boards` are attached by the route when it loads
+// the assignments (list view sends the count; the landing page sends the full boards).
+export function categoryDTO(
+  c: Category & { platters?: { platter: Platter; sortOrder: number }[] | null },
+  opts: { boardCount?: number } = {},
+) {
+  const assigned = c.platters
+    ? [...c.platters].sort((a, b) => a.sortOrder - b.sortOrder).map((pc) => platterDTO(pc.platter))
+    : undefined;
+  return {
+    id: c.id,
+    slug: c.slug,
+    name: c.name,
+    tagline: c.tagline,
+    description: c.description,
+    heroImageUrl: c.heroImageUrl,
+    seoTitle: c.seoTitle,
+    seoDescription: c.seoDescription,
+    isCorporate: c.isCorporate,
+    promotePlanner: c.promotePlanner,
+    active: c.active,
+    sortOrder: c.sortOrder,
+    boardCount: opts.boardCount ?? assigned?.length ?? 0,
+    ...(assigned ? { boards: assigned } : {}),
+  };
+}
+
+export function corporateEnquiryDTO(e: CorporateEnquiry) {
+  return {
+    id: e.id,
+    company: e.company,
+    contactName: e.contactName,
+    email: e.email,
+    phone: e.phone,
+    headcount: e.headcount,
+    frequency: e.frequency,
+    message: e.message,
+    status: e.status,
+    createdAt: e.createdAt.toISOString(),
+  };
+}
+
+export function subscriptionDTO(s: Subscription & { orders?: Order[] | null }) {
+  return {
+    id: s.id,
+    status: s.status,
+    frequency: s.frequency,
+    discountPct: s.discountPct,
+    customerName: s.customerName,
+    email: s.email,
+    phone: s.phone,
+    invoiced: s.invoiced,
+    notes: s.notes,
+    orderCount: s.orders?.length ?? 0,
+    createdAt: s.createdAt.toISOString(),
+  };
+}
+
 export function locationDTO(l: Location) {
   return {
     id: l.id,
@@ -195,6 +256,12 @@ export function orderDTO(
     deposit,
     balance: toMoney(total - deposit), // payable on collection
     depositStatus: o.depositStatus,
+    depositPaidAt: o.depositPaidAt ? o.depositPaidAt.toISOString() : null,
+    // Subscribe & Save recurring intent (payment-ready, not payment-live).
+    isSubscription: o.isSubscription,
+    subscriptionFrequency: o.subscriptionFrequency,
+    subscriptionDiscount: o.subscriptionDiscount != null ? Number(o.subscriptionDiscount) : null,
+    subscriptionId: o.subscriptionId,
     isGift: o.isGift,
     recipientName: o.recipientName,
     deliveryAddress: o.deliveryAddress,
