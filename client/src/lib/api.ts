@@ -73,6 +73,49 @@ export interface RecommendResponse {
 export const OCCASIONS = ["Birthday", "Corporate", "Family gathering", "Other"] as const;
 export type Occasion = (typeof OCCASIONS)[number];
 
+export const SUBSCRIPTION_FREQUENCIES = ["weekly", "fortnightly", "monthly"] as const;
+export type SubscriptionFrequency = (typeof SUBSCRIPTION_FREQUENCIES)[number];
+export const FREQUENCY_LABELS: Record<SubscriptionFrequency, string> = {
+  weekly: "Every week",
+  fortnightly: "Every two weeks",
+  monthly: "Every month",
+};
+
+// Occasion-based storefront category (admin-managed). Distinct from the `Category`
+// string union above, which is the Platter *type* classifier.
+export interface ShopCategory {
+  id: string;
+  slug: string;
+  name: string;
+  tagline: string | null;
+  description: string | null;
+  heroImageUrl: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  isCorporate: boolean;
+  promotePlanner: boolean;
+  active: boolean;
+  sortOrder: number;
+  boardCount: number;
+  boards?: Platter[]; // present on the single-category (landing page) response
+}
+
+export interface CorporateEnquiryInput {
+  company: string;
+  contactName: string;
+  email: string;
+  phone?: string;
+  headcount?: number;
+  frequency?: "one-off" | "weekly" | "fortnightly" | "monthly";
+  message?: string;
+}
+
+export interface ReminderInput {
+  email: string;
+  occasion: string;
+  reminderDate?: string;
+}
+
 export interface BoardComponent {
   id: string;
   category: BoardComponentCategory;
@@ -133,6 +176,9 @@ export interface CategoryCounts {
   reviewCount: string | null;
   firstOrderHook: boolean;
   firstOrderHookText: string | null;
+  subscribeSave: boolean;
+  subscribeSaveDiscountPct: number;
+  corporateNextDayDelivery: boolean;
 }
 
 export interface OpeningHours {
@@ -164,6 +210,7 @@ export interface Pricing {
   balance?: number;
   boardsTotal?: number;
   addOnsTotal?: number;
+  subscriptionDiscount?: number;
 }
 
 export interface OrderItemDTO {
@@ -202,6 +249,11 @@ export interface OrderDTO {
   deposit: number;
   balance: number;
   depositStatus: string;
+  depositPaidAt: string | null;
+  isSubscription: boolean;
+  subscriptionFrequency: SubscriptionFrequency | null;
+  subscriptionDiscount: number | null;
+  subscriptionId: string | null;
   isGift: boolean;
   recipientName: string | null;
   deliveryAddress: string | null;
@@ -252,6 +304,13 @@ export interface CreateOrderInput {
   notes?: string;
   src?: string;
   referralCodeUsed?: string;
+  // Subscribe & Save recurring intent.
+  isSubscription?: boolean;
+  subscriptionFrequency?: SubscriptionFrequency;
+  // Gift-a-board (printed note tucked with the board).
+  isGift?: boolean;
+  recipientName?: string;
+  giftMessage?: string;
 }
 
 export interface CreateBookingInput {
@@ -304,6 +363,14 @@ export const api = {
   recommend: (headcount: number) => req<RecommendResponse>(`/api/recommend?headcount=${headcount}`),
   experiences: () => req<Experience[]>("/api/experiences"),
   categories: () => req<CategoryCounts>("/api/categories"),
+  // Occasion storefront categories.
+  shopCategories: () => req<ShopCategory[]>("/api/categories/browse"),
+  shopCategory: (slug: string) => req<ShopCategory>(`/api/categories/${encodeURIComponent(slug)}`),
+  corporateEnquiry: (body: CorporateEnquiryInput) =>
+    req<{ ok: true }>("/api/corporate-enquiry", { method: "POST", body: JSON.stringify(body) }),
+  reminder: (body: ReminderInput) =>
+    req<{ ok: true }>("/api/reminders", { method: "POST", body: JSON.stringify(body) }),
+  paymentsStatus: () => req<{ enabled: boolean }>("/api/payments/status"),
   locations: () => req<LocationT[]>("/api/locations"),
   boardComponents: () => req<BoardComponent[]>("/api/board-components"),
   boardConfig: () => req<{ groups: BoardGroup[] }>("/api/board-config"),

@@ -85,6 +85,7 @@ export default function Orders() {
                 <div>
                   <strong>{o.ref}</strong> <span className={`pill status-${o.status}`}>{STATUS_LABEL[o.status] ?? o.status}</span>
                   {o.occasion && <span className="pill"> {o.occasion}</span>}
+                  {o.isSubscription && <span className="pill recurring-badge">Recurring · {o.subscriptionFrequency}</span>}
                   <div className="muted">{boardItems.join(", ") || "—"} · {o.headcount} ppl</div>
                   {o.addOns.length > 0 && (
                     <div className="muted">+ {o.addOns.map((a) => `${a.quantity}× ${a.name}`).join(", ")}</div>

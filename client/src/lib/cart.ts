@@ -2,7 +2,7 @@
 // the customer closing the tab (abandoned-basket recovery), with a freshness window so
 // a weeks-old cart doesn't reappear. Carries multiple boards + add-ons + a headcount
 // through the flow (direct order or event planner). The server always reprices on submit.
-import type { Occasion } from "./api";
+import type { Occasion, SubscriptionFrequency } from "./api";
 
 export interface CartBoard {
   platterId: string;
@@ -18,6 +18,9 @@ export interface Cart {
   headcount: number;
   occasion?: Occasion;
   src?: string;
+  // Subscribe & Save intent carried from the board page through to checkout. Undefined =
+  // a normal one-off order. No card is taken — the owner sets the schedule up manually.
+  subscription?: { frequency: SubscriptionFrequency };
   // "event" (Plan My Event) suggests add-on quantities from headcount; "direct" from the
   // board's feeds midpoint. Purely a suggestion hint — nothing is auto-added.
   origin: "direct" | "event";
@@ -62,6 +65,7 @@ export function loadCart(): Cart | null {
       headcount: c.headcount ?? 0,
       occasion: c.occasion,
       src: c.src,
+      subscription: c.subscription,
       origin: c.origin ?? "direct",
     };
   } catch {

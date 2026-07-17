@@ -45,6 +45,7 @@ export function Header() {
           <span className="brand-sub">Family Deli</span>
         </Link>
         <nav className="hdr-nav" aria-label="Main">
+          <Link className="u-link" to="/shop">Shop</Link>
           <Link className="u-link" to="/platters">Boards</Link>
           <Link className="u-link" to="/plan">Plan an event</Link>
           {showBasket && (

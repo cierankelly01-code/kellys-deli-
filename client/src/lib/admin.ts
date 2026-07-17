@@ -1,5 +1,5 @@
 // Admin API client + JWT token storage.
-import { ApiError, type OrderDTO, type Platter, type PlatterItem, type LocationT, type Experience, type Category, type BoardComponent, type BoardComponentCategory, type BoardGroup, type BoardType, type BoardSize, type BoardTier, type AddOn, type AddOnUnitType } from "./api";
+import { ApiError, type OrderDTO, type Platter, type PlatterItem, type LocationT, type Experience, type Category, type BoardComponent, type BoardComponentCategory, type BoardGroup, type BoardType, type BoardSize, type BoardTier, type AddOn, type AddOnUnitType, type ShopCategory, type SubscriptionFrequency } from "./api";
 
 const BASE = import.meta.env.VITE_API_URL || "";
 const TOKEN_KEY = "kd_admin_token";
@@ -192,6 +192,58 @@ export interface SmsCustomer {
   lastOrderAt: string | null;
 }
 
+export type AdminShopCategory = ShopCategory & { boards: Platter[] };
+
+export interface CategoryUpsertInput {
+  slug: string;
+  name: string;
+  tagline?: string | null;
+  description?: string | null;
+  heroImageUrl?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  isCorporate?: boolean;
+  promotePlanner?: boolean;
+  active?: boolean;
+  sortOrder?: number;
+}
+
+export interface CorporateEnquiryDTO {
+  id: string;
+  company: string;
+  contactName: string;
+  email: string;
+  phone: string | null;
+  headcount: number | null;
+  frequency: string | null;
+  message: string | null;
+  status: "new" | "contacted" | "closed";
+  createdAt: string;
+}
+
+export interface AdminReminder {
+  id: string;
+  email: string;
+  occasion: string;
+  reminderDate: string | null;
+  notified: boolean;
+  createdAt: string;
+}
+
+export interface SubscriptionDTO {
+  id: string;
+  status: "pending" | "active" | "paused" | "cancelled";
+  frequency: SubscriptionFrequency;
+  discountPct: number;
+  customerName: string;
+  email: string;
+  phone: string;
+  invoiced: boolean;
+  notes: string | null;
+  orderCount: number;
+  createdAt: string;
+}
+
 export const adminApi = {
   login: async (email: string, password: string) => {
     const res = await fetch(`${BASE}/api/auth/login`, {
@@ -262,6 +314,25 @@ export const adminApi = {
   updateAddOn: (id: string, input: AddOnUpsertInput) =>
     authedReq<AdminAddOn>(`/api/admin/add-ons/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
   deleteAddOn: (id: string) => authedReq<{ ok: boolean }>(`/api/admin/add-ons/${id}`, { method: "DELETE" }),
+
+  // Occasion categories
+  categories: () => authedReq<AdminShopCategory[]>(`/api/admin/categories`),
+  createCategory: (input: CategoryUpsertInput) =>
+    authedReq<AdminShopCategory>(`/api/admin/categories`, { method: "POST", body: JSON.stringify(input) }),
+  updateCategory: (id: string, input: CategoryUpsertInput) =>
+    authedReq<AdminShopCategory>(`/api/admin/categories/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  deleteCategory: (id: string) => authedReq<{ ok: boolean }>(`/api/admin/categories/${id}`, { method: "DELETE" }),
+  assignCategoryBoards: (id: string, platterIds: string[]) =>
+    authedReq<AdminShopCategory>(`/api/admin/categories/${id}/boards`, { method: "PUT", body: JSON.stringify({ platterIds }) }),
+
+  // Corporate enquiries + reminders + subscriptions
+  corporateEnquiries: () => authedReq<CorporateEnquiryDTO[]>(`/api/admin/corporate-enquiries`),
+  setEnquiryStatus: (id: string, status: "new" | "contacted" | "closed") =>
+    authedReq<CorporateEnquiryDTO>(`/api/admin/corporate-enquiries/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }),
+  reminders: () => authedReq<AdminReminder[]>(`/api/admin/reminders`),
+  subscriptions: () => authedReq<SubscriptionDTO[]>(`/api/admin/subscriptions`),
+  setSubscriptionStatus: (id: string, status: "pending" | "active" | "paused" | "cancelled") =>
+    authedReq<SubscriptionDTO>(`/api/admin/subscriptions/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }),
 
   // Settings (global toggles)
   settings: () => authedReq<Record<string, string>>(`/api/admin/settings`),

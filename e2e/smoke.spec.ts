@@ -7,6 +7,17 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "changeme123";
 const money = (s: string) => parseFloat(s.replace(/[^0-9.]/g, ""));
 const roundTo5p = (n: number) => Math.round((Math.round(n / 0.05) * 0.05) * 100) / 100;
 
+/** After an add-to-basket, reach /order — via the Smart Cart drawer (board/PDP adds open
+ * it) or directly (the event planner navigates straight there). */
+async function proceedToOrder(page: Page): Promise<void> {
+  const drawerCont = page.getByRole("button", { name: /Continue — choose collection day/ });
+  await Promise.race([
+    drawerCont.waitFor({ state: "visible", timeout: 8000 }).then(() => drawerCont.click()),
+    page.waitForURL(/\/order/, { timeout: 8000 }),
+  ]).catch(() => {});
+  await expect(page).toHaveURL(/\/order/);
+}
+
 /** Fill the details step and place the order; returns the confirmation ref. */
 async function completeOrder(page: Page): Promise<string> {
   await page.getByRole("button", { name: "Continue to details" }).click();
@@ -17,7 +28,7 @@ async function completeOrder(page: Page): Promise<string> {
   // Pick the first bookable (enabled) date in the capacity calendar.
   await page.locator(".cal-day:not([disabled])").first().click();
   await page.getByRole("button", { name: "Review order" }).click();
-  await expect(page.getByText("A 25% deposit confirms your order")).toBeVisible();
+  await expect(page.locator("p.deposit-policy")).toBeVisible();
   await page.getByRole("button", { name: "Place order request" }).click();
   await expect(page).toHaveURL(/\/confirm\//);
   await expect(page.getByRole("heading", { name: "Your order request is in!" })).toBeVisible();
@@ -41,7 +52,7 @@ test.describe("customer flows", () => {
     await page.locator(".gallery-card", { hasText: "Indian Board" }).click();
     await expect(page).toHaveURL(/\/platter\//);
     await page.getByRole("button", { name: /Add & continue/ }).click();
-    await expect(page).toHaveURL(/\/order/);
+    await proceedToOrder(page);
     await completeOrder(page);
   });
 
@@ -67,7 +78,7 @@ test.describe("customer flows", () => {
   test("direct signature order with two add-ons has correct totals", async ({ page }) => {
     await page.goto("/platters");
     await page.locator(".board-card", { hasText: "Medium Platter" }).getByRole("button", { name: /^Order/ }).click();
-    await expect(page).toHaveURL(/\/order/);
+    await proceedToOrder(page);
     // Add two add-ons: one suggested (per person) + one per-order.
     await page.locator(".addon-card", { hasText: "cutlery" }).getByRole("button", { name: /Add ×/ }).click();
     await page.locator(".addon-card", { hasText: "dips" }).getByRole("button", { name: "Add", exact: true }).click();
@@ -102,6 +113,7 @@ test.describe("admin", () => {
     // Seed an order first via the customer flow.
     await page.goto("/platters");
     await page.locator(".board-card", { hasText: "Small Platter" }).getByRole("button", { name: /^Order/ }).click();
+    await proceedToOrder(page);
     await completeOrder(page);
 
     await login(page);

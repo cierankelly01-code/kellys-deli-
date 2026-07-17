@@ -1,22 +1,28 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api, type Platter } from "../lib/api";
-import { addBoard } from "../lib/cart";
+import { api, type Platter, type CategoryCounts, type SubscriptionFrequency } from "../lib/api";
+import { addBoard, loadCart, saveCart, emptyCart } from "../lib/cart";
 import { openCartDrawer } from "../components/CartDrawer";
 import { gbp } from "../lib/format";
 import { Header } from "../components/Header";
 import { usePageTitle } from "../lib/title";
 import { DeadlineChip, TrustChips } from "../components/Trust";
+import { SubscribeSave } from "../components/SubscribeSave";
 
 export default function PlatterDetail() {
   const { id } = useParams();
   const [platter, setPlatter] = useState<Platter | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [counts, setCounts] = useState<CategoryCounts | null>(null);
+  const [subFreq, setSubFreq] = useState<SubscriptionFrequency | null>(null);
   usePageTitle(platter?.name);
 
   useEffect(() => {
     if (!id) return;
     api.platter(id).then(setPlatter).catch((e) => setError(e.message));
+    api.categories().then(setCounts).catch(() => setCounts(null));
+    // Pre-select any subscription choice already in the cart.
+    setSubFreq(loadCart()?.subscription?.frequency ?? null);
   }, [id]);
 
   // Per-board Product structured data — Google rich results + something concrete for
@@ -49,9 +55,19 @@ export default function PlatterDetail() {
 
   const order = () => {
     if (!platter) return;
+    // Persist the Subscribe & Save choice onto the cart so it carries into checkout.
+    const cart = loadCart() ?? emptyCart();
+    if (subFreq) cart.subscription = { frequency: subFreq };
+    else delete cart.subscription;
+    saveCart(cart);
     addBoard(platter.id);
     openCartDrawer();
   };
+
+  const subOn = counts?.subscribeSave !== false;
+  const subPct = counts?.subscribeSaveDiscountPct ?? 10;
+  const price = platter?.fixedPrice ?? platter?.fromPrice ?? 0;
+  const subPrice = Math.round(price * (1 - subPct / 100) * 100) / 100;
 
   if (error) {
     return (
@@ -87,8 +103,25 @@ export default function PlatterDetail() {
 
           <p className="detail-desc">{cleanDesc}</p>
 
-          <button className="btn" onClick={order}>Add &amp; continue — {gbp(platter.fixedPrice ?? platter.fromPrice)}</button>
-          <p className="buy-reassure">Only 25% today · balance on collection · fully refundable up to 48 hrs before</p>
+          {subOn && (
+            <SubscribeSave value={subFreq} onChange={setSubFreq} discountPct={subPct} />
+          )}
+
+          <button className="btn" onClick={order}>
+            {subFreq
+              ? `Start a subscription — ${gbp(subPrice)} / board`
+              : `Add & continue — ${gbp(platter.fixedPrice ?? platter.fromPrice)}`}
+          </button>
+          <p className="buy-reassure">
+            {subFreq
+              ? "No card taken now — we'll set your schedule up with you and confirm each board."
+              : "Only 25% today · balance on collection · fully refundable up to 48 hrs before"}
+          </p>
+
+          <p className="prebook-hint muted">
+            🎂 <strong>Planning ahead?</strong> Pick a future date at checkout to book this for a birthday or celebration —
+            25% locks it in, and you can add a gift note.
+          </p>
           <DeadlineChip />
 
           {platter.items.length > 0 && (

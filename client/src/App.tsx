@@ -1,6 +1,8 @@
 import { Routes, Route, Outlet } from "react-router-dom";
 import Choice from "./pages/Choice";
 import Platters from "./pages/Platters";
+import Shop from "./pages/Shop";
+import ShopCategory from "./pages/ShopCategory";
 import PlanEvent from "./pages/PlanEvent";
 import PlatterDetail from "./pages/PlatterDetail";
 import Order from "./pages/Order";
@@ -16,6 +18,8 @@ import Dashboard from "./pages/admin/Dashboard";
 import Orders from "./pages/admin/Orders";
 import PrepSheet from "./pages/admin/PrepSheet";
 import MenuEditor from "./pages/admin/MenuEditor";
+import Categories from "./pages/admin/Categories";
+import Enquiries from "./pages/admin/Enquiries";
 import AddOnsAdmin from "./pages/admin/AddOns";
 import Recommender from "./pages/admin/Recommender";
 import SiteSettings from "./pages/admin/SiteSettings";
@@ -42,6 +46,8 @@ export default function App() {
       <Route element={<CustomerLayout />}>
         <Route path="/" element={<Choice />} />
         <Route path="/platters" element={<Platters />} />
+        <Route path="/shop" element={<Shop />} />
+        <Route path="/shop/:slug" element={<ShopCategory />} />
         <Route path="/plan" element={<PlanEvent />} />
         <Route path="/platter/:id" element={<PlatterDetail />} />
         <Route path="/order" element={<Order />} />
@@ -58,6 +64,8 @@ export default function App() {
         <Route path="orders" element={<Orders />} />
         <Route path="prep" element={<PrepSheet />} />
         <Route path="menu" element={<MenuEditor />} />
+        <Route path="categories" element={<Categories />} />
+        <Route path="enquiries" element={<Enquiries />} />
         <Route path="add-ons" element={<AddOnsAdmin />} />
         <Route path="recommender" element={<Recommender />} />
         <Route path="settings" element={<SiteSettings />} />

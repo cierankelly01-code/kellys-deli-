@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { api, type CategoryCounts, type OpeningHours, type Platter } from "../lib/api";
+import { api, type CategoryCounts, type OpeningHours, type Platter, type ShopCategory } from "../lib/api";
 import { addBoard } from "../lib/cart";
 import { openCartDrawer } from "../components/CartDrawer";
 import { gbp } from "../lib/format";
@@ -63,6 +63,7 @@ function priceFeeds(p: Platter): string {
 export default function Choice() {
   const [counts, setCounts] = useState<CategoryCounts | null>(null);
   const [boards, setBoards] = useState<Platter[] | null>(null);
+  const [shopCats, setShopCats] = useState<ShopCategory[]>([]);
   const [showHours, setShowHours] = useState(false);
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -72,6 +73,7 @@ export default function Choice() {
   useEffect(() => {
     api.categories().then(setCounts).catch(() => setCounts(null));
     api.boards("signature").then(setBoards).catch(() => setBoards([]));
+    api.shopCategories().then(setShopCats).catch(() => setShopCats([]));
   }, []);
 
   const go = (path: string) => navigate(`${path}${suffix}`);
@@ -127,6 +129,35 @@ export default function Choice() {
       )}
 
       <div className="app app-wide">
+        {shopCats.length > 0 && (
+          <section className="occasion-section" data-reveal>
+            <div className="spread shelf-head">
+              <h2 className="section-h" style={{ margin: 0 }}>Shop by occasion</h2>
+              <button className="btn-ghost" onClick={() => go("/shop")}>See all →</button>
+            </div>
+            <div className="occasion-grid">
+              {shopCats.map((c, i) => (
+                <button
+                  key={c.id}
+                  className="occasion-card card"
+                  data-reveal
+                  data-reveal-delay={String(i % 2)}
+                  onClick={(e) =>
+                    morphNavigate(navigate, `/shop/${c.slug}${suffix}`, e.currentTarget.querySelector(".occasion-img") as HTMLElement | null)
+                  }
+                >
+                  <div className="occasion-img" style={{ backgroundImage: c.heroImageUrl ? `url(${c.heroImageUrl})` : undefined }} role="img" aria-label={c.name} />
+                  <div className="occasion-body">
+                    <h3 className="occasion-name">{c.name}</h3>
+                    {c.tagline && <p className="occasion-tag">{c.tagline}</p>}
+                    <span className="occasion-go">{c.boardCount} board{c.boardCount === 1 ? "" : "s"} →</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
         <section className="board-section">
           <div className="spread shelf-head" data-reveal>
             <h2 className="section-h" style={{ margin: 0 }}>Signature boards</h2>

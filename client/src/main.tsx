@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./styles/theme.css";
 import "./styles/components.css";
+import "./styles/shop.css";
 import "./styles/admin.css";
 import { startMotion } from "./lib/motion";
 

@@ -211,6 +211,9 @@
   .bc-row-actions { margin-left: 0; flex: 1 1 auto; justify-content: flex-end; }
 }
 
+/* Recurring / subscription order badge */
+.recurring-badge { background: var(--mustard, #e0a63f); color: #fff; }
+
 /* Print: show only the prep sheet, big and clean */
 @media print {
   .no-print, .admin-top, .admin-nav { display: none !important; }

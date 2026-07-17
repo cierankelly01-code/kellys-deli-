@@ -1,0 +1,213 @@
+/* Kelly's Deli — browse-by-occasion storefront, Subscribe & Save, corporate + creative.
+   Extends the Family Table system (tokens in theme.css). Reuses board-card/board-grid
+   where possible; only genuinely new surfaces get styles here. */
+
+/* ---------- Occasion index + homepage band ---------- */
+.shop-intro { max-width: 52ch; margin: -4px 0 22px; }
+
+.occasion-section { margin: 8px 0 28px; }
+
+.occasion-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin: 14px 0 8px;
+}
+
+.occasion-card {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: transform var(--dur-std) var(--ease-enter), box-shadow var(--dur-std) var(--ease-enter);
+}
+.occasion-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.occasion-img {
+  aspect-ratio: 16 / 10;
+  background-size: cover;
+  background-position: center;
+  background-color: #ece4d5;
+}
+.occasion-body { padding: 14px 16px 18px; }
+.occasion-name { font-size: 1.3rem; margin: 0 0 4px; }
+.occasion-tag { color: var(--ink-soft); margin: 0 0 10px; font-size: 0.95rem; }
+.occasion-go {
+  display: inline-block;
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gold-text);
+}
+
+/* ---------- Category landing page ---------- */
+.cat-hero {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  min-height: 220px;
+  display: flex;
+  align-items: flex-end;
+  background-size: cover;
+  background-position: center;
+  background-color: #2a3428;
+  margin: 8px 0 18px;
+}
+.cat-hero-scrim {
+  width: 100%;
+  padding: 28px 22px 22px;
+  background: linear-gradient(to top, rgba(20, 32, 26, 0.82) 8%, rgba(20, 32, 26, 0.15) 70%, transparent);
+}
+.cat-hero-h { color: #fff; margin: 0; font-size: 2.1rem; }
+.cat-hero-tag { color: #f3ecdd; margin: 6px 0 0; font-size: 1.05rem; }
+.cat-desc { max-width: 60ch; color: var(--ink-soft); margin: 0 0 18px; font-size: 1.02rem; }
+.cat-trust { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 18px; }
+
+.cat-subscribe-note {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: var(--good-bg);
+  border: 1px solid #cfe0c4;
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  margin: 22px 0;
+  font-size: 0.96rem;
+  color: #34492f;
+}
+.csn-badge {
+  flex: none;
+  font-size: 1.15rem;
+  color: var(--good);
+  line-height: 1.2;
+}
+
+.corp-section { margin: 26px 0; }
+.corp-standing { margin-bottom: 16px; }
+
+/* ---------- Subscribe & Save picker ---------- */
+.subscribe-save {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  margin: 14px 0;
+  background: var(--card);
+  transition: border-color var(--dur-micro), background var(--dur-micro);
+}
+.subscribe-save.is-on { border-color: var(--olive); background: #f4f6ee; }
+.ss-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-family: var(--serif);
+  font-size: 1.08rem;
+  color: var(--ink);
+}
+.ss-head input { width: 18px; height: 18px; accent-color: var(--olive); flex: none; }
+.ss-title { flex: 1; }
+.ss-badge {
+  background: var(--olive);
+  color: #fff;
+  font-family: var(--font);
+  font-weight: 800;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.ss-body { margin-top: 14px; }
+.ss-freq-label { margin: 0 0 8px; font-size: 0.9rem; color: var(--ink-soft); }
+.ss-freqs { display: flex; flex-wrap: wrap; gap: 8px; }
+.ss-freq {
+  flex: 1 1 auto;
+  min-width: 96px;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all var(--dur-micro);
+}
+.ss-freq:hover { border-color: var(--olive); }
+.ss-freq.active { background: var(--brick); color: #fff; border-color: var(--brick); }
+.ss-honest { margin: 12px 0 0; font-size: 0.86rem; color: var(--ink-soft); line-height: 1.5; }
+
+/* ---------- Corporate enquiry form ---------- */
+.corp-form { padding: 20px; }
+.corp-h { margin-top: 0; }
+.corp-sub { margin: -2px 0 16px; }
+.corp-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.corp-foot { margin: 12px 0 0; font-size: 0.82rem; }
+.corp-done { text-align: center; padding: 32px 22px; }
+.corp-tick {
+  width: 52px; height: 52px; margin: 0 auto 12px;
+  border-radius: 50%; background: var(--good-bg); color: var(--good);
+  display: grid; place-items: center; font-size: 1.6rem;
+}
+@media (max-width: 520px) { .corp-row { grid-template-columns: 1fr; } }
+
+/* ---------- Reminder capture ---------- */
+.reminder-capture {
+  border: 1px dashed var(--mustard);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin: 26px 0;
+  background: #fffdf8;
+}
+.rc-head { margin-bottom: 14px; }
+.rc-h { margin: 0 0 4px; }
+.rc-fields { display: grid; grid-template-columns: 1.2fr 1fr 1.4fr auto; gap: 8px; }
+.rc-fields select, .rc-fields input {
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  background: var(--card);
+  color: var(--ink);
+}
+.rc-fields .btn { width: auto; min-width: 120px; padding: 0 18px; }
+.reminder-capture.is-done { display: flex; align-items: center; gap: 12px; border-style: solid; border-color: #cfe0c4; background: var(--good-bg); }
+.reminder-capture.is-done p { margin: 0; color: #34492f; }
+.rc-tick { color: var(--good); font-size: 1.4rem; font-weight: 700; }
+@media (max-width: 640px) { .rc-fields { grid-template-columns: 1fr 1fr; } .rc-fields .btn { grid-column: 1 / -1; width: 100%; } }
+
+/* ---------- Book-ahead / birthday band ---------- */
+.prebook-band {
+  border-radius: var(--radius);
+  padding: 26px 24px;
+  margin: 28px 0;
+  background: linear-gradient(135deg, #223020, #33472d);
+  color: #f6f1e6;
+}
+.prebook-h { color: #fff; margin: 0 0 8px; font-size: 1.5rem; }
+.prebook-copy { color: #e7e0d1; margin: 0 0 16px; max-width: 56ch; }
+.prebook-cta { width: auto; padding: 0 22px; background: var(--mustard); color: #241f1a; }
+.prebook-cta:hover { background: #d29a3c; }
+.prebook-hint {
+  font-size: 0.88rem;
+  background: #faf0dc;
+  border: 1px solid #ecd9b0;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin: 14px 0;
+  color: #6b4e17;
+}
+
+/* ---------- Checkout: subscription + gift ---------- */
+.gift-toggle { border-top: 1px solid var(--line); padding-top: 14px; }
+.gift-check { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; }
+.gift-check input { width: 18px; height: 18px; accent-color: var(--olive); }
+.gift-fields { margin-top: 12px; }
+.review-row.discount { color: var(--good); font-weight: 600; }
+.recurring-note { background: #f4f6ee; border: 1px solid #d5e0c8; border-radius: var(--radius-sm); padding: 12px 14px; }
+.rt-saved { color: var(--good); font-weight: 700; }

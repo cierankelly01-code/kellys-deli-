@@ -5,17 +5,22 @@ import {
   OCCASIONS,
   type AddOn,
   type AvailabilityResponse,
+  type CategoryCounts,
   type LocationT,
   type Occasion,
   type Platter,
+  type SubscriptionFrequency,
 } from "../lib/api";
 import { loadCart, saveCart, clearCart, type Cart } from "../lib/cart";
-import { computeTotals, feedsMid } from "../lib/addOnPricing";
+import { computeTotals, feedsMid, roundTo5p } from "../lib/addOnPricing";
 import { gbp, formatDate } from "../lib/format";
 import { CapacityCalendar } from "../components/CapacityCalendar";
 import { AddOnsStep } from "../components/AddOnsStep";
 import { Header } from "../components/Header";
+import { SubscribeSave } from "../components/SubscribeSave";
 import { usePageTitle } from "../lib/title";
+
+const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 type Step = "extras" | "details" | "review";
 const STEPS: Step[] = ["extras", "details", "review"];
@@ -33,6 +38,7 @@ export default function Order() {
   const [addOns, setAddOns] = useState<AddOn[]>([]);
   const [locations, setLocations] = useState<LocationT[]>([]);
   const [availability, setAvailability] = useState<AvailabilityResponse | null>(null);
+  const [counts, setCounts] = useState<CategoryCounts | null>(null);
   const [step, setStep] = useState<Step>("extras");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,12 +51,18 @@ export default function Order() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
+  // Subscribe & Save + gift-a-board
+  const [subFreq, setSubFreq] = useState<SubscriptionFrequency | null>(null);
+  const [isGift, setIsGift] = useState(false);
+  const [recipientName, setRecipientName] = useState("");
+  const [giftMessage, setGiftMessage] = useState("");
 
   // Load catalogue + cart on mount.
   useEffect(() => {
     const c = loadCart();
     setCart(c ?? null);
     setOccasion((c?.occasion as Occasion) ?? "");
+    setSubFreq(c?.subscription?.frequency ?? null);
     Promise.all([api.boards(), api.addOns(), api.locations()])
       .then(([b, a, l]) => {
         setBoards(b);
@@ -59,7 +71,21 @@ export default function Order() {
         if (l[0]) setLocationId((prev) => prev || l[0].id);
       })
       .catch(() => setError("Couldn't load the menu. Please try again."));
+    api.categories().then(setCounts).catch(() => setCounts(null));
   }, []);
+
+  // Keep the subscription choice on the cart (survives reloads / drawer re-entry).
+  function setSubscription(freq: SubscriptionFrequency | null) {
+    setSubFreq(freq);
+    setCart((prev) => {
+      const base: Cart = prev ?? { boards: [], addOns: [], headcount: 0, origin: "direct" };
+      const merged: Cart = { ...base };
+      if (freq) merged.subscription = { frequency: freq };
+      else delete merged.subscription;
+      saveCart(merged);
+      return merged;
+    });
+  }
 
   // Availability follows the chosen location.
   useEffect(() => {
@@ -100,6 +126,15 @@ export default function Order() {
       ),
     [boardLines, addOnLines],
   );
+
+  // Subscribe & Save display maths (server reprices authoritatively on submit). Mirrors
+  // server money.ts: % off the subtotal first, then 25% deposit rounded to the nearest 5p.
+  const subOn = counts?.subscribeSave !== false;
+  const subPct = subFreq && subOn ? counts?.subscribeSaveDiscountPct ?? 10 : 0;
+  const subDiscount = subPct > 0 ? money((totals.total * subPct) / 100) : 0;
+  const finalTotal = money(totals.total - subDiscount);
+  const finalDeposit = subPct > 0 ? roundTo5p(finalTotal * 0.25) : totals.deposit;
+  const finalBalance = money(finalTotal - finalDeposit);
 
   // Headcount used for add-on suggestions: the event headcount, or the boards' combined
   // feeds midpoint for a direct order.
@@ -162,6 +197,11 @@ export default function Order() {
         email: email.trim(),
         notes: notes.trim() || undefined,
         src: cart?.src || params.get("src") || undefined,
+        isSubscription: subFreq ? true : undefined,
+        subscriptionFrequency: subFreq || undefined,
+        isGift: isGift || undefined,
+        recipientName: isGift ? recipientName.trim() || undefined : undefined,
+        giftMessage: isGift ? giftMessage.trim() || undefined : undefined,
       });
       clearCart();
       navigate(`/confirm/${res.order.ref}`);
@@ -211,7 +251,7 @@ export default function Order() {
       {step === "extras" && (
         <>
           <AddOnsStep addOns={addOns} headcount={headcount} value={cart?.addOns ?? []} onChange={(next) => update({ addOns: next })} />
-          <RunningTotal totals={totals} />
+          <RunningTotal total={finalTotal} deposit={finalDeposit} subDiscount={subDiscount} />
           <div className="step-actions">
             <button className="btn" onClick={() => setStep("details")}>Continue to details</button>
           </div>
@@ -265,12 +305,37 @@ export default function Order() {
             </select>
           </label>
 
+          {subOn && (
+            <div className="field">
+              <span>Make it a regular thing?</span>
+              <SubscribeSave
+                value={subFreq}
+                onChange={setSubscription}
+                discountPct={counts?.subscribeSaveDiscountPct ?? 10}
+                invoiced={occasion === "Corporate"}
+              />
+            </div>
+          )}
+
+          <div className="field gift-toggle">
+            <label className="gift-check">
+              <input type="checkbox" checked={isGift} onChange={(e) => setIsGift(e.target.checked)} />
+              <span>🎁 This is a gift — add a printed note</span>
+            </label>
+            {isGift && (
+              <div className="gift-fields">
+                <label className="field"><span>Who&apos;s it for?</span><input value={recipientName} onChange={(e) => setRecipientName(e.target.value)} placeholder="Recipient's name" /></label>
+                <label className="field"><span>Gift message (we&apos;ll print it and tuck it in)</span><textarea rows={2} maxLength={500} value={giftMessage} onChange={(e) => setGiftMessage(e.target.value)} placeholder="Happy birthday! Enjoy every bite x" /></label>
+              </div>
+            )}
+          </div>
+
           <label className="field"><span>Your name</span><input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></label>
           <label className="field"><span>Phone</span><input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" /></label>
           <label className="field"><span>Email</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" /></label>
           <label className="field"><span>Allergies / notes (optional)</span><textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} /></label>
 
-          <RunningTotal totals={totals} />
+          <RunningTotal total={finalTotal} deposit={finalDeposit} subDiscount={subDiscount} />
           <div className="step-actions">
             <button className="btn-ghost" onClick={() => setStep("extras")}>Back</button>
             <button className="btn" disabled={!detailsValid} onClick={() => setStep("review")}>Review order</button>
@@ -288,15 +353,30 @@ export default function Order() {
             {addOnLines.map((l) => (
               <div key={l.addOn.id} className="review-row muted"><span>{l.quantity}× {l.addOn.name}</span><span>{gbp(l.unitPrice * l.quantity)}</span></div>
             ))}
-            <div className="review-row total"><span>Total</span><span>{gbp(totals.total)}</span></div>
-            <div className="review-row"><span>Deposit due (25%)</span><span>{gbp(totals.deposit)}</span></div>
-            <div className="review-row"><span>Balance on collection</span><span>{gbp(totals.balance)}</span></div>
-            {date && <div className="review-row muted"><span>Collection</span><span>{formatDate(date)}</span></div>}
+            {subDiscount > 0 && (
+              <>
+                <div className="review-row muted"><span>Subtotal</span><span>{gbp(totals.total)}</span></div>
+                <div className="review-row discount"><span>Subscribe &amp; save ({subPct}%)</span><span>−{gbp(subDiscount)}</span></div>
+              </>
+            )}
+            <div className="review-row total"><span>{subDiscount > 0 ? "Total per delivery" : "Total"}</span><span>{gbp(finalTotal)}</span></div>
+            <div className="review-row"><span>Deposit due (25%)</span><span>{gbp(finalDeposit)}</span></div>
+            <div className="review-row"><span>Balance on collection</span><span>{gbp(finalBalance)}</span></div>
+            {date && <div className="review-row muted"><span>{subFreq ? "First collection" : "Collection"}</span><span>{formatDate(date)}</span></div>}
+            {isGift && recipientName.trim() && <div className="review-row muted"><span>Gift for</span><span>{recipientName.trim()}</span></div>}
           </div>
 
-          <p className="deposit-policy">
-            A 25% deposit confirms your order. Deposits are fully refundable up to 48 hours before collection.
-          </p>
+          {subFreq ? (
+            <p className="deposit-policy recurring-note">
+              <strong>You&apos;re setting up a {subFreq} board.</strong> No card is taken now and nothing bills
+              automatically — we&apos;ll get in touch to set your schedule up with you and confirm each delivery before we
+              make it. The 25% deposit confirms your first board; pause, skip or cancel any time.
+            </p>
+          ) : (
+            <p className="deposit-policy">
+              A 25% deposit confirms your order. Deposits are fully refundable up to 48 hours before collection.
+            </p>
+          )}
 
           {error && <p className="form-error" role="alert">{error}</p>}
           <div className="step-actions">
@@ -311,11 +391,14 @@ export default function Order() {
   );
 }
 
-function RunningTotal({ totals }: { totals: { total: number; deposit: number } }) {
+function RunningTotal({ total, deposit, subDiscount = 0 }: { total: number; deposit: number; subDiscount?: number }) {
   return (
     <div className="running-total">
-      <div><span className="muted">Order total</span> <strong>{gbp(totals.total)}</strong></div>
-      <div className="muted small">25% deposit to confirm: {gbp(totals.deposit)}</div>
+      <div>
+        <span className="muted">Order total</span> <strong>{gbp(total)}</strong>
+        {subDiscount > 0 && <span className="rt-saved"> · you save {gbp(subDiscount)}</span>}
+      </div>
+      <div className="muted small">25% deposit to confirm: {gbp(deposit)}</div>
     </div>
   );
 }
