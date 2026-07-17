@@ -48,12 +48,110 @@ model Platter {
   recommendPriority Int         @default(0) // higher = recommended first
   orders            Order[]
   orderItems        OrderItem[]
+  categories        PlatterCategory[]
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
   @@index([category])
   @@index([boardType])
   @@index([tier])
+}
+
+// Occasion-based storefront categories (Hosting, At Home, Office & Corporate, …).
+// Fully admin-managed: the owner adds/renames categories and assigns boards. This is
+// ORTHOGONAL to Platter.category (a type classifier: home|board|platters…). It drives
+// the browse-by-occasion storefront and each category's SEO landing page.
+model Category {
+  id             String            @id @default(cuid())
+  slug           String            @unique // URL + SEO, e.g. "hosting", "at-home", "office-corporate"
+  name           String // "Hosting"
+  tagline        String? // short hero subtitle
+  description    String? // intro copy on the landing page
+  heroImageUrl   String?
+  // SEO — each category is a search landing page ("office catering solihull" etc.).
+  seoTitle       String?
+  seoDescription String?
+  // Corporate categories surface the enquiry path + monthly-invoicing subscription copy.
+  isCorporate    Boolean           @default(false)
+  // Promote the "Plan My Event" recommender alongside the boards (Hosting).
+  promotePlanner Boolean           @default(false)
+  active         Boolean           @default(true)
+  sortOrder      Int               @default(0)
+  platters       PlatterCategory[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([active, sortOrder])
+}
+
+// Board ↔ category assignment (many-to-many): a board can appear in several occasions.
+model PlatterCategory {
+  id         String   @id @default(cuid())
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  platterId  String
+  platter    Platter  @relation(fields: [platterId], references: [id], onDelete: Cascade)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@unique([categoryId, platterId])
+  @@index([platterId])
+}
+
+// Subscribe & Save recurring plan. Payment-READY, not payment-LIVE: created when a
+// customer opts into a recurring board so the owner sees the intent and sets the schedule
+// up manually. Fields map cleanly onto Stripe Billing for when Stripe lands.
+model Subscription {
+  id                   String   @id @default(cuid())
+  // pending = awaiting owner setup; active|paused|cancelled mirror Stripe sub statuses.
+  status               String   @default("pending")
+  frequency            String // weekly | fortnightly | monthly  (-> Stripe price interval)
+  discountPct          Int      @default(10)
+  customerName         String
+  email                String
+  phone                String
+  // Corporate subscriptions are invoiced monthly rather than card-billed up front.
+  invoiced             Boolean  @default(false)
+  notes                String?
+  // Stripe Billing mapping — nullable until Stripe lands.
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  stripePriceId        String?
+  orders               Order[]
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([status])
+}
+
+// Corporate / office enquiry — lands in admin. Company, headcount, frequency so the
+// owner can follow up and confirm a standing-order schedule.
+model CorporateEnquiry {
+  id          String   @id @default(cuid())
+  company     String
+  contactName String
+  email       String
+  phone       String?
+  headcount   Int?
+  frequency   String? // one-off | weekly | fortnightly | monthly
+  message     String?
+  status      String   @default("new") // new | contacted | closed
+  createdAt   DateTime @default(now())
+
+  @@index([status])
+}
+
+// "Never miss it" — capture an email to remind the customer before an occasion
+// (Mother's Day, Christmas, a birthday). Lands in admin; the owner nudges nearer the time.
+model ReminderSignup {
+  id           String    @id @default(cuid())
+  email        String
+  occasion     String // "Mother's Day" | "Christmas" | "Birthday" | free text
+  reminderDate DateTime? @db.Date // optional specific date to prompt before
+  notified     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+
+  @@index([occasion])
 }
 
 // Optional extras attached to any order (cutlery, plates, drinks, setup, sweet boards...).
@@ -146,6 +244,17 @@ model Order {
   total                    Decimal      @db.Decimal(10, 2)
   deposit                  Decimal      @db.Decimal(10, 2)
   depositStatus            String       @default("pending") // pending | paid | refunded
+  // Deposit payment plumbing — a future Stripe webhook flips depositStatus -> paid and
+  // stamps depositPaidAt. depositIntentId stores the provider's payment-intent id.
+  depositIntentId          String?
+  depositPaidAt            DateTime?
+  // Subscribe & Save recurring intent (payment-ready, not payment-live). The first order
+  // carries a snapshot of the recurring terms; subscription links the ongoing plan.
+  isSubscription           Boolean      @default(false)
+  subscriptionFrequency    String? // weekly | fortnightly | monthly
+  subscriptionDiscount     Decimal?     @db.Decimal(10, 2)
+  subscriptionId           String?
+  subscription             Subscription? @relation(fields: [subscriptionId], references: [id])
   // gift delivery
   isGift                   Boolean      @default(false)
   recipientName            String?
@@ -177,6 +286,7 @@ model Order {
   @@index([status])
   @@index([src])
   @@index([type])
+  @@index([isSubscription])
 }
 
 // A board line on a v2 order (signature/gallery board × quantity). unitPrice is a

@@ -178,6 +178,165 @@ async function main() {
     await prisma.platter.upsert({ where: { id: b.id }, update: {}, create: { id: b.id, ...data } });
   }
 
+  // --- "At Home" personality boards (smaller, occasion-named). Real orderable boards
+  // (category "board", gallery tier) whose curated home is the At Home category page.
+  // Not recommender-eligible (they're intimate, not crowd-feeders). Owner renames/prices
+  // in admin — create-only so those edits survive a reseed. ---
+  interface AtHomeSeed {
+    id: string;
+    name: string;
+    price: number;
+    cost: number;
+    feedsMin: number;
+    feedsMax: number;
+    description: string;
+    imageUrl: string;
+    items: { label: string; qtyPerUnit: number }[];
+  }
+  const atHomeBoards: AtHomeSeed[] = [
+    {
+      id: "board-date-night", name: "The Date Night", price: 28, cost: 11, feedsMin: 2, feedsMax: 2,
+      description: `Cheese, charcuterie and all the nice little extras for two — dim the lights, we did the shopping. ${CHECK}`,
+      imageUrl: "https://images.unsplash.com/photo-1541529086526-db283c563270?auto=format&fit=crop&w=900&q=70",
+      items: [{ label: "Cheese selection", qtyPerUnit: 1 }, { label: "Cured meats", qtyPerUnit: 1 }, { label: "Crackers, olives & chutney", qtyPerUnit: 1 }, { label: "Fresh fruit & nibbles", qtyPerUnit: 1 }],
+    },
+    {
+      id: "board-too-hot-to-cook", name: "The Too Hot to Cook", price: 32, cost: 13, feedsMin: 2, feedsMax: 3,
+      description: `Everything cold, everything sorted. When it's too warm to face the hob, dinner's a board. ${CHECK}`,
+      imageUrl: "https://images.unsplash.com/photo-1592417817098-8fd3d9eb14a5?auto=format&fit=crop&w=900&q=70",
+      items: [{ label: "Cold cuts & cheese", qtyPerUnit: 1 }, { label: "Fresh bread & crackers", qtyPerUnit: 1 }, { label: "Salad bits & pickles", qtyPerUnit: 1 }, { label: "Fruit", qtyPerUnit: 1 }],
+    },
+    {
+      id: "board-sunday-graze", name: "The Sunday Graze", price: 38, cost: 15, feedsMin: 3, feedsMax: 4,
+      description: `A lazy Sunday spread to pick at all afternoon — no cooking, no washing up. ${CHECK}`,
+      imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=900&q=70",
+      items: [{ label: "Cheeses & meats", qtyPerUnit: 1 }, { label: "Savoury pastries", qtyPerUnit: 1 }, { label: "Dips & crackers", qtyPerUnit: 1 }, { label: "Fresh fruit", qtyPerUnit: 1 }],
+    },
+    {
+      id: "board-movie-night", name: "The Movie Night", price: 26, cost: 10, feedsMin: 2, feedsMax: 4,
+      description: `Sweet and savoury nibbles built for the sofa — press play, we've got the snacks. ${CHECK}`,
+      imageUrl: "https://images.unsplash.com/photo-1499195333224-3ce974eecb47?auto=format&fit=crop&w=900&q=70",
+      items: [{ label: "Savoury snacks", qtyPerUnit: 1 }, { label: "Sweet treats", qtyPerUnit: 1 }, { label: "Popcorn & crisps", qtyPerUnit: 1 }, { label: "Chocolate", qtyPerUnit: 1 }],
+    },
+    {
+      id: "board-just-because", name: "The Just Because", price: 30, cost: 12, feedsMin: 2, feedsMax: 3,
+      description: `No occasion needed. A proper little treat board for a normal Tuesday. ${CHECK}`,
+      imageUrl: "https://images.unsplash.com/photo-1526234362653-3b75a0c07438?auto=format&fit=crop&w=900&q=70",
+      items: [{ label: "Cheese & charcuterie", qtyPerUnit: 1 }, { label: "Crackers & chutney", qtyPerUnit: 1 }, { label: "Olives & nibbles", qtyPerUnit: 1 }, { label: "Fruit", qtyPerUnit: 1 }],
+    },
+    {
+      id: "board-payday-treat", name: "The Payday Treat", price: 35, cost: 14, feedsMin: 2, feedsMax: 3,
+      description: `You've earned it. A step-up board of the good stuff to mark the month. ${CHECK}`,
+      imageUrl: "https://images.unsplash.com/photo-1464195244916-405fa0a82545?auto=format&fit=crop&w=900&q=70",
+      items: [{ label: "Premium cheeses", qtyPerUnit: 1 }, { label: "Charcuterie", qtyPerUnit: 1 }, { label: "Antipasti & dips", qtyPerUnit: 1 }, { label: "Fresh fruit", qtyPerUnit: 1 }],
+    },
+    {
+      id: "board-new-neighbours", name: "The New Neighbours", price: 30, cost: 12, feedsMin: 2, feedsMax: 4,
+      description: `A warm welcome on a board — the kind thing to leave on a new doorstep. ${CHECK}`,
+      imageUrl: "https://images.unsplash.com/photo-1478145046317-39f10e56b5e9?auto=format&fit=crop&w=900&q=70",
+      items: [{ label: "Cheese & crackers", qtyPerUnit: 1 }, { label: "Savoury selection", qtyPerUnit: 1 }, { label: "Sweet treats", qtyPerUnit: 1 }, { label: "Fruit", qtyPerUnit: 1 }],
+    },
+    {
+      id: "board-duvet-day", name: "The Duvet Day", price: 24, cost: 9, feedsMin: 1, feedsMax: 2,
+      description: `Comfort food on a board for a slow day in — everything nice, nothing that needs the oven. ${CHECK}`,
+      imageUrl: "https://images.unsplash.com/photo-1484723091739-30a097e8f929?auto=format&fit=crop&w=900&q=70",
+      items: [{ label: "Comfort nibbles", qtyPerUnit: 1 }, { label: "Fresh bread & cheese", qtyPerUnit: 1 }, { label: "Sweet treats", qtyPerUnit: 1 }, { label: "Fruit", qtyPerUnit: 1 }],
+    },
+  ];
+  for (let i = 0; i < atHomeBoards.length; i++) {
+    const b = atHomeBoards[i];
+    const data = {
+      category: "board",
+      tier: "gallery" as const,
+      name: b.name,
+      description: b.description,
+      pricePerHead: null as number | null,
+      fixedPrice: b.price,
+      cost: b.cost,
+      serves: b.feedsMin === b.feedsMax ? `${b.feedsMin}` : `${b.feedsMin}-${b.feedsMax}`,
+      feedsMin: b.feedsMin,
+      feedsMax: b.feedsMax,
+      minHeadcount: 1,
+      items: b.items,
+      imageUrl: b.imageUrl,
+      active: true,
+      sortOrder: 100 + i, // after the catering gallery boards
+      recommendEligible: false,
+      recommendPriority: 0,
+    };
+    await prisma.platter.upsert({ where: { id: b.id }, update: {}, create: { id: b.id, ...data } });
+  }
+
+  // --- Occasion categories (browse-by-occasion storefront). Admin renames / reassigns;
+  // create-only upsert so those edits survive a reseed. Board assignments below are also
+  // create-only. ---
+  interface CategorySeed {
+    id: string;
+    slug: string;
+    name: string;
+    tagline: string;
+    description: string;
+    heroImageUrl: string;
+    seoTitle: string;
+    seoDescription: string;
+    isCorporate?: boolean;
+    promotePlanner?: boolean;
+    boardIds: string[];
+  }
+  const categories: CategorySeed[] = [
+    {
+      id: "cat-hosting", slug: "hosting", name: "Hosting",
+      tagline: "Feeding a crowd? Start here.",
+      description: "Boards and platters built to feed a room — 10 people and up. Pick a size, add the extras, and we'll have it ready to collect. Not sure how much you need? Plan your event and we'll suggest the spread.",
+      heroImageUrl: "https://images.unsplash.com/photo-1504754524776-8f4f37790ca0?auto=format&fit=crop&w=1400&q=70",
+      seoTitle: "Party & Event Catering Boards, Solihull — Kelly's Deli",
+      seoDescription: "Grazing boards and catering platters for parties and events in Solihull. Feeds 10+, made fresh for collection, 25% deposit. Tell us your numbers and we'll plan the spread.",
+      promotePlanner: true,
+      boardIds: ["board-medium-platter", "board-large-platter", "board-small-platter", "board-sandwich", "board-indian", "board-charcuterie"],
+    },
+    {
+      id: "cat-at-home", slug: "at-home", name: "At Home",
+      tagline: "Smaller boards for a night in.",
+      description: "Proper little boards for two, three or four — date nights, lazy Sundays, or just because it's Tuesday. No cooking, no washing up, all the good bits.",
+      heroImageUrl: "https://images.unsplash.com/photo-1541529086526-db283c563270?auto=format&fit=crop&w=1400&q=70",
+      seoTitle: "Date Night & Grazing Boards for Two, Solihull — Kelly's Deli",
+      seoDescription: "Small grazing boards for a night in — date nights, movie nights, Sunday grazing. Made fresh in Bentley Heath for collection. Feeds two to four.",
+      boardIds: ["board-date-night", "board-too-hot-to-cook", "board-sunday-graze", "board-movie-night", "board-just-because", "board-payday-treat", "board-new-neighbours", "board-duvet-day", "board-cheese", "board-charcuterie", "board-salmon"],
+    },
+    {
+      id: "cat-office", slug: "office-corporate", name: "Office & Corporate",
+      tagline: "Platters for the workplace.",
+      description: "Feed the meeting or set up a standing platter for the office. One-off orders or a regular weekly or monthly delivery — tell us your numbers and how often, and we'll confirm a schedule that suits you.",
+      heroImageUrl: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1400&q=70",
+      seoTitle: "Office Catering & Corporate Platters, Solihull — Kelly's Deli",
+      seoDescription: "Office catering and corporate platters in Solihull. One-off meeting orders or a standing weekly/monthly office platter — delivery available for regular orders, we'll confirm your schedule.",
+      isCorporate: true,
+      boardIds: ["board-sandwich", "board-breakfast", "board-medium-platter", "board-large-platter", "board-small-platter"],
+    },
+  ];
+  for (let i = 0; i < categories.length; i++) {
+    const c = categories[i];
+    await prisma.category.upsert({
+      where: { id: c.id },
+      update: {},
+      create: {
+        id: c.id, slug: c.slug, name: c.name, tagline: c.tagline, description: c.description,
+        heroImageUrl: c.heroImageUrl, seoTitle: c.seoTitle, seoDescription: c.seoDescription,
+        isCorporate: c.isCorporate ?? false, promotePlanner: c.promotePlanner ?? false,
+        active: true, sortOrder: i,
+      },
+    });
+    // Assign boards (create-only per pair so admin reassignments survive a reseed).
+    for (let j = 0; j < c.boardIds.length; j++) {
+      const platterId = c.boardIds[j];
+      await prisma.platterCategory.upsert({
+        where: { categoryId_platterId: { categoryId: c.id, platterId } },
+        update: {},
+        create: { categoryId: c.id, platterId, sortOrder: j },
+      });
+    }
+  }
+
   // --- Add-ons (upsell engine, build spec §3) — PLACEHOLDER prices, owner corrects in admin ---
   interface AddOnSeed {
     id: string;
@@ -235,6 +394,14 @@ async function main() {
     { key: "reviewCount", value: "47" },
     // v2: collection lead time in hours (protects the kitchen). Admin-editable in Site Settings.
     { key: "orderLeadTimeHours", value: "48" },
+    // Subscribe & Save (recurring boards). Payment-ready, not payment-live — the owner
+    // sets each schedule up manually until Stripe lands. Discount is a whole-number %.
+    { key: "subscribeSave", value: "on" },
+    { key: "subscribeSaveDiscountPct", value: "10" },
+    // Corporate next-day delivery: OFF until the owner confirms next-day capability. While
+    // off, corporate copy says "delivery available for regular orders — we'll confirm your
+    // schedule" rather than promising next-working-day.
+    { key: "corporateNextDayDelivery", value: "off" },
   ];
   for (const s of settings) {
     await prisma.setting.upsert({ where: { key: s.key }, update: {}, create: s });
@@ -264,7 +431,7 @@ async function main() {
     create: { name: "Demo Customer", phone: "07700900123", email: "demo@example.com", referralCode: randomReferralCode() },
   });
 
-  console.log(`Seeded ${locations.length} locations, ${boards.length} boards, ${addOns.length} add-ons, ${settings.length} settings, admin <${email}>.`);
+  console.log(`Seeded ${locations.length} locations, ${boards.length + atHomeBoards.length} boards, ${categories.length} categories, ${addOns.length} add-ons, ${settings.length} settings, admin <${email}>.`);
 }
 
 main()
