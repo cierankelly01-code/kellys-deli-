@@ -14,6 +14,11 @@ export const env = {
   port: Number(process.env.PORT ?? (isProd ? 3000 : 4000)),
   // CLIENT_ORIGIN may be a comma-separated list of allowed origins.
   clientOrigins: (process.env.CLIENT_ORIGIN ?? "http://localhost:5173").split(",").map((s) => s.trim()).filter(Boolean),
+  // Public base URL for customer-facing links in outbound messages (referral/review SMS + email).
+  // Distinct from CLIENT_ORIGIN (a CORS allowlist): defaults to the live site in prod so links
+  // never fall back to localhost when CLIENT_ORIGIN is unset. Optional + overridable; NEVER a
+  // boot requirement — the site must start without PUBLIC_URL set.
+  publicUrl: (process.env.PUBLIC_URL ?? (isProd ? "https://www.kellysdeli.co.uk" : "http://localhost:5173")).replace(/\/+$/, ""),
   // Stripe — OPTIONAL. The payments module no-ops (stub deposit intents, webhook 503s)
   // when these are absent, so the site boots and runs fine without them. NEVER add these
   // to the required-secrets check below: making them boot requirements would break deploys

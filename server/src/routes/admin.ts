@@ -106,7 +106,7 @@ adminRouter.patch("/orders/:id/status", async (req, res) => {
       const code = order.customer?.referralCode;
       const target = { name: order.customerName, phone: order.phone, email: order.email };
       await notifyReviewRequest(target, GOOGLE_REVIEW_URL);
-      if (code) await notifyReferralOffer(target, code, `${env.clientOrigins[0]}/order?referral=${code}`);
+      if (code) await notifyReferralOffer(target, code, `${env.publicUrl}/order?referral=${code}`);
     }
   }
 
