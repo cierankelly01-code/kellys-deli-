@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, type AddOn, type Platter } from "../lib/api";
+import { api, type AddOn, type CategoryCounts, type Platter } from "../lib/api";
 import { emptyCart, loadCart, saveCart, type Cart } from "../lib/cart";
 import { computeTotals } from "../lib/addOnPricing";
 import { gbp } from "../lib/format";
@@ -27,6 +27,7 @@ export function CartDrawer() {
   const [cart, setCart] = useState<Cart>(() => loadCart() ?? emptyCart());
   const [boards, setBoards] = useState<Platter[]>([]);
   const [addOns, setAddOns] = useState<AddOn[]>([]);
+  const [content, setContent] = useState<CategoryCounts | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
   const navigate = useNavigate();
@@ -46,6 +47,7 @@ export function CartDrawer() {
     if (!open || boards.length > 0) return;
     api.boards().then(setBoards).catch(() => setBoards([]));
     api.addOns().then((a) => setAddOns(a.filter((x) => x.active))).catch(() => setAddOns([]));
+    api.categories().then(setContent).catch(() => setContent(null));
   }, [open, boards.length]);
 
   useEffect(() => {
@@ -104,6 +106,13 @@ export function CartDrawer() {
   // Upsells: active add-ons not yet in the basket, in admin sort order, capped at 4.
   const upsells = addOns.filter((a) => !cart.addOns.some((c) => c.addOnId === a.id)).slice(0, 4);
 
+  // "Spend £X, get a free treat" progress. Only when the owner has switched it on with a
+  // threshold + reward. The gift is added at no charge on the server — this is the nudge.
+  const giftOn = !!content?.freeGift && content.freeGiftThreshold > 0 && !!content.freeGiftText;
+  const giftRemaining = giftOn ? Math.max(0, content!.freeGiftThreshold - totals.total) : 0;
+  const giftUnlocked = giftOn && totals.total >= content!.freeGiftThreshold;
+  const giftPct = giftOn ? Math.min(100, Math.round((totals.total / content!.freeGiftThreshold) * 100)) : 0;
+
   const checkout = () => {
     close();
     navigate("/order");
@@ -122,6 +131,19 @@ export function CartDrawer() {
 
         <div className="drawer-body">
           {lines.length === 0 && <p className="muted">Your basket is empty — add a board to get started.</p>}
+
+          {lines.length > 0 && giftOn && (
+            <div className={`gift-bar${giftUnlocked ? " unlocked" : ""}`} role="status">
+              <p className="gift-bar-text">
+                {giftUnlocked
+                  ? <>🎉 Nice one — you&apos;ve earned a free {content!.freeGiftText}!</>
+                  : <>Spend <strong>{gbp(giftRemaining)}</strong> more for a free {content!.freeGiftText}</>}
+              </p>
+              <div className="gift-bar-track" aria-hidden="true">
+                <div className="gift-bar-fill" style={{ width: `${giftPct}%` }} />
+              </div>
+            </div>
+          )}
 
           {lines.map(({ b, p }) => (
             <div className="drawer-line" key={b.platterId}>

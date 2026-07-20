@@ -756,3 +756,26 @@ a.stars-widget:hover strong { text-decoration: underline; }
 @media (prefers-reduced-motion: reduce) {
   .drawer, .drawer-overlay { animation: none; }
 }
+
+/* Smart Cart "spend £X, get a free treat" progress bar. Gift is applied at no charge
+   server-side; this is the nudge that lifts the basket toward the threshold. */
+.gift-bar {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+}
+.gift-bar.unlocked { border-color: var(--good); background: var(--good-bg); }
+.gift-bar-text { margin: 0 0 9px; font-size: 0.92rem; line-height: 1.4; color: var(--ink-soft); }
+.gift-bar-text strong { color: var(--gold-text); font-variant-numeric: tabular-nums; }
+.gift-bar.unlocked .gift-bar-text { color: var(--good); font-weight: 600; }
+.gift-bar-track { height: 7px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.gift-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--gold-text);
+  transition: width var(--dur-std) var(--ease-enter);
+}
+.gift-bar.unlocked .gift-bar-fill { background: var(--good); }
+@media (prefers-reduced-motion: reduce) { .gift-bar-fill { transition: none; } }

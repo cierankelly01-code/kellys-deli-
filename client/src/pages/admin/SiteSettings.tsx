@@ -19,6 +19,9 @@ export default function SiteSettings() {
   const [reviewCount, setReviewCount] = useState("");
   const [leadHours, setLeadHours] = useState("48");
   const [clickCollectOpen, setClickCollectOpen] = useState(false);
+  const [freeGift, setFreeGift] = useState(false);
+  const [freeGiftThreshold, setFreeGiftThreshold] = useState("");
+  const [freeGiftText, setFreeGiftText] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +37,9 @@ export default function SiteSettings() {
       setReviewCount(s.reviewCount ?? "");
       setLeadHours(s.orderLeadTimeHours ?? "48");
       setClickCollectOpen(s.clickCollectComingSoon === "off");
+      setFreeGift(s.freeGift === "on");
+      setFreeGiftThreshold(s.freeGiftThreshold ?? "");
+      setFreeGiftText(s.freeGiftText ?? "");
     }).catch((e) => setError(e.message));
   }
   useEffect(refresh, []);
@@ -49,6 +55,9 @@ export default function SiteSettings() {
       await adminApi.setSetting("reviewRating", reviewRating.trim());
       await adminApi.setSetting("reviewCount", reviewCount.trim());
       await adminApi.setSetting("orderLeadTimeHours", String(Math.max(0, parseInt(leadHours || "48", 10) || 48)));
+      await adminApi.setSetting("freeGift", freeGift ? "on" : "off");
+      await adminApi.setSetting("freeGiftThreshold", String(Math.max(0, parseFloat(freeGiftThreshold || "0") || 0)));
+      await adminApi.setSetting("freeGiftText", freeGiftText.trim());
       setMsg("Saved — live on the homepage now.");
       refresh();
     } catch (e: any) {
@@ -112,6 +121,23 @@ export default function SiteSettings() {
       <div className="field">
         <label>Review count</label>
         <input className="input" value={reviewCount} onChange={(e) => setReviewCount(e.target.value)} placeholder="e.g. 47" />
+      </div>
+
+      <h2>Free gift over a spend</h2>
+      <div className="card loc-row" style={{ marginBottom: 14 }}>
+        <label className="toggle inline">
+          <input type="checkbox" checked={freeGift} disabled={saving} onChange={(e) => setFreeGift(e.target.checked)} />
+          <span><strong>Offer a free treat over a spend</strong> — shows a “spend £X for a free …” bar in the basket</span>
+        </label>
+      </div>
+      <div className="field">
+        <label>Spend threshold (£)</label>
+        <input className="input" type="number" min={0} step={1} value={freeGiftThreshold} onChange={(e) => setFreeGiftThreshold(e.target.value)} placeholder="e.g. 50" />
+      </div>
+      <div className="field">
+        <label>The free treat</label>
+        <input className="input" value={freeGiftText} onChange={(e) => setFreeGiftText(e.target.value)} placeholder="e.g. box of our brownies" />
+        <span className="muted small">Added free to orders that reach the threshold and flagged on the order so you know to pack it. Only promise something you can always give.</span>
       </div>
 
       <h2>Opening hours</h2>

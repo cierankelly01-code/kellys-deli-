@@ -184,6 +184,11 @@ publicRouter.get("/categories", async (_req, res) => {
     subscribeSaveDiscountPct: parseInt((await getSetting("subscribeSaveDiscountPct")) ?? "10", 10) || 10,
     // Corporate next-day delivery — OFF until the owner confirms capability (honesty rule).
     corporateNextDayDelivery: (await getSetting("corporateNextDayDelivery")) === "on",
+    // "Spend £X, get a free treat" — a gift added to the order at no charge (recorded as a
+    // freebie the owner includes). OFF until configured, so we never promise a gift by surprise.
+    freeGift: (await getSetting("freeGift")) === "on",
+    freeGiftThreshold: parseFloat((await getSetting("freeGiftThreshold")) ?? "0") || 0,
+    freeGiftText: (await getSetting("freeGiftText")) ?? null,
   });
 });
 
@@ -431,12 +436,20 @@ publicRouter.post("/orders", async (req, res) => {
     subPct,
   );
 
-  // First-order hook: free item for a customer's first order, if enabled.
+  // Freebies added to the order at no charge (recorded on the order so the owner includes them).
+  // Two independent hooks: a first-order treat, and a "spend £X, get a free gift" threshold that
+  // compares against the boards+add-ons subtotal (pricing.base — same number the cart shows).
+  const freebies: string[] = [];
   const priorOrders = await prisma.order.count({ where: { phone: input.phone, type: { in: ["platter", "gift"] } } });
-  let freebie: string | null = null;
   if (priorOrders === 0 && (await getSetting("firstOrderHook")) === "on") {
-    freebie = (await getSetting("firstOrderHookText")) || "FREE first-order treat";
+    freebies.push((await getSetting("firstOrderHookText")) || "FREE first-order treat");
   }
+  if ((await getSetting("freeGift")) === "on") {
+    const giftThreshold = parseFloat((await getSetting("freeGiftThreshold")) ?? "0") || 0;
+    const giftText = ((await getSetting("freeGiftText")) ?? "").trim();
+    if (giftThreshold > 0 && giftText && pricing.base >= giftThreshold) freebies.push(giftText);
+  }
+  const freebie: string | null = freebies.length ? freebies.join(" + ") : null;
 
   try {
     const order = await prisma.$transaction(async (tx) => {

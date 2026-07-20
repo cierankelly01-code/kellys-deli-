@@ -179,6 +179,9 @@ export interface CategoryCounts {
   subscribeSave: boolean;
   subscribeSaveDiscountPct: number;
   corporateNextDayDelivery: boolean;
+  freeGift: boolean;
+  freeGiftThreshold: number;
+  freeGiftText: string | null;
 }
 
 export interface OpeningHours {
