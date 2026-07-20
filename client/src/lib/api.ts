@@ -184,6 +184,59 @@ export interface CategoryCounts {
   freeGiftText: string | null;
 }
 
+export interface BundleItem {
+  kind: "board" | "addon";
+  refId: string;
+  quantity: number;
+  name: string;
+  price: number;
+  imageUrl: string | null;
+}
+export interface Bundle {
+  id: string;
+  name: string;
+  tagline: string | null;
+  description: string | null;
+  imageUrl: string | null;
+  active: boolean;
+  sortOrder: number;
+  items: BundleItem[];
+  total: number;
+}
+
+export interface GiftVoucherInput {
+  amount: number;
+  buyerName: string;
+  buyerEmail: string;
+  buyerPhone?: string;
+  recipientName?: string;
+  message?: string;
+}
+
+// Admin: create/update payload for a bundle (items reference boards/add-ons by id + kind).
+export interface BundleInput {
+  name: string;
+  tagline?: string | null;
+  description?: string | null;
+  imageUrl?: string | null;
+  active?: boolean;
+  sortOrder?: number;
+  items: { kind: "board" | "addon"; refId: string; quantity: number }[];
+}
+
+// Admin: a submitted gift-voucher request.
+export interface GiftVoucherRequestDTO {
+  id: string;
+  amount: number;
+  buyerName: string;
+  buyerEmail: string;
+  buyerPhone: string | null;
+  recipientName: string | null;
+  message: string | null;
+  status: "new" | "contacted" | "fulfilled" | "closed";
+  createdAt: string;
+}
+
 export interface OpeningHours {
   mon: string; tue: string; wed: string; thu: string; fri: string; sat: string; sun: string;
 }
@@ -373,6 +426,9 @@ export const api = {
     req<{ ok: true }>("/api/corporate-enquiry", { method: "POST", body: JSON.stringify(body) }),
   reminder: (body: ReminderInput) =>
     req<{ ok: true }>("/api/reminders", { method: "POST", body: JSON.stringify(body) }),
+  bundles: () => req<Bundle[]>("/api/bundles"),
+  requestGiftVoucher: (body: GiftVoucherInput) =>
+    req<{ ok: true }>("/api/gift-voucher", { method: "POST", body: JSON.stringify(body) }),
   paymentsStatus: () => req<{ enabled: boolean }>("/api/payments/status"),
   locations: () => req<LocationT[]>("/api/locations"),
   boardComponents: () => req<BoardComponent[]>("/api/board-components"),

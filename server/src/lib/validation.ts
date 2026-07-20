@@ -258,3 +258,32 @@ export type ReminderInput = z.infer<typeof reminderSchema>;
 
 export const enquiryStatusSchema = z.object({ status: z.enum(["new", "contacted", "closed"]) });
 export const subscriptionStatusSchema = z.object({ status: z.enum(["pending", "active", "paused", "cancelled"]) });
+
+// --- Bundles (curated one-tap combos, admin-managed) ---
+const bundleItemInput = z.object({
+  kind: z.enum(["board", "addon"]),
+  refId: z.string().min(1),
+  quantity: z.number().int().positive().max(50).default(1),
+});
+export const bundleUpsertSchema = z.object({
+  name: z.string().min(1, "Name is required").max(120),
+  tagline: z.string().max(160).nullable().optional(),
+  description: z.string().max(2000).nullable().optional(),
+  imageUrl: z.string().max(500).nullable().optional(),
+  active: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+  items: z.array(bundleItemInput).min(1, "A bundle needs at least one item").max(30),
+});
+export type BundleUpsertInput = z.infer<typeof bundleUpsertSchema>;
+
+// --- Gift voucher request (lands in admin; payment arranged offline until Stripe) ---
+export const giftVoucherSchema = z.object({
+  amount: z.number().positive("Enter an amount").max(1000, "For amounts over £1000, please give us a call"),
+  buyerName: z.string().min(1, "Your name is required").max(120),
+  buyerEmail: z.string().email("A valid email is required"),
+  buyerPhone: z.string().max(30).optional(),
+  recipientName: z.string().max(120).optional(),
+  message: z.string().max(500).optional(),
+});
+export type GiftVoucherInput = z.infer<typeof giftVoucherSchema>;
+export const giftVoucherStatusSchema = z.object({ status: z.enum(["new", "contacted", "fulfilled", "closed"]) });

@@ -2,7 +2,7 @@ import { asyncRouter } from "../lib/async-router";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { env } from "../lib/env";
-import { orderDTO, platterDTO, experienceDTO, locationDTO, boardComponentDTO, boardGroupDTO, addOnDTO, categoryDTO, corporateEnquiryDTO, subscriptionDTO, type PlatterItem } from "../lib/serialize";
+import { orderDTO, platterDTO, experienceDTO, locationDTO, boardComponentDTO, boardGroupDTO, addOnDTO, categoryDTO, corporateEnquiryDTO, subscriptionDTO, bundleDTO, giftVoucherDTO, type PlatterItem } from "../lib/serialize";
 import {
   platterUpsertSchema,
   experienceUpsertSchema,
@@ -16,6 +16,8 @@ import {
   categoryAssignSchema,
   enquiryStatusSchema,
   subscriptionStatusSchema,
+  bundleUpsertSchema,
+  giftVoucherStatusSchema,
 } from "../lib/validation";
 import { calcMargin } from "../lib/money";
 import { parseDate, formatDate } from "../lib/capacity";
@@ -600,6 +602,89 @@ adminRouter.patch("/subscriptions/:id", async (req, res) => {
   if (!exists) return res.status(404).json({ error: "Subscription not found" });
   const updated = await prisma.subscription.update({ where: { id: req.params.id }, data: { status: parsed.data.status }, include: { orders: true } });
   res.json(subscriptionDTO(updated));
+});
+
+// =====================  Bundles (curated one-tap combos)  =====================
+// Admin resolves items against ALL boards/add-ons (active + inactive) so a bundle's parts
+// are always visible for editing, even if a component is temporarily switched off.
+async function serializeBundles(bundles: Array<Parameters<typeof bundleDTO>[0]>) {
+  const [boards, addOns] = await Promise.all([prisma.platter.findMany(), prisma.addOn.findMany()]);
+  const boardMap = new Map(boards.map((b) => [b.id, b]));
+  const addOnMap = new Map(addOns.map((a) => [a.id, a]));
+  const resolve = (kind: string, refId: string) => {
+    if (kind === "board") {
+      const b = boardMap.get(refId);
+      return b ? { name: b.name, price: Number(b.fixedPrice ?? 0), imageUrl: b.imageUrl } : null;
+    }
+    const a = addOnMap.get(refId);
+    return a ? { name: a.name, price: Number(a.price), imageUrl: a.imageUrl } : null;
+  };
+  return bundles.map((b) => bundleDTO(b, resolve));
+}
+
+adminRouter.get("/bundles", async (_req, res) => {
+  const bundles = await prisma.bundle.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], include: { items: true } });
+  res.json(await serializeBundles(bundles));
+});
+
+adminRouter.post("/bundles", async (req, res) => {
+  const parsed = bundleUpsertSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid bundle" });
+  const d = parsed.data;
+  const count = await prisma.bundle.count();
+  const created = await prisma.bundle.create({
+    data: {
+      name: d.name, tagline: d.tagline ?? null, description: d.description ?? null, imageUrl: d.imageUrl ?? null,
+      active: d.active ?? true, sortOrder: d.sortOrder ?? count,
+      items: { create: d.items.map((it, i) => ({ kind: it.kind, refId: it.refId, quantity: it.quantity, sortOrder: i })) },
+    },
+    include: { items: true },
+  });
+  res.status(201).json((await serializeBundles([created]))[0]);
+});
+
+adminRouter.patch("/bundles/:id", async (req, res) => {
+  const parsed = bundleUpsertSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid bundle" });
+  const exists = await prisma.bundle.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Bundle not found" });
+  const d = parsed.data;
+  // Replace items wholesale (wipe + re-add) inside a transaction so the set is always consistent.
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.bundleItem.deleteMany({ where: { bundleId: req.params.id } });
+    return tx.bundle.update({
+      where: { id: req.params.id },
+      data: {
+        name: d.name, tagline: d.tagline ?? null, description: d.description ?? null, imageUrl: d.imageUrl ?? null,
+        active: d.active ?? exists.active, sortOrder: d.sortOrder ?? exists.sortOrder,
+        items: { create: d.items.map((it, i) => ({ kind: it.kind, refId: it.refId, quantity: it.quantity, sortOrder: i })) },
+      },
+      include: { items: true },
+    });
+  });
+  res.json((await serializeBundles([updated]))[0]);
+});
+
+adminRouter.delete("/bundles/:id", async (req, res) => {
+  const exists = await prisma.bundle.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Bundle not found" });
+  await prisma.bundle.delete({ where: { id: req.params.id } }); // items cascade
+  res.json({ ok: true });
+});
+
+// =====================  Gift voucher requests  =====================
+adminRouter.get("/gift-vouchers", async (_req, res) => {
+  const rows = await prisma.giftVoucherRequest.findMany({ orderBy: { createdAt: "desc" } });
+  res.json(rows.map(giftVoucherDTO));
+});
+
+adminRouter.patch("/gift-vouchers/:id", async (req, res) => {
+  const parsed = giftVoucherStatusSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid status" });
+  const exists = await prisma.giftVoucherRequest.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Request not found" });
+  const updated = await prisma.giftVoucherRequest.update({ where: { id: req.params.id }, data: { status: parsed.data.status } });
+  res.json(giftVoucherDTO(updated));
 });
 
 // =====================  Settings (global toggles)  =====================

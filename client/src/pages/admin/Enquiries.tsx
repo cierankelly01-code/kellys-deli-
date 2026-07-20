@@ -5,16 +5,72 @@ import {
   type SubscriptionDTO,
   type AdminReminder,
 } from "../../lib/admin";
-import { formatDate } from "../../lib/format";
+import { type GiftVoucherRequestDTO } from "../../lib/api";
+import { formatDate, gbp } from "../../lib/format";
 
 export default function Enquiries() {
   return (
     <div>
       <h1>Enquiries &amp; Subscriptions</h1>
       <EnquiriesSection />
+      <GiftVouchersSection />
       <SubscriptionsSection />
       <RemindersSection />
     </div>
+  );
+}
+
+function GiftVouchersSection() {
+  const [rows, setRows] = useState<GiftVoucherRequestDTO[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  function refresh() {
+    adminApi.giftVouchers().then(setRows).catch((e) => setError(e.message));
+  }
+  useEffect(refresh, []);
+
+  async function setStatus(id: string, status: GiftVoucherRequestDTO["status"]) {
+    try {
+      await adminApi.setGiftVoucherStatus(id, status);
+      setRows((prev) => prev?.map((r) => (r.id === id ? { ...r, status } : r)) ?? prev);
+    } catch (e: any) { setError(e.message); }
+  }
+
+  return (
+    <section>
+      <h2>Gift voucher requests</h2>
+      <p className="muted">Someone wants to buy a voucher. No card has been taken — contact them to arrange payment and send it out.</p>
+      {error && <div className="notice danger">{error}</div>}
+      {!rows && !error && <p className="muted">Loading…</p>}
+      {rows && rows.length === 0 && <p className="muted">No requests yet.</p>}
+      <div className="stack">
+        {rows?.map((r) => (
+          <div className="card loc-row" key={r.id}>
+            <div className="spread">
+              <div>
+                <strong>{gbp(r.amount)} voucher</strong>
+                <div className="muted">
+                  {r.buyerName} · <a href={`mailto:${r.buyerEmail}`}>{r.buyerEmail}</a>
+                  {r.buyerPhone ? ` · ${r.buyerPhone}` : ""}
+                </div>
+                <div className="muted">
+                  {r.recipientName ? `For ${r.recipientName}` : "Recipient —"} · {formatDate(r.createdAt)}
+                </div>
+                {r.message && <div className="order-meta"><span className="notes">📝 {truncate(r.message, 200)}</span></div>}
+              </div>
+              <div className="right">
+                <select className="input status-select" value={r.status} onChange={(e) => setStatus(r.id, e.target.value as GiftVoucherRequestDTO["status"])}>
+                  <option value="new">New</option>
+                  <option value="contacted">Contacted</option>
+                  <option value="fulfilled">Fulfilled</option>
+                  <option value="closed">Closed</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

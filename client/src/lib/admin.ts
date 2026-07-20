@@ -1,5 +1,5 @@
 // Admin API client + JWT token storage.
-import { ApiError, type OrderDTO, type Platter, type PlatterItem, type LocationT, type Experience, type Category, type BoardComponent, type BoardComponentCategory, type BoardGroup, type BoardType, type BoardSize, type BoardTier, type AddOn, type AddOnUnitType, type ShopCategory, type SubscriptionFrequency } from "./api";
+import { ApiError, type OrderDTO, type Platter, type PlatterItem, type LocationT, type Experience, type Category, type BoardComponent, type BoardComponentCategory, type BoardGroup, type BoardType, type BoardSize, type BoardTier, type AddOn, type AddOnUnitType, type ShopCategory, type SubscriptionFrequency, type Bundle, type BundleInput, type GiftVoucherRequestDTO } from "./api";
 
 const BASE = import.meta.env.VITE_API_URL || "";
 const TOKEN_KEY = "kd_admin_token";
@@ -333,6 +333,19 @@ export const adminApi = {
   subscriptions: () => authedReq<SubscriptionDTO[]>(`/api/admin/subscriptions`),
   setSubscriptionStatus: (id: string, status: "pending" | "active" | "paused" | "cancelled") =>
     authedReq<SubscriptionDTO>(`/api/admin/subscriptions/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }),
+
+  // Bundles (curated one-tap combos)
+  bundles: () => authedReq<Bundle[]>(`/api/admin/bundles`),
+  createBundle: (input: BundleInput) =>
+    authedReq<Bundle>(`/api/admin/bundles`, { method: "POST", body: JSON.stringify(input) }),
+  updateBundle: (id: string, input: BundleInput) =>
+    authedReq<Bundle>(`/api/admin/bundles/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  deleteBundle: (id: string) => authedReq<{ ok: boolean }>(`/api/admin/bundles/${id}`, { method: "DELETE" }),
+
+  // Gift voucher requests
+  giftVouchers: () => authedReq<GiftVoucherRequestDTO[]>(`/api/admin/gift-vouchers`),
+  setGiftVoucherStatus: (id: string, status: "new" | "contacted" | "fulfilled" | "closed") =>
+    authedReq<GiftVoucherRequestDTO>(`/api/admin/gift-vouchers/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }),
 
   // Settings (global toggles)
   settings: () => authedReq<Record<string, string>>(`/api/admin/settings`),

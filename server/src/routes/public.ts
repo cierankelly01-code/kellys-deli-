@@ -8,6 +8,7 @@ import {
   recommendQuerySchema,
   corporateEnquirySchema,
   reminderSchema,
+  giftVoucherSchema,
 } from "../lib/validation";
 import { priceOrder, priceLineItemOrder, REFERRAL_DISCOUNT } from "../lib/money";
 import { buildAvailability, canBook, getDayAvailability, meetsNotice, meetsLeadTime, parseDate, formatDate } from "../lib/capacity";
@@ -15,7 +16,7 @@ import { recommendBoards, midpoint, type RecBoard } from "../lib/recommender";
 import { genRef, randomReferralCode } from "../lib/ref";
 import { captureDepositIntent } from "../lib/payments";
 import { notifyOrderReceived } from "../lib/notify";
-import { platterDTO, experienceDTO, locationDTO, orderDTO, publicOrderDTO, boardComponentDTO, boardGroupDTO, addOnDTO, categoryDTO } from "../lib/serialize";
+import { platterDTO, experienceDTO, locationDTO, orderDTO, publicOrderDTO, boardComponentDTO, boardGroupDTO, addOnDTO, categoryDTO, bundleDTO } from "../lib/serialize";
 
 export const publicRouter = asyncRouter();
 
@@ -245,6 +246,54 @@ publicRouter.post("/reminders", async (req, res) => {
       email: d.email,
       occasion: d.occasion,
       reminderDate: d.reminderDate ? parseDate(d.reminderDate) : null,
+    },
+  });
+  res.status(201).json({ ok: true });
+});
+
+// --- Bundles (curated one-tap combos) ---
+// Priced at the live total of the real components. A bundle is only shown if EVERY item
+// still resolves to an active board/add-on, so the displayed price is never misleading.
+publicRouter.get("/bundles", async (_req, res) => {
+  const bundles = await prisma.bundle.findMany({
+    where: { active: true },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    include: { items: true },
+  });
+  const boardIds = [...new Set(bundles.flatMap((b) => b.items.filter((i) => i.kind === "board").map((i) => i.refId)))];
+  const addOnIds = [...new Set(bundles.flatMap((b) => b.items.filter((i) => i.kind === "addon").map((i) => i.refId)))];
+  const boards = boardIds.length ? await prisma.platter.findMany({ where: { id: { in: boardIds } } }) : [];
+  const addOns = addOnIds.length ? await prisma.addOn.findMany({ where: { id: { in: addOnIds } } }) : [];
+  const boardMap = new Map(boards.map((b) => [b.id, b]));
+  const addOnMap = new Map(addOns.map((a) => [a.id, a]));
+  const resolve = (kind: string, refId: string) => {
+    if (kind === "board") {
+      const b = boardMap.get(refId);
+      return b && b.active && b.fixedPrice != null ? { name: b.name, price: Number(b.fixedPrice), imageUrl: b.imageUrl } : null;
+    }
+    const a = addOnMap.get(refId);
+    return a && a.active ? { name: a.name, price: Number(a.price), imageUrl: a.imageUrl } : null;
+  };
+  const dtos = bundles
+    .map((b) => ({ b, dto: bundleDTO(b, resolve) }))
+    .filter(({ b, dto }) => dto.items.length > 0 && dto.items.length === b.items.length)
+    .map(({ dto }) => dto);
+  res.json(dtos);
+});
+
+// --- Gift voucher request (lands in admin; owner arranges payment until Stripe lands) ---
+publicRouter.post("/gift-voucher", async (req, res) => {
+  const parsed = giftVoucherSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
+  const d = parsed.data;
+  await prisma.giftVoucherRequest.create({
+    data: {
+      amount: d.amount,
+      buyerName: d.buyerName,
+      buyerEmail: d.buyerEmail,
+      buyerPhone: d.buyerPhone ?? null,
+      recipientName: d.recipientName ?? null,
+      message: d.message ?? null,
     },
   });
   res.status(201).json({ ok: true });

@@ -7,6 +7,7 @@ const NAV = [
   { to: "/admin/prep", label: "Prep Sheet" },
   { to: "/admin/menu", label: "Menu & Pricing" },
   { to: "/admin/categories", label: "Categories" },
+  { to: "/admin/bundles", label: "Bundles" },
   { to: "/admin/add-ons", label: "Add-ons" },
   { to: "/admin/enquiries", label: "Enquiries" },
   { to: "/admin/recommender", label: "Recommender" },

@@ -154,6 +154,53 @@ model ReminderSignup {
   @@index([occasion])
 }
 
+// Curated "one-tap" combos (board(s) + add-ons) that fill the basket in a single click.
+// Priced honestly at the real total of the components (no fake discounts) — the win is
+// convenience + a complete spread. Fully admin-managed. Items reference real Platter/AddOn
+// rows by id + kind (a light join so a bundle survives an item being renamed).
+model Bundle {
+  id          String       @id @default(cuid())
+  name        String
+  tagline     String? // one-line pitch shown on the card
+  description String?
+  imageUrl    String?
+  active      Boolean      @default(true)
+  sortOrder   Int          @default(0)
+  items       BundleItem[]
+  createdAt   DateTime     @default(now())
+
+  @@index([active, sortOrder])
+}
+
+model BundleItem {
+  id        String @id @default(cuid())
+  bundleId  String
+  bundle    Bundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  kind      String // "board" | "addon"
+  refId     String // Platter.id (board) or AddOn.id
+  quantity  Int    @default(1)
+  sortOrder Int    @default(0)
+
+  @@index([bundleId])
+}
+
+// "Send a gift voucher" request. Payment isn't taken online yet (no Stripe), so this lands
+// in admin like a corporate enquiry — the owner arranges payment and issues the voucher.
+// Upgrades cleanly to self-serve stored-value gift cards when Stripe lands.
+model GiftVoucherRequest {
+  id            String   @id @default(cuid())
+  amount        Decimal  @db.Decimal(10, 2)
+  buyerName     String
+  buyerEmail    String
+  buyerPhone    String?
+  recipientName String?
+  message       String? // note to print with the voucher
+  status        String   @default("new") // new | contacted | fulfilled | closed
+  createdAt     DateTime @default(now())
+
+  @@index([status])
+}
+
 // Optional extras attached to any order (cutlery, plates, drinks, setup, sweet boards...).
 // Fully admin-managed. See build spec §3.
 model AddOn {

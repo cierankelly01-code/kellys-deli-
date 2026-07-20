@@ -6,6 +6,8 @@ import { Header } from "../components/Header";
 import { StickyCta } from "../components/StickyCta";
 import { Faq } from "../components/Faq";
 import { ReminderCapture } from "../components/ReminderCapture";
+import { Bundles } from "../components/Bundles";
+import { GiftVoucher } from "../components/GiftVoucher";
 import { morphNavigate } from "../lib/motion";
 
 export default function Shop() {
@@ -65,6 +67,9 @@ export default function Shop() {
         <p className="muted">Our shop is being set up — <Link to="/platters">browse all boards</Link> in the meantime.</p>
       )}
 
+      {/* Ready-made combos — one-tap to fill the basket */}
+      <Bundles />
+
       {/* Book ahead — birthdays & celebrations as a selling point */}
       <section className="prebook-band grain" data-reveal>
         <div>
@@ -78,6 +83,8 @@ export default function Shop() {
       </section>
 
       <ReminderCapture />
+
+      <GiftVoucher />
 
       <Faq />
       <StickyCta label="Browse all boards" to="/platters" />

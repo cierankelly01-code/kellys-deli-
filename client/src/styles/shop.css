@@ -211,3 +211,24 @@
 .review-row.discount { color: var(--good); font-weight: 600; }
 .recurring-note { background: #f4f6ee; border: 1px solid #d5e0c8; border-radius: var(--radius-sm); padding: 12px 14px; }
 .rt-saved { color: var(--good); font-weight: 700; }
+
+/* ---------- Ready-made combos (bundles) ---------- */
+.bundles-section { margin: 34px 0 8px; }
+.section-h { font-size: 1.6rem; margin: 0 0 4px; }
+.bundles-intro { margin: 0 0 16px; }
+.bundle-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.bundle-card { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+.bundle-img { aspect-ratio: 16 / 10; background-size: cover; background-position: center; background-color: #ece4d5; }
+.bundle-body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.bundle-name { font-size: 1.25rem; margin: 0; }
+.bundle-items { margin: 4px 0 0; padding-left: 18px; color: var(--ink-soft); font-size: 0.95rem; display: flex; flex-direction: column; gap: 2px; }
+.bundle-foot { margin-top: auto; padding-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.bundle-price { font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.bundle-foot .btn { width: auto; min-width: 130px; padding: 0 18px; }
+
+/* ---------- Gift voucher ---------- */
+.gift-section { margin: 28px 0; padding: 22px 24px; }
+.gift-section.is-done { display: flex; align-items: center; gap: 12px; }
+.gift-intro { max-width: 60ch; margin: 4px 0 16px; }
+.gift-form { display: grid; gap: 12px; max-width: 460px; }
+.gift-form .btn { width: auto; justify-self: start; min-width: 200px; padding: 0 20px; }

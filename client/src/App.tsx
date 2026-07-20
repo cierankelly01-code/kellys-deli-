@@ -19,6 +19,7 @@ import Orders from "./pages/admin/Orders";
 import PrepSheet from "./pages/admin/PrepSheet";
 import MenuEditor from "./pages/admin/MenuEditor";
 import Categories from "./pages/admin/Categories";
+import Bundles from "./pages/admin/Bundles";
 import Enquiries from "./pages/admin/Enquiries";
 import AddOnsAdmin from "./pages/admin/AddOns";
 import Recommender from "./pages/admin/Recommender";
@@ -65,6 +66,7 @@ export default function App() {
         <Route path="prep" element={<PrepSheet />} />
         <Route path="menu" element={<MenuEditor />} />
         <Route path="categories" element={<Categories />} />
+        <Route path="bundles" element={<Bundles />} />
         <Route path="enquiries" element={<Enquiries />} />
         <Route path="add-ons" element={<AddOnsAdmin />} />
         <Route path="recommender" element={<Recommender />} />

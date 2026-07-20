@@ -102,3 +102,25 @@ export function addBoard(platterId: string, origin: Cart["origin"] = "direct"): 
   saveCart(cart);
   return cart;
 }
+
+/** Merge a bundle's items (boards + add-ons) into the cart — non-destructive, so it stacks
+ * on anything already in the basket. The server reprices from the live component prices. */
+export function addBundleToCart(
+  items: { kind: "board" | "addon"; refId: string; quantity: number }[],
+  origin: Cart["origin"] = "direct",
+): Cart {
+  const cart = loadCart() ?? emptyCart(origin);
+  for (const it of items) {
+    if (it.kind === "board") {
+      const ex = cart.boards.find((b) => b.platterId === it.refId);
+      if (ex) ex.quantity += it.quantity;
+      else cart.boards.push({ platterId: it.refId, quantity: it.quantity });
+    } else {
+      const ex = cart.addOns.find((a) => a.addOnId === it.refId);
+      if (ex) ex.quantity += it.quantity;
+      else cart.addOns.push({ addOnId: it.refId, quantity: it.quantity });
+    }
+  }
+  saveCart(cart);
+  return cart;
+}

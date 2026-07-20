@@ -14,6 +14,9 @@ import type {
   Category,
   CorporateEnquiry,
   Subscription,
+  Bundle,
+  BundleItem,
+  GiftVoucherRequest,
 } from "@prisma/client";
 import { formatDate } from "./capacity";
 import { toMoney } from "./money";
@@ -178,6 +181,48 @@ export function corporateEnquiryDTO(e: CorporateEnquiry) {
     message: e.message,
     status: e.status,
     createdAt: e.createdAt.toISOString(),
+  };
+}
+
+/** A bundle with its items resolved to real board/add-on details + an honest component total.
+ * `resolve` maps (kind, refId) -> the live board/add-on so a bundle reflects current prices. */
+export function bundleDTO(
+  b: Bundle & { items?: BundleItem[] | null },
+  resolve: (kind: string, refId: string) => { name: string; price: number; imageUrl: string | null } | null,
+) {
+  const items = (b.items ?? [])
+    .slice()
+    .sort((x, y) => x.sortOrder - y.sortOrder)
+    .map((it) => {
+      const r = resolve(it.kind, it.refId);
+      return r ? { kind: it.kind, refId: it.refId, quantity: it.quantity, name: r.name, price: r.price, imageUrl: r.imageUrl } : null;
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
+  const total = toMoney(items.reduce((sum, it) => sum + it.price * it.quantity, 0));
+  return {
+    id: b.id,
+    name: b.name,
+    tagline: b.tagline,
+    description: b.description,
+    imageUrl: b.imageUrl,
+    active: b.active,
+    sortOrder: b.sortOrder,
+    items,
+    total,
+  };
+}
+
+export function giftVoucherDTO(g: GiftVoucherRequest) {
+  return {
+    id: g.id,
+    amount: Number(g.amount),
+    buyerName: g.buyerName,
+    buyerEmail: g.buyerEmail,
+    buyerPhone: g.buyerPhone,
+    recipientName: g.recipientName,
+    message: g.message,
+    status: g.status,
+    createdAt: g.createdAt.toISOString(),
   };
 }
 
