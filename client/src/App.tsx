@@ -1,4 +1,7 @@
-import { Routes, Route, Outlet } from "react-router-dom";
+import { useEffect } from "react";
+import { Routes, Route, Outlet, useLocation } from "react-router-dom";
+import { ConsentBanner } from "./components/ConsentBanner";
+import { trackPageView } from "./lib/consent";
 import Choice from "./pages/Choice";
 import Platters from "./pages/Platters";
 import Shop from "./pages/Shop";
@@ -29,6 +32,15 @@ import FillSlots from "./pages/admin/FillSlots";
 
 /** Wraps customer-facing pages so every one ends with the site footer + legal links. */
 function CustomerLayout() {
+  const location = useLocation();
+
+  // Fire a page view on every route change. Safe no-op until (and unless) the visitor has
+  // consented and a tracker is loaded — see lib/consent.ts. Admin pages sit outside this
+  // layout, so staff activity is never tracked.
+  useEffect(() => {
+    trackPageView(location.pathname);
+  }, [location.pathname]);
+
   return (
     <>
       <main id="main">
@@ -36,6 +48,7 @@ function CustomerLayout() {
       </main>
       <CartDrawer />
       <Footer />
+      <ConsentBanner />
     </>
   );
 }

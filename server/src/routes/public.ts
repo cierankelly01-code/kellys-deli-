@@ -193,6 +193,25 @@ publicRouter.get("/categories", async (_req, res) => {
   });
 });
 
+// Public tracking configuration. Returns the marketing-pixel / analytics IDs the owner
+// has set in admin (Site Settings). These IDs are not secret — they are designed to be
+// exposed to the browser — but the client still fires nothing until the visitor consents
+// (see client/src/lib/consent.ts). Empty string settings collapse to null so the client
+// can treat "unset" and "blank" identically.
+publicRouter.get("/tracking", async (_req, res) => {
+  const keys = ["metaPixelId", "tiktokPixelId", "ga4Id", "cloudflareToken"];
+  const rows = await prisma.setting.findMany({ where: { key: { in: keys } } });
+  const map = new Map(rows.map((r) => [r.key, r.value]));
+  const clean = (v?: string) => (v && v.trim() ? v.trim() : null);
+  res.setHeader("Cache-Control", "public, max-age=60"); // IDs change rarely and are non-secret
+  res.json({
+    metaPixelId: clean(map.get("metaPixelId")),
+    tiktokPixelId: clean(map.get("tiktokPixelId")),
+    ga4Id: clean(map.get("ga4Id")),
+    cloudflareToken: clean(map.get("cloudflareToken")),
+  });
+});
+
 // --- Occasion categories (browse-by-occasion storefront) ---
 // Named /categories/browse (not /categories) so the existing /categories counts endpoint
 // above keeps working. Returns active categories with a live board count.

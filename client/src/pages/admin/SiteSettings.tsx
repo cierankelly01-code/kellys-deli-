@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { adminApi } from "../../lib/admin";
 import { type OpeningHours } from "../../lib/api";
 import { ImageUpload } from "../../components/ImageUpload";
+import { isValidTrackingId } from "../../lib/consent";
 
 const DAYS: Array<{ key: keyof OpeningHours; label: string }> = [
   { key: "mon", label: "Monday" }, { key: "tue", label: "Tuesday" }, { key: "wed", label: "Wednesday" },
@@ -22,6 +23,10 @@ export default function SiteSettings() {
   const [freeGift, setFreeGift] = useState(false);
   const [freeGiftThreshold, setFreeGiftThreshold] = useState("");
   const [freeGiftText, setFreeGiftText] = useState("");
+  const [metaPixelId, setMetaPixelId] = useState("");
+  const [tiktokPixelId, setTiktokPixelId] = useState("");
+  const [ga4Id, setGa4Id] = useState("");
+  const [cloudflareToken, setCloudflareToken] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -40,12 +45,28 @@ export default function SiteSettings() {
       setFreeGift(s.freeGift === "on");
       setFreeGiftThreshold(s.freeGiftThreshold ?? "");
       setFreeGiftText(s.freeGiftText ?? "");
+      setMetaPixelId(s.metaPixelId ?? "");
+      setTiktokPixelId(s.tiktokPixelId ?? "");
+      setGa4Id(s.ga4Id ?? "");
+      setCloudflareToken(s.cloudflareToken ?? "");
     }).catch((e) => setError(e.message));
   }
   useEffect(refresh, []);
 
   async function saveAll() {
-    setSaving(true); setError(null); setMsg(null);
+    setError(null); setMsg(null);
+    // Catch typo'd tracking IDs before saving — an invalid ID silently never loads, so
+    // warn rather than let the owner think tracking is on when it isn't.
+    const badIds: string[] = [];
+    if (metaPixelId.trim() && !isValidTrackingId("meta", metaPixelId)) badIds.push("Meta Pixel ID (should be numbers only)");
+    if (tiktokPixelId.trim() && !isValidTrackingId("tiktok", tiktokPixelId)) badIds.push("TikTok Pixel ID");
+    if (ga4Id.trim() && !isValidTrackingId("ga4", ga4Id)) badIds.push("Google Analytics ID (should start with G-)");
+    if (cloudflareToken.trim() && !isValidTrackingId("cloudflare", cloudflareToken)) badIds.push("Cloudflare token (should be 32 hex characters)");
+    if (badIds.length) {
+      setError(`Not saved — these look wrong and wouldn't work: ${badIds.join("; ")}. Fix or clear them.`);
+      return;
+    }
+    setSaving(true);
     try {
       await adminApi.setSetting("openingHours", JSON.stringify(hours));
       await adminApi.setSetting("aboutText", about.trim());
@@ -58,6 +79,10 @@ export default function SiteSettings() {
       await adminApi.setSetting("freeGift", freeGift ? "on" : "off");
       await adminApi.setSetting("freeGiftThreshold", String(Math.max(0, parseFloat(freeGiftThreshold || "0") || 0)));
       await adminApi.setSetting("freeGiftText", freeGiftText.trim());
+      await adminApi.setSetting("metaPixelId", metaPixelId.trim());
+      await adminApi.setSetting("tiktokPixelId", tiktokPixelId.trim());
+      await adminApi.setSetting("ga4Id", ga4Id.trim());
+      await adminApi.setSetting("cloudflareToken", cloudflareToken.trim());
       setMsg("Saved — live on the homepage now.");
       refresh();
     } catch (e: any) {
@@ -138,6 +163,34 @@ export default function SiteSettings() {
         <label>The free treat</label>
         <input className="input" value={freeGiftText} onChange={(e) => setFreeGiftText(e.target.value)} placeholder="e.g. box of our brownies" />
         <span className="muted small">Added free to orders that reach the threshold and flagged on the order so you know to pack it. Only promise something you can always give.</span>
+      </div>
+
+      <h2>Marketing &amp; analytics (tracking pixels)</h2>
+      <p className="muted small" style={{ marginTop: -6, marginBottom: 14 }}>
+        Paste the IDs from your ad and analytics accounts here to switch tracking on. Leave a box
+        blank to turn that one off. Facebook, Instagram, TikTok and Google Analytics only start
+        once a visitor accepts cookies (the consent bar appears automatically as soon as any of
+        these is set). Cloudflare is cookieless and always on.
+      </p>
+      <div className="field">
+        <label>Meta Pixel ID <span className="muted">— Facebook &amp; Instagram ads</span></label>
+        <input className="input" value={metaPixelId} onChange={(e) => setMetaPixelId(e.target.value)} placeholder="e.g. 1234567890123456" inputMode="numeric" />
+        <span className="muted small">Meta Business Suite → Events Manager → your Pixel → Settings. Numbers only.</span>
+      </div>
+      <div className="field">
+        <label>TikTok Pixel ID</label>
+        <input className="input" value={tiktokPixelId} onChange={(e) => setTiktokPixelId(e.target.value)} placeholder="e.g. C4A1B2C3D4E5F6G7H8" />
+        <span className="muted small">TikTok Ads Manager → Assets → Events → Web Events → your pixel.</span>
+      </div>
+      <div className="field">
+        <label>Google Analytics 4 ID</label>
+        <input className="input" value={ga4Id} onChange={(e) => setGa4Id(e.target.value)} placeholder="e.g. G-XXXXXXXXXX" />
+        <span className="muted small">Google Analytics → Admin → Data streams → your stream → “Measurement ID”. Starts with G-.</span>
+      </div>
+      <div className="field">
+        <label>Cloudflare Web Analytics token <span className="muted">— cookieless, no consent needed</span></label>
+        <input className="input" value={cloudflareToken} onChange={(e) => setCloudflareToken(e.target.value)} placeholder="e.g. 0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d" />
+        <span className="muted small">Cloudflare dash → Web Analytics → add a site → copy the token from the snippet.</span>
       </div>
 
       <h2>Opening hours</h2>

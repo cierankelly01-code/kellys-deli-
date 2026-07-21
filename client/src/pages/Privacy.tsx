@@ -11,7 +11,7 @@ export default function Privacy() {
       <Header />
       <article className="legal">
         <h1>Privacy Policy</h1>
-        <p className="muted">Last updated: 7 July 2026</p>
+        <p className="muted">Last updated: 21 July 2026</p>
 
         <p>
           This policy explains what personal information Kelly&apos;s Deli (&quot;we&quot;, &quot;us&quot;)
@@ -43,15 +43,32 @@ export default function Privacy() {
           <li>Our website and database hosting providers (which store your order securely).</li>
           <li>Our email provider, to send you order confirmations.</li>
           <li>If and when card payments go live, a regulated payment provider (such as Stripe) — they handle card details directly; we never see your full card number.</li>
+          <li>
+            If you accept advertising cookies (see below), the advertising and analytics providers we use —
+            Meta (Facebook and Instagram), TikTok and Google Analytics — receive information about your visit
+            through those cookies. These companies are based outside the UK, including in the United States, so
+            accepting means some data is transferred internationally under the safeguards required by UK law.
+          </li>
         </ul>
         <p>We may also disclose information if the law requires us to.</p>
 
         <h2>Cookies and analytics</h2>
         <p>
-          We use privacy-friendly, cookieless website analytics to count visits and see which pages are
-          popular. It does not use tracking cookies, does not identify you, and does not follow you
-          across other websites — so this site does not need a cookie consent banner. We do not use
-          advertising cookies.
+          <strong>Essential storage.</strong> To run the site we store a small amount of information on your
+          device — your shopping basket and, for staff, a secure login. These are strictly necessary for the
+          service you asked for, so they don&apos;t need consent and can&apos;t be switched off.
+        </p>
+        <p>
+          <strong>Cookieless analytics.</strong> We use privacy-friendly website analytics (Cloudflare) that
+          counts visits without setting any cookies and without identifying you.
+        </p>
+        <p>
+          <strong>Advertising &amp; analytics cookies (only with your consent).</strong> When we run advertising,
+          we use cookies and similar technology from Meta (Facebook and Instagram), TikTok and Google Analytics
+          to measure how well our ads work and understand which boards our customers love. These are switched
+          <em> off</em> until you choose &quot;Accept&quot; on our cookie bar. If you choose &quot;Reject&quot;,
+          none of them are set. You can change your mind at any time using the <strong>Cookie settings</strong>
+          link in the footer. We do not use these to make automated decisions about you.
         </p>
 
         <h2>How long we keep it</h2>

@@ -8,6 +8,7 @@ import { Header } from "../components/Header";
 import { usePageTitle } from "../lib/title";
 import { DeadlineChip, TrustChips } from "../components/Trust";
 import { SubscribeSave } from "../components/SubscribeSave";
+import { trackViewContent } from "../lib/consent";
 
 export default function PlatterDetail() {
   const { id } = useParams();
@@ -30,6 +31,8 @@ export default function PlatterDetail() {
   useEffect(() => {
     if (!platter) return;
     const price = platter.fixedPrice ?? platter.fromPrice ?? 0;
+    // Retargeting signal — no-ops without consent. Fires once per board view.
+    trackViewContent({ id: platter.id, name: platter.name, value: price || undefined });
     const data: Record<string, unknown> = {
       "@context": "https://schema.org",
       "@type": "Product",

@@ -19,6 +19,7 @@ import { AddOnsStep } from "../components/AddOnsStep";
 import { Header } from "../components/Header";
 import { SubscribeSave } from "../components/SubscribeSave";
 import { usePageTitle } from "../lib/title";
+import { trackOrderRequest } from "../lib/consent";
 
 const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -204,6 +205,9 @@ export default function Order() {
         giftMessage: isGift ? giftMessage.trim() || undefined : undefined,
       });
       clearCart();
+      // Conversion signal for ad platforms — fired once here at placement (not on the
+      // confirmation page, which is also reached via bookmark). No-ops without consent.
+      trackOrderRequest({ value: res.order.total, ref: res.order.ref });
       navigate(`/confirm/${res.order.ref}`);
     } catch (e: any) {
       setError(e?.message || "Couldn't place your order. Please try again.");

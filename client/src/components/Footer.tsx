@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { OPEN_CONSENT_EVENT } from "../lib/consent";
 
 /** Site footer — a designed destination, not an afterthought: giant wordmark,
  * useful links, contact, and the UK-required legal links. */
@@ -26,6 +27,13 @@ export function Footer() {
             <a className="u-link" href="mailto:hello@kellysdeli.co.uk">hello@kellysdeli.co.uk</a>
             <Link className="u-link" to="/privacy">Privacy Policy</Link>
             <Link className="u-link" to="/terms">Terms &amp; Conditions</Link>
+            <button
+              type="button"
+              className="u-link footer-linkbtn"
+              onClick={() => window.dispatchEvent(new CustomEvent(OPEN_CONSENT_EVENT))}
+            >
+              Cookie settings
+            </button>
             <Link className="u-link" to="/admin">Staff login</Link>
           </div>
         </div>

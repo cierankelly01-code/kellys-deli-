@@ -28,13 +28,47 @@ export function createApp(): Express {
   // Security headers. Allow images to be loaded cross-origin (client + API differ).
   // CSP applies to the client HTML we now serve: menu photos live on Supabase Storage
   // and the hero image on Unsplash, so img-src must allow external https origins.
+  //
+  // Marketing pixels (Meta / TikTok / Google Analytics) and cookieless Cloudflare
+  // analytics are loaded CLIENT-SIDE, only after cookie consent, from these origins.
+  // They must be allow-listed here or the browser's CSP silently blocks every one of
+  // them. We inject them as external <script src> (never inline), so script-src can stay
+  // free of 'unsafe-inline' — the XSS protection of the policy is preserved. Adding a
+  // host here only *permits* it; nothing loads unless the pixel is configured AND the
+  // visitor has consented (see client/src/lib/consent.ts).
+  const TRACKER_SCRIPT_SRC = [
+    "https://connect.facebook.net", // Meta Pixel (fbevents.js)
+    "https://analytics.tiktok.com", // TikTok Pixel (events.js)
+    "https://www.googletagmanager.com", // Google Analytics 4 (gtag.js)
+    "https://static.cloudflareinsights.com", // Cloudflare Web Analytics beacon
+  ];
+  const TRACKER_CONNECT_SRC = [
+    "https://connect.facebook.net",
+    "https://www.facebook.com",
+    "https://analytics.tiktok.com",
+    "https://analytics-sg.tiktok.com",
+    "https://www.google-analytics.com",
+    "https://*.google-analytics.com",
+    "https://*.analytics.google.com",
+    "https://www.googletagmanager.com",
+    "https://cloudflareinsights.com",
+    "https://static.cloudflareinsights.com",
+  ];
+  const TRACKER_FRAME_SRC = [
+    "https://www.facebook.com", // Meta Pixel occasionally injects a same-purpose iframe
+    "https://td.doubleclick.net", // GA4 conversion linker
+  ];
+
   app.use(
     helmet({
       crossOriginResourcePolicy: { policy: "cross-origin" },
       contentSecurityPolicy: {
         directives: {
           ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-          "img-src": ["'self'", "data:", "https:"],
+          "img-src": ["'self'", "data:", "https:"], // menu photos, hero, pixel img-beacons
+          "script-src": ["'self'", ...TRACKER_SCRIPT_SRC],
+          "connect-src": ["'self'", ...TRACKER_CONNECT_SRC],
+          "frame-src": ["'self'", ...TRACKER_FRAME_SRC],
         },
       },
     })
