@@ -216,9 +216,30 @@ export const blastSchema = z.object({
 
 // --- Occasion categories (admin-managed storefront) ---
 const slugRe = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/**
+ * Turn anything the owner types into a valid URL slug ("Office & Corporate" →
+ * "office-corporate"). The admin form does this too, but normalising here means a
+ * stale browser bundle — or any hand-made request — still saves instead of 400ing.
+ */
+export function slugify(input: string): string {
+  return input
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "") // strip accents: "Cafe" stays "cafe"
+    .replace(/[’']/g, "") // drop apostrophes rather than hyphenate them: "Kelly's" → "kellys"
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60)
+    .replace(/-+$/g, ""); // the 60-char cut can leave a trailing hyphen
+}
+
 export const categoryUpsertSchema = z.object({
-  slug: z.string().min(1).max(60).regex(slugRe, "Slug must be lowercase words separated by hyphens"),
-  name: z.string().min(1).max(80),
+  slug: z.preprocess(
+    (v) => (typeof v === "string" ? slugify(v) : v),
+    z.string().min(1, "Give the category a web address, e.g. office-corporate").max(60).regex(slugRe, "Slug must be lowercase words separated by hyphens"),
+  ),
+  name: z.string().trim().min(1, "Give the category a name").max(80),
   tagline: z.string().max(160).nullable().optional(),
   description: z.string().max(2000).nullable().optional(),
   heroImageUrl: z.string().max(500).nullable().optional(),

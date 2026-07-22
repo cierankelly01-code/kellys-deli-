@@ -6,12 +6,20 @@ import path from "node:path";
 import fs from "node:fs";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-export const UPLOAD_DIR = path.join(process.cwd(), "uploads");
+// Where disk-stored uploads live. Override with UPLOAD_DIR to point at a mounted
+// volume — inside a container the default sits on the ephemeral layer, so every
+// redeploy would otherwise wipe the owner's product photos.
+export const UPLOAD_DIR = process.env.UPLOAD_DIR
+  ? path.resolve(process.env.UPLOAD_DIR)
+  : path.join(process.cwd(), "uploads");
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const BUCKET = process.env.SUPABASE_BUCKET || "platter-images";
 export const useSupabaseStorage = !!(SUPABASE_URL && SUPABASE_KEY);
+
+/** Which backend uploads land in — surfaced on /api/health so this is checkable in prod. */
+export const storageMode = useSupabaseStorage ? "supabase" : ("disk" as const);
 
 // Only create a local upload dir when using disk storage — serverless filesystems are read-only.
 if (!useSupabaseStorage) {
@@ -19,6 +27,13 @@ if (!useSupabaseStorage) {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
   } catch {
     /* ignore — read-only FS */
+  }
+  if (process.env.NODE_ENV === "production" && !process.env.UPLOAD_DIR) {
+    console.warn(
+      `[uploads] Storing photos on local disk at ${UPLOAD_DIR}. If this is a container ` +
+        `without a volume mounted there, uploaded photos will disappear on the next deploy. ` +
+        `Set UPLOAD_DIR to a mounted volume, or configure SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY.`,
+    );
   }
 }
 

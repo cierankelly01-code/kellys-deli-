@@ -1,10 +1,28 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import {
   adminApi,
   type AdminShopCategory,
   type CategoryUpsertInput,
   type AdminPlatter,
 } from "../../lib/admin";
+import { ImageUpload } from "../../components/ImageUpload";
+
+/**
+ * Turn anything typed into a valid URL slug ("Office & Corporate" → "office-corporate").
+ * The owner shouldn't have to know what a slug is: the field fills itself from the name,
+ * and whatever ends up in it is normalised before saving. Mirrors slugify() on the server.
+ */
+function slugify(input: string): string {
+  return input
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/['’]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60)
+    .replace(/-+$/g, "");
+}
 
 function blankCategory(): CategoryUpsertInput {
   return {
@@ -41,6 +59,10 @@ function toInput(c: AdminShopCategory): CategoryUpsertInput {
 interface EditState {
   id: string | null;
   draft: CategoryUpsertInput;
+  // Bumped each time the form is *opened* (New / Edit), and deliberately unchanged
+  // when a save assigns an id — it keys the form, so reusing it keeps the "Saved"
+  // confirmation on screen instead of remounting it away.
+  session: number;
 }
 
 export default function Categories() {
@@ -49,6 +71,13 @@ export default function Categories() {
   const [error, setError] = useState<string | null>(null);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [session, setSession] = useState(0);
+
+  function openEditor(id: string | null, draft: CategoryUpsertInput) {
+    const next = session + 1;
+    setSession(next);
+    setEdit({ id, draft, session: next });
+  }
 
   function refresh() {
     Promise.all([adminApi.categories(), adminApi.platters()])
@@ -70,17 +99,18 @@ export default function Categories() {
       {error && <div className="notice danger">{error}</div>}
 
       {!edit && (
-        <button className="btn" style={{ width: "auto", marginBottom: 16 }} onClick={() => setEdit({ id: null, draft: blankCategory() })}>
+        <button className="btn" style={{ width: "auto", marginBottom: 16 }} onClick={() => openEditor(null, blankCategory())}>
           + New category
         </button>
       )}
 
       {edit && (
         <CategoryForm
+          key={edit.session}
           edit={edit}
           set={set}
           onCancel={() => setEdit(null)}
-          onSaved={(saved) => { setEdit({ id: saved.id, draft: toInput(saved) }); refresh(); }}
+          onSaved={(saved) => { setEdit((s) => ({ id: saved.id, draft: toInput(saved), session: s?.session ?? session })); refresh(); }}
         />
       )}
 
@@ -106,7 +136,7 @@ export default function Categories() {
                 </div>
               </div>
               <div className="nav-row" style={{ margin: 0 }}>
-                <button className="btn-ghost" onClick={() => { setEdit({ id: c.id, draft: toInput(c) }); setConfirmId(null); }}>Edit</button>
+                <button className="btn-ghost" onClick={() => { openEditor(c.id, toInput(c)); setConfirmId(null); }}>Edit</button>
                 {confirmId === c.id ? (
                   <>
                     <button className="btn danger-btn" style={{ width: "auto" }} onClick={async () => {
@@ -138,14 +168,31 @@ function CategoryForm({
   onSaved: (saved: AdminShopCategory) => void;
 }) {
   const { id, draft } = edit;
+  const uid = useId();
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  // Once the owner edits the web address by hand we stop rewriting it from the name.
+  // Existing categories keep their slug (changing it would break an indexed URL).
+  const [slugTouched, setSlugTouched] = useState(!!id);
+
+  // Typing the name fills the web address in for you, until you edit it yourself.
+  function setName(name: string) {
+    setErr(null);
+    set(slugTouched ? { name } : { name, slug: slugify(name) });
+  }
 
   async function save() {
+    const name = draft.name.trim();
+    const slug = slugify(draft.slug || name);
+    // Say what's missing instead of leaving a dead button — this is the whole reason
+    // "save a new category" felt broken: the button was disabled with no explanation.
+    if (!name) return setErr("Give the category a name (e.g. Office & Corporate)");
+    if (!slug) return setErr("The web address needs some letters or numbers in it — try “office-corporate”");
+
     setSaving(true); setErr(null); setMsg(null);
     try {
-      const input: CategoryUpsertInput = { ...draft, sortOrder: Number(draft.sortOrder) || 0 };
+      const input: CategoryUpsertInput = { ...draft, name, slug, sortOrder: Number(draft.sortOrder) || 0 };
       const saved = id ? await adminApi.updateCategory(id, input) : await adminApi.createCategory(input);
       setMsg("Saved — live on the customer site now.");
       onSaved(saved);
@@ -159,16 +206,30 @@ function CategoryForm({
       {err && <div className="notice danger">{err}</div>}
       {msg && <div className="notice good">{msg}</div>}
       <div className="grid-2">
-        <div className="field"><label>Name</label><input className="input" value={draft.name} onChange={(e) => set({ name: e.target.value })} /></div>
         <div className="field">
-          <label>Web address / slug</label>
-          <input className="input" value={draft.slug} onChange={(e) => set({ slug: e.target.value })} placeholder="office-corporate" />
-          <p className="muted hint">lowercase words with hyphens, e.g. office-corporate</p>
+          <label htmlFor={`${uid}-name`}>Name</label>
+          <input id={`${uid}-name`} className="input" value={draft.name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Office &amp; Corporate" />
+        </div>
+        <div className="field">
+          <label htmlFor={`${uid}-slug`}>Web address</label>
+          <input
+            id={`${uid}-slug`}
+            className="input"
+            value={draft.slug}
+            onChange={(e) => { setSlugTouched(true); setErr(null); set({ slug: e.target.value }); }}
+            onBlur={(e) => set({ slug: slugify(e.target.value) })}
+            placeholder="office-corporate"
+          />
+          <p className="muted hint">
+            {draft.slug
+              ? <>Customers will see <strong>/shop/{slugify(draft.slug)}</strong></>
+              : <>Filled in from the name — you can change it if you want.</>}
+          </p>
         </div>
       </div>
       <div className="field"><label>Tagline</label><input className="input" value={draft.tagline ?? ""} onChange={(e) => set({ tagline: e.target.value })} /></div>
       <div className="field"><label>Description</label><textarea className="input" value={draft.description ?? ""} onChange={(e) => set({ description: e.target.value })} /></div>
-      <div className="field"><label>Hero image URL</label><input className="input" value={draft.heroImageUrl ?? ""} onChange={(e) => set({ heroImageUrl: e.target.value })} /></div>
+      <ImageUpload value={draft.heroImageUrl ?? ""} onChange={(url) => set({ heroImageUrl: url })} label="Category photo" />
       <div className="field"><label>SEO title</label><input className="input" value={draft.seoTitle ?? ""} onChange={(e) => set({ seoTitle: e.target.value })} /></div>
       <div className="field"><label>SEO description</label><textarea className="input" value={draft.seoDescription ?? ""} onChange={(e) => set({ seoDescription: e.target.value })} /></div>
       <label className="toggle inline"><input type="checkbox" checked={!!draft.isCorporate} onChange={(e) => set({ isCorporate: e.target.checked })} /><span>Corporate category (shows enquiry form + invoicing copy)</span></label>
@@ -177,7 +238,7 @@ function CategoryForm({
       <div className="field" style={{ maxWidth: 160 }}><label>Sort order</label><input className="input" type="number" value={draft.sortOrder ?? 0} onChange={(e) => set({ sortOrder: parseInt(e.target.value, 10) || 0 })} /></div>
       <div className="nav-row">
         <button className="btn btn-secondary" onClick={onCancel} disabled={saving}>Cancel</button>
-        <button className="btn" onClick={save} disabled={saving || !draft.name.trim() || !draft.slug.trim()}>{saving ? "Saving…" : "Save"}</button>
+        <button className="btn" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
       </div>
     </div>
   );

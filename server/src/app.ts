@@ -9,7 +9,7 @@ import { publicRouter } from "./routes/public";
 import { authRouter } from "./routes/auth";
 import { adminRouter } from "./routes/admin";
 import { requireAdmin } from "./lib/auth";
-import { UPLOAD_DIR } from "./lib/uploads";
+import { UPLOAD_DIR, storageMode } from "./lib/uploads";
 import { prisma } from "./lib/prisma";
 import { parseWebhook } from "./lib/payments";
 
@@ -110,7 +110,10 @@ export function createApp(): Express {
   const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, skip, message: { error: "Too many attempts — try again later" } });
 
   app.get("/api/health", (_req, res) => {
-    res.json({ ok: true, service: "kellys-deli-api", time: new Date().toISOString() });
+    // `storage` tells us where admin photo uploads land without needing shell access
+    // to the host: "disk" on a container with no mounted volume means photos are lost
+    // on redeploy. No secrets — just which of the two backends is configured.
+    res.json({ ok: true, service: "kellys-deli-api", storage: storageMode, time: new Date().toISOString() });
   });
 
   // Whether live payments are configured. The storefront copy stays "payment-ready" until

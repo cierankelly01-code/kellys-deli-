@@ -99,6 +99,22 @@ test.describe("admin categories + enquiries", () => {
     await expect(page.getByText("At Home").first()).toBeVisible();
   });
 
+  // The way the owner actually does it: type a name, press Save. Nothing else.
+  // This used to do nothing at all — Save stayed disabled until a hand-typed slug
+  // was entered, and typing the name into that box was rejected as invalid.
+  test("adds a new category from just a name", async ({ page }) => {
+    const name = `Test Occasion ${Math.floor(Math.random() * 1e6)}`;
+    await login(page);
+    await page.getByRole("link", { name: "Categories" }).click();
+    await page.getByRole("button", { name: /new category/i }).click();
+    await page.getByLabel("Name").fill(name);
+    // The web address fills itself in from the name.
+    await expect(page.getByLabel("Web address")).toHaveValue(/test-occasion-\d+/);
+    await page.getByRole("button", { name: /^Save$/ }).click();
+    await expect(page.getByText(/live on the customer site now/i)).toBeVisible();
+    await expect(page.getByText(name).first()).toBeVisible();
+  });
+
   test("admin Enquiries page renders the three sections", async ({ page }) => {
     await login(page);
     await page.getByRole("link", { name: "Enquiries" }).click();
