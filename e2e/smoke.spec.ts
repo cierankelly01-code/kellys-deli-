@@ -63,8 +63,8 @@ test.describe("customer flows", () => {
     await expect(page.getByRole("heading", { name: /Our suggestion for 15 people/ })).toBeVisible();
     // Swap: add another board from the picker.
     const comboRowsBefore = await page.locator(".combo-row").count();
-    await page.getByLabel("Add a board").selectOption({ index: 1 });
-    await page.getByRole("button", { name: "Add", exact: true }).click();
+    await page.getByRole("button", { name: /Add another board/ }).click();
+    await page.locator(".pl-picker-item").first().click();
     expect(await page.locator(".combo-row").count()).toBeGreaterThan(comboRowsBefore);
     await page.getByRole("button", { name: "Continue with these boards" }).click();
     await expect(page).toHaveURL(/\/order/);

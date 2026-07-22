@@ -1,13 +1,47 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, type Platter, type RecommendResponse } from "../lib/api";
+import { api, type CategoryCounts, type Platter, type RecommendResponse } from "../lib/api";
 import { feedsMid } from "../lib/addOnPricing";
 import { saveCart } from "../lib/cart";
 import { gbp } from "../lib/format";
 import { usePageTitle } from "../lib/title";
 import { Header } from "../components/Header";
 
-const CHIPS = [10, 15, 20, 30, 40];
+/** Headcounts people actually type, with the occasion each one usually is. */
+const CHIPS: Array<{ n: number; label: string }> = [
+  { n: 10, label: "Get-together" },
+  { n: 15, label: "Birthday do" },
+  { n: 20, label: "Big party" },
+  { n: 30, label: "Office floor" },
+  { n: 40, label: "Full function" },
+];
+
+/**
+ * Board photo over a monogram tile. The letter is always painted underneath rather
+ * than swapped in by an onError handler — a 404 or a slow image then degrades to the
+ * monogram on its own, with no JS involved. (Uploaded photos have gone missing in
+ * production before; an empty grey square is the one outcome worth engineering out.)
+ */
+function BoardThumb({ board, size = 64 }: { board: Platter; size?: number }) {
+  // onError additionally removes the failed <img>, because Chromium paints its own
+  // broken-image glyph over the monogram otherwise. The monogram is what makes this
+  // correct even when onError never fires (slow load, blocked request).
+  const [failed, setFailed] = useState(false);
+  return (
+    <span className="pl-thumb" style={{ width: size, height: size, fontSize: size / 2.6 }} aria-hidden="true">
+      {board.name.slice(0, 1)}
+      {board.imageUrl && !failed && (
+        <img src={board.imageUrl} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
+      )}
+    </span>
+  );
+}
+
+function feedsLabel(b: Platter): string {
+  if (b.feedsMin && b.feedsMax) return `feeds ${b.feedsMin}–${b.feedsMax}`;
+  if (b.serves) return `feeds ${b.serves}`;
+  return "";
+}
 
 export default function PlanEvent() {
   usePageTitle(
@@ -19,14 +53,16 @@ export default function PlanEvent() {
   const [step, setStep] = useState<"count" | "combo">("count");
   const [headcount, setHeadcount] = useState<number>(15);
   const [boards, setBoards] = useState<Platter[]>([]);
+  const [counts, setCounts] = useState<CategoryCounts | null>(null);
   const [rec, setRec] = useState<RecommendResponse | null>(null);
   const [combo, setCombo] = useState<Map<string, number>>(new Map());
-  const [addBoardId, setAddBoardId] = useState("");
+  const [picking, setPicking] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api.boards().then(setBoards).catch(() => setBoards([]));
+    api.categories().then(setCounts).catch(() => setCounts(null));
   }, []);
 
   const boardById = useMemo(() => new Map(boards.map((b) => [b.id, b])), [boards]);
@@ -66,6 +102,7 @@ export default function PlanEvent() {
       setRec(r);
       setCombo(new Map(r.items.map((i) => [i.boardId, i.qty])));
       setStep("combo");
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
       setError("Couldn't build a recommendation. Please try again.");
     } finally {
@@ -95,10 +132,17 @@ export default function PlanEvent() {
     setCombo(next);
   };
 
-  const addBoard = () => {
-    if (!addBoardId) return;
-    setQty(addBoardId, (combo.get(addBoardId) ?? 0) + 1);
-    setAddBoardId("");
+  const addBoard = (id: string) => {
+    setQty(id, (combo.get(id) ?? 0) + 1);
+    setPicking(false);
+  };
+
+  /** One tap out of the under-catering warning: add the board that closes the gap. */
+  const fixShortfall = () => {
+    const gap = headcount - totalFeeds;
+    const bySize = boards.filter((b) => feedsMid(b) > 0).sort((a, b) => feedsMid(a) - feedsMid(b));
+    const pick = bySize.find((b) => feedsMid(b) >= gap) ?? bySize[bySize.length - 1];
+    if (pick) setQty(pick.id, (combo.get(pick.id) ?? 0) + 1);
   };
 
   const proceed = () => {
@@ -112,30 +156,41 @@ export default function PlanEvent() {
   };
 
   const otherBoards = boards.filter((b) => !combo.has(b.id));
+  const rating = counts?.reviewRating;
+  const reviews = counts?.reviewCount;
 
   return (
     <div className="app plan-event">
       <Header />
       <button className="link-back" onClick={() => (step === "combo" ? setStep("count") : navigate("/"))}>← Back</button>
-      <h1 className="page-h">Plan my event</h1>
 
       {step === "count" && (
         <section className="plan-count">
-          <h2 className="step-h">How many people are you feeding?</h2>
-          <div className="chip-row">
-            {CHIPS.map((n) => (
+          <p className="pl-eyebrow">Event planning · free · takes 20 seconds</p>
+          <h1 className="pl-h1">How many are you feeding?</h1>
+          <p className="pl-lede">
+            Give us a headcount and we&apos;ll put together a spread that actually stretches —
+            so you&apos;re not doing sums the night before.
+          </p>
+
+          <div className="pl-chips">
+            {CHIPS.map(({ n, label }) => (
               <button
                 key={n}
                 type="button"
-                className={`chip${headcount === n ? " selected" : ""}`}
+                aria-label={String(n)}
+                aria-pressed={headcount === n}
+                className={`pl-chip${headcount === n ? " selected" : ""}`}
                 onClick={() => setHeadcount(n)}
               >
-                {n}{n === 40 ? "+" : ""}
+                <span className="pl-chip-n">{n}{n === 40 ? "+" : ""}</span>
+                <span className="pl-chip-label">{label}</span>
               </button>
             ))}
           </div>
-          <label className="field">
-            <span>Or enter a number</span>
+
+          <label className="pl-exact">
+            <span>Or an exact number</span>
             <input
               type="number"
               min={1}
@@ -144,24 +199,34 @@ export default function PlanEvent() {
               aria-label="Headcount"
             />
           </label>
+
           {error && <p className="form-error" role="alert">{error}</p>}
-          <button className="btn" disabled={loading} onClick={() => getRecommendation(headcount)}>
+
+          <button className="btn pl-cta" disabled={loading} onClick={() => getRecommendation(headcount)}>
             {loading ? "Working…" : "Show me a spread"}
           </button>
+          <p className="pl-micro">Nothing&apos;s ordered yet — you&apos;ll see every price first.</p>
+
+          <ul className="pl-trust">
+            <li><strong>48 hours&apos;</strong> notice is all we need</li>
+            <li><strong>25% deposit</strong> confirms it — balance on collection</li>
+            {rating && reviews && <li><strong>{rating}★</strong> from {reviews} Google reviews</li>}
+          </ul>
         </section>
       )}
 
       {step === "combo" && rec && (
         <section className="plan-combo">
-          <h2 className="step-h">Our suggestion for {headcount} people</h2>
-          <p className="muted">Swap anything you like — remove a board or add another. The totals update as you go.</p>
+          <h1 className="pl-h1 pl-h1-sm">Our suggestion for {headcount} people</h1>
+          <p className="pl-lede">Swap anything you like — remove a board, add another. Totals update as you go.</p>
 
           <ul className="combo-list">
             {comboLines.map((l) => (
               <li key={l.board.id} className="combo-row card">
+                <BoardThumb board={l.board} />
                 <div className="combo-info">
                   <span className="combo-name">{l.board.name}</span>
-                  <span className="muted">{gbp(l.board.fixedPrice ?? 0)} · feeds {l.board.serves}</span>
+                  <span className="muted">{gbp(l.board.fixedPrice ?? 0)} · {feedsLabel(l.board)}</span>
                 </div>
                 <div className="stepper" role="group" aria-label={`${l.board.name} quantity`}>
                   <button type="button" onClick={() => setQty(l.board.id, l.qty - 1)} aria-label="Decrease">−</button>
@@ -174,30 +239,54 @@ export default function PlanEvent() {
 
           {otherBoards.length > 0 && (
             <div className="combo-add">
-              <select value={addBoardId} onChange={(e) => setAddBoardId(e.target.value)} aria-label="Add a board">
-                <option value="">Add another board…</option>
-                {otherBoards.map((b) => (
-                  <option key={b.id} value={b.id}>{b.name} — {gbp(b.fixedPrice ?? 0)} · feeds {b.serves}</option>
-                ))}
-              </select>
-              <button type="button" className="btn-ghost" onClick={addBoard} disabled={!addBoardId}>Add</button>
+              {!picking ? (
+                <button type="button" className="pl-add-toggle" onClick={() => setPicking(true)}>
+                  + Add another board
+                </button>
+              ) : (
+                <div className="pl-picker">
+                  <div className="pl-picker-head">
+                    <strong>Add a board</strong>
+                    <button type="button" className="btn-ghost" onClick={() => setPicking(false)}>Close</button>
+                  </div>
+                  <ul className="pl-picker-list">
+                    {otherBoards.map((b) => (
+                      <li key={b.id}>
+                        <button type="button" className="pl-picker-item" onClick={() => addBoard(b.id)}>
+                          <BoardThumb board={b} size={48} />
+                          <span className="pl-picker-info">
+                            <span className="combo-name">{b.name}</span>
+                            <span className="muted">{gbp(b.fixedPrice ?? 0)} · {feedsLabel(b)}</span>
+                          </span>
+                          <span className="pl-picker-add" aria-hidden="true">+</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 
-          <div className="combo-totals card">
-            <div className="review-row"><span>Feeds about</span><span>{Math.round(totalFeeds)} people</span></div>
-            <div className="review-row total"><span>Combination total</span><span>{gbp(totalPrice)}</span></div>
-          </div>
-
           {undercatered && (
-            <p className="undercater-warning" role="alert">
-              ⚠ This mix may not stretch to {headcount} people. Add another board to be safe.
-            </p>
+            <div className="pl-shortfall" role="alert">
+              <p>
+                This mix feeds about {Math.round(totalFeeds)} — it may not stretch to {headcount}.
+              </p>
+              <button type="button" className="btn-ghost" onClick={fixShortfall}>Add a board to cover it</button>
+            </div>
           )}
 
-          <button className="btn" disabled={comboLines.length === 0} onClick={proceed}>
-            Continue with these boards
-          </button>
+          <div className="pl-summary">
+            <div className="pl-summary-nums">
+              <span>Feeds about <strong>{Math.round(totalFeeds)}</strong></span>
+              <span className="pl-summary-total">{gbp(totalPrice)}</span>
+            </div>
+            <button className="btn" disabled={comboLines.length === 0} onClick={proceed}>
+              Continue with these boards
+            </button>
+            <p className="pl-micro">Next: pick your collection day. Still nothing charged.</p>
+          </div>
         </section>
       )}
     </div>

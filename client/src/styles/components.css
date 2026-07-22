@@ -825,3 +825,102 @@ a.stars-widget:hover strong { text-decoration: underline; }
 }
 .gift-bar.unlocked .gift-bar-fill { background: var(--good); }
 @media (prefers-reduced-motion: reduce) { .gift-bar-fill { transition: none; } }
+
+/* ─── Plan my event ────────────────────────────────────────────────────────
+   The planner is the highest-intent page on the site: someone with a party to
+   feed, deciding whether to trust us with it. It gets the room the decision
+   deserves — real board photography, prices in the open, and the deposit /
+   notice rules stated up front rather than sprung at checkout. */
+.plan-event .pl-eyebrow {
+  font-size: 0.74rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--olive); margin: 4px 0 10px;
+}
+.plan-event .pl-h1 {
+  font-family: var(--serif); font-size: clamp(2rem, 8vw, 2.9rem); line-height: 1.03;
+  letter-spacing: -0.025em; margin: 0 0 10px; text-wrap: balance;
+}
+.plan-event .pl-h1-sm { font-size: clamp(1.6rem, 6vw, 2.1rem); }
+.plan-event .pl-lede {
+  color: var(--ink-soft); font-size: 1.02rem; line-height: 1.6; margin: 0 0 22px;
+  max-width: 34em; text-wrap: pretty;
+}
+
+/* Headcount tiles — a number is the answer, the label is the reassurance. */
+.pl-chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin-bottom: 18px; }
+.pl-chip {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  padding: 14px 8px; min-height: 76px; border: 2px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--card); color: var(--ink); font: inherit; cursor: pointer;
+  transition: border-color var(--dur-micro) var(--ease-enter), transform var(--dur-micro) var(--ease-enter);
+}
+@media (hover: hover) { .pl-chip:hover { border-color: var(--olive); transform: translateY(-1px); } }
+.pl-chip-n { font-family: var(--serif); font-size: 1.55rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.pl-chip-label { font-size: 0.68rem; color: var(--ink-soft); text-align: center; line-height: 1.2; }
+.pl-chip.selected { border-color: var(--brick); background: var(--brick); color: #fff; }
+.pl-chip.selected .pl-chip-label { color: rgba(255, 255, 255, 0.78); }
+
+.pl-exact { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.pl-exact > span { color: var(--ink-soft); font-size: 0.92rem; }
+.pl-exact input {
+  width: 104px; padding: 11px 12px; border: 2px solid var(--line); border-radius: var(--radius-sm);
+  background: #fff; font: inherit; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.pl-cta { width: 100%; }
+.pl-micro { color: var(--ink-soft); font-size: 0.84rem; text-align: center; margin: 8px 0 0; }
+
+/* Honest reassurance — every line is a real policy, no invented urgency. */
+.pl-trust {
+  list-style: none; padding: 18px 0 0; margin: 26px 0 0; border-top: 1px solid var(--line);
+  display: grid; gap: 10px; color: var(--ink-soft); font-size: 0.9rem;
+}
+.pl-trust strong { color: var(--ink); }
+
+/* Suggested spread */
+.plan-combo .combo-row { gap: 12px; }
+/* Monogram tile underneath, photo on top: a missing image reveals the letter
+   rather than an empty box, without relying on an onError handler firing. */
+.pl-thumb {
+  position: relative; flex: 0 0 auto; overflow: hidden;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm); border: 1px solid var(--line);
+  background: var(--cream); color: var(--olive);
+  font-family: var(--serif); font-weight: 600; line-height: 1; user-select: none;
+}
+.pl-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.plan-combo .combo-info { flex: 1 1 auto; min-width: 0; }
+.plan-combo .combo-name { overflow-wrap: anywhere; }
+
+.pl-add-toggle {
+  width: 100%; padding: 14px; border: 2px dashed var(--line); border-radius: var(--radius-sm);
+  background: transparent; color: var(--brick); font: inherit; font-weight: 700; cursor: pointer;
+  transition: border-color var(--dur-micro) var(--ease-enter);
+}
+@media (hover: hover) { .pl-add-toggle:hover { border-color: var(--olive); } }
+.pl-picker { border: 2px solid var(--line); border-radius: var(--radius); background: var(--card); overflow: hidden; }
+.pl-picker-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.pl-picker-list { list-style: none; margin: 0; padding: 0; max-height: 340px; overflow-y: auto; }
+.pl-picker-item {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 14px;
+  background: none; border: 0; border-bottom: 1px solid var(--line); font: inherit;
+  color: var(--ink); text-align: left; cursor: pointer; min-height: 68px;
+}
+.pl-picker-list li:last-child .pl-picker-item { border-bottom: 0; }
+@media (hover: hover) { .pl-picker-item:hover { background: var(--cream); } }
+.pl-picker-info { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.pl-picker-add { font-size: 1.4rem; color: var(--olive); flex: 0 0 auto; }
+
+.pl-shortfall {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  background: var(--warn-bg); border-left: 4px solid var(--mustard);
+  border-radius: var(--radius-sm); padding: 12px 14px; margin: 16px 0;
+}
+.pl-shortfall p { margin: 0; color: var(--warn); font-weight: 600; }
+
+.pl-summary { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
+.pl-summary-nums { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.pl-summary-nums > span { color: var(--ink-soft); }
+.pl-summary-nums strong { color: var(--ink); }
+.pl-summary-total {
+  font-family: var(--serif); font-size: 1.9rem; font-weight: 600; color: var(--ink);
+  font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+}
