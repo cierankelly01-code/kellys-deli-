@@ -867,7 +867,7 @@ a.stars-widget:hover strong { text-decoration: underline; }
 }
 @media (hover: hover) { .pl-chip:hover { border-color: var(--olive); transform: translateY(-1px); } }
 .pl-chip-n { font-family: var(--serif); font-size: 1.55rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
-.pl-chip-label { font-size: 0.68rem; color: var(--ink-soft); text-align: center; line-height: 1.2; }
+.pl-chip-label { font-size: 0.8rem; color: var(--ink-soft); text-align: center; line-height: 1.2; }
 .pl-chip.selected { border-color: var(--brick); background: var(--brick); color: #fff; }
 .pl-chip.selected .pl-chip-label { color: rgba(255, 255, 255, 0.78); }
 
@@ -937,31 +937,53 @@ a.stars-widget:hover strong { text-decoration: underline; }
   font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
 }
 
-/* Planner desktop: the mobile column is the whole page below 1000px. Above it the
-   controls take the left and the product takes the right — a page selling food
-   should show food, and 53% of a 1440px viewport was previously empty cream. */
-.pl-grid-main { min-width: 0; }
-.pl-aside { display: none; }
-@media (min-width: 1000px) {
-  .plan-event .pl-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr); gap: 56px; align-items: start; }
-  .plan-event .pl-cta { max-width: 380px; }
-  .pl-aside { display: block; position: sticky; top: 24px; }
-  .pl-aside-photo { border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); aspect-ratio: 4 / 5; }
-  .pl-aside-photo .pl-thumb { width: 100% !important; height: 100% !important; border: 0; border-radius: 0; font-size: 5rem !important; }
-  .pl-aside-cap { display: flex; flex-direction: column; gap: 2px; margin: 14px 2px 0; font-size: 0.92rem; }
-  .pl-aside-cap span { color: var(--ink-soft); }
+/* Planner layout. Below 1000px everything is one column and the board photo sits
+   directly under the lede — the customer sees the product before the form. Above it,
+   controls left / product right, with the step-2 summary genuinely pinned beside the
+   list (an earlier version relied on grid auto-placement and stranded both). */
+.pl-intro, .pl-controls { min-width: 0; }
+.pl-aside { margin: 4px 0 22px; }
+.pl-aside-photo { border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); aspect-ratio: 16 / 9; }
+.pl-aside-photo .pl-thumb { width: 100% !important; height: 100% !important; border: 0; border-radius: 0; font-size: 4rem !important; }
+.pl-aside-cap { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 10px 2px 0; font-size: 0.9rem; }
+.pl-aside-cap span { color: var(--ink-soft); }
 
-  /* Step 2 keeps the list narrow and pins the decision beside it. */
-  .plan-event .plan-combo { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 48px; align-items: start; }
-  .plan-event .plan-combo > .pl-h1, .plan-event .plan-combo > .pl-lede { grid-column: 1 / -1; }
+@media (min-width: 1000px) {
+  .plan-event .pl-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr); column-gap: 56px; align-items: start; }
+  .plan-event .pl-intro { grid-column: 1; grid-row: 1; }
+  .plan-event .pl-controls { grid-column: 1; grid-row: 2; }
+  .plan-event .pl-aside { grid-column: 2; grid-row: 1 / span 2; position: sticky; top: 24px; margin: 0; }
+  .pl-aside-photo { aspect-ratio: 4 / 5; }
+  .pl-aside-photo .pl-thumb { font-size: 5rem !important; }
+  .plan-event .pl-cta { max-width: 380px; }
+
+  /* Step 2: explicit placement. Auto-placement put "add another board" in the right
+     column and left the summary stranded bottom-left, which made position:sticky inert. */
+  .plan-event .plan-combo { display: grid; grid-template-columns: minmax(0, 1fr) 340px; column-gap: 48px; align-items: start; }
+  .plan-event .plan-combo > .pl-h1 { grid-column: 1 / -1; grid-row: 1; }
+  .plan-event .plan-combo > .pl-lede { grid-column: 1 / -1; grid-row: 2; }
+  .plan-event .plan-combo > .pl-empty { grid-column: 1; }
+  .plan-event .plan-combo > .combo-list { grid-column: 1; grid-row: 3; }
+  .plan-event .plan-combo > .combo-add { grid-column: 1; grid-row: 4; }
+  .plan-event .plan-combo > .pl-shortfall { grid-column: 1; grid-row: 5; }
   .plan-event .pl-summary {
+    grid-column: 2; grid-row: 3 / span 3; align-self: start;
     position: sticky; top: 24px; margin-top: 0; padding: 22px; border-top: 0;
     background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm);
   }
-  .plan-event .pl-shortfall { grid-column: 1; }
 }
 .pl-summary-feeds { display: flex; flex-direction: column; gap: 2px; }
-.pl-summary-feeds em { font-style: normal; font-size: 0.86rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+/* The per-head figure is the number caterers actually compare on — don't bury it. */
+.pl-summary-feeds em { font-style: normal; font-size: 1rem; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
 .pl-trust-compact { margin-top: 18px; padding-top: 16px; font-size: 0.84rem; gap: 8px; }
-/* 0.68rem was ~10.9px — unreadable on a phone at arm's length. */
-.pl-chip-label { font-size: 0.74rem; }
+.pl-empty { color: var(--ink-soft); margin: 14px 0; }
+
+/* Two clean columns on a narrow phone rather than a ragged 3 + 2 with a hole. */
+.pl-chips { grid-template-columns: repeat(2, 1fr); }
+@media (min-width: 420px) { .pl-chips { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 700px) { .pl-chips { grid-template-columns: repeat(5, 1fr); } }
+
+/* The cookie bar is fixed to the bottom; without this it sits on top of the primary
+   CTA on a 667px phone — the visitor has to dismiss it before they can start. */
+body:has(.consent-bar) { padding-bottom: 168px; }
+@media (min-width: 700px) { body:has(.consent-bar) { padding-bottom: 96px; } }

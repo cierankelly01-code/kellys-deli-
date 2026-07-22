@@ -22,7 +22,7 @@ const CHIPS: Array<{ n: number; label: string }> = [
  * monogram on its own, with no JS involved. (Uploaded photos have gone missing in
  * production before; an empty grey square is the one outcome worth engineering out.)
  */
-function BoardThumb({ board, size = 64 }: { board: Platter; size?: number }) {
+function BoardThumb({ board, size = 64, eager = false }: { board: Platter; size?: number; eager?: boolean }) {
   // onError additionally removes the failed <img>, because Chromium paints its own
   // broken-image glyph over the monogram otherwise. The monogram is what makes this
   // correct even when onError never fires (slow load, blocked request).
@@ -31,7 +31,15 @@ function BoardThumb({ board, size = 64 }: { board: Platter; size?: number }) {
     <span className="pl-thumb" style={{ width: size, height: size, fontSize: size / 2.6 }} aria-hidden="true">
       {board.name.slice(0, 1)}
       {board.imageUrl && !failed && (
-        <img src={board.imageUrl} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
+        <img
+          src={board.imageUrl}
+          alt=""
+          // The hero is the LCP element — lazy-loading it costs a whole round trip.
+          loading={eager ? "eager" : "lazy"}
+          fetchPriority={eager ? "high" : "auto"}
+          decoding="async"
+          onError={() => setFailed(true)}
+        />
       )}
     </span>
   );
@@ -51,7 +59,11 @@ export default function PlanEvent() {
   const navigate = useNavigate();
 
   const [step, setStep] = useState<"count" | "combo">("count");
-  const [headcount, setHeadcount] = useState<number>(15);
+  // Held as a string: coercing on every keystroke snapped an emptied field back to
+  // "1", so the number could not be backspaced and retyped.
+  const [headcountText, setHeadcountText] = useState("15");
+  const headcount = Math.min(500, Math.max(1, parseInt(headcountText, 10) || 1));
+  const setHeadcount = (n: number) => setHeadcountText(String(n));
   const [boards, setBoards] = useState<Platter[]>([]);
   const [counts, setCounts] = useState<CategoryCounts | null>(null);
   const [rec, setRec] = useState<RecommendResponse | null>(null);
@@ -109,7 +121,8 @@ export default function PlanEvent() {
       setRec(r);
       setCombo(new Map(r.items.map((i) => [i.boardId, i.qty])));
       setStep("combo");
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top: 0, behavior: still ? "auto" : "smooth" });
       window.requestAnimationFrame(() => spreadHeadingRef.current?.focus());
     } catch {
       setError("Couldn't build a recommendation. Please try again.");
@@ -187,7 +200,7 @@ export default function PlanEvent() {
 
       {step === "count" && (
         <section className="plan-count pl-grid">
-          <div className="pl-grid-main">
+          <div className="pl-intro">
           <p className="pl-eyebrow">Event planning · free · takes 20 seconds</p>
           <h1 className="pl-h1">How many are you feeding?</h1>
           <p className="pl-lede">
@@ -202,6 +215,24 @@ export default function PlanEvent() {
             </div>
           )}
 
+          </div>
+
+          {/* Shown at every width: a page selling food that shows no food is why this
+              one used to read as a form. Decorative letter is hidden from AT; the
+              caption below is real, readable product information. */}
+          {hero && (
+            <aside className="pl-aside">
+              <div className="pl-aside-photo">
+                <BoardThumb board={hero} size={520} eager />
+              </div>
+              <p className="pl-aside-cap">
+                <strong>{hero.name}</strong>
+                <span>{gbp(hero.fixedPrice ?? 0)} · {feedsLabel(hero)}</span>
+              </p>
+            </aside>
+          )}
+
+          <div className="pl-controls">
           <div className="pl-chips">
             {CHIPS.map(({ n, label }) => (
               <button
@@ -222,9 +253,12 @@ export default function PlanEvent() {
             <span>Or an exact number</span>
             <input
               type="number"
+              inputMode="numeric"
               min={1}
-              value={headcount}
-              onChange={(e) => setHeadcount(Math.max(1, parseInt(e.target.value || "1", 10)))}
+              max={500}
+              value={headcountText}
+              onChange={(e) => setHeadcountText(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))}
+              onBlur={() => setHeadcountText(String(headcount))}
               aria-label="Headcount"
             />
           </label>
@@ -244,20 +278,6 @@ export default function PlanEvent() {
               : <li><strong>Independent</strong> and family-run since day one</li>}
           </ul>
           </div>
-
-          {/* Desktop only: the product this page is actually selling. A page about
-              food that shows no food is the reason this one used to read as a form. */}
-          {hero && (
-            <aside className="pl-aside" aria-hidden="true">
-              <div className="pl-aside-photo">
-                <BoardThumb board={hero} size={520} />
-              </div>
-              <p className="pl-aside-cap">
-                <strong>{hero.name}</strong>
-                <span>{gbp(hero.fixedPrice ?? 0)} · {feedsLabel(hero)}</span>
-              </p>
-            </aside>
-          )}
         </section>
       )}
 
@@ -265,6 +285,13 @@ export default function PlanEvent() {
         <section className="plan-combo">
           <h1 className="pl-h1 pl-h1-sm" ref={spreadHeadingRef} tabIndex={-1}>Our suggestion for {headcount} people</h1>
           <p className="pl-lede">Swap anything you like — remove a board, add another. Totals update as you go.</p>
+
+          {comboLines.length === 0 && (
+            <p className="pl-empty">
+              You&apos;ve taken everything out. Add a board below, or{" "}
+              <button type="button" className="u-link" onClick={() => setStep("count")}>start again</button>.
+            </p>
+          )}
 
           <ul className="combo-list">
             {comboLines.map((l) => (
@@ -315,7 +342,7 @@ export default function PlanEvent() {
           )}
 
           {undercatered && (
-            <div className="pl-shortfall" role="alert">
+            <div className="pl-shortfall" role="status">
               <p>This mix feeds up to {feeds.max} — it won&apos;t stretch to {headcount}.</p>
               <button type="button" className="btn-ghost" onClick={fixShortfall}>Add a board to cover it</button>
             </div>
