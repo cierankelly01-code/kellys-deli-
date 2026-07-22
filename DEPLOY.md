@@ -43,10 +43,32 @@ Architecture: **client** (static, Vercel) → **API** (Express, Vercel serverles
 *(Prefer a long-running process? Render/Railway also work: root `server/`, build
 `npm install && npm run build`, start `npm start` — same env vars.)*
 
-### Image uploads — Supabase Storage
-Uploads use Supabase Storage when configured, else local disk (dev only — not persistent on serverless).
+### Image uploads — READ THIS BEFORE UPLOADING REAL PHOTOS
+Uploads go to Supabase Storage when configured, otherwise to local disk. **On a container
+host, local disk means the container's own filesystem, which is destroyed on every
+redeploy — and push-to-main redeploys automatically.** This has already cost one set of
+product photos: the images 404 while the database still points at them, so the shop
+silently fills with blank tiles. Nothing in the app warns you.
+
+Pick one:
+
+**A. Local disk on a mounted volume (what production uses).**
+1. Coolify → the application → **Persistent Storage** → add a **Volume Mount**
+   (source `/data/kellysdeli-uploads`, destination `/data/uploads`).
+2. Add env var `UPLOAD_DIR=/data/uploads`, then redeploy.
+
+**B. Supabase Storage.**
 1. Supabase → Storage → create a **public** bucket named `platter-images`.
-2. Set on the API host: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API), `SUPABASE_BUCKET=platter-images`.
+2. Set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API), `SUPABASE_BUCKET=platter-images`.
+
+**Verify either one from outside** — `GET /api/health` reports the live configuration:
+```json
+{"storage":"disk","uploadDir":"/data/uploads"}
+```
+`storage` is `disk` or `supabase`; `uploadDir` is where disk uploads land. Note this only
+proves the app is pointed at that path. To prove the volume genuinely persists, upload a
+throwaway file via `POST /api/admin/upload`, redeploy, then re-request the returned URL.
+
 Seeded platters use hosted image URLs, so the site looks right even before this is set.
 
 ## 3. Client — Vercel
