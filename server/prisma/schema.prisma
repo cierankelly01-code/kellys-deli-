@@ -46,6 +46,13 @@ model Platter {
   // "Plan My Event" recommender config (admin-managed per board).
   recommendEligible Boolean     @default(false)
   recommendPriority Int         @default(0) // higher = recommended first
+  // Sizes & options. Boards sharing a variantGroup are ONE product to the customer: the
+  // shop shows a single tile (the lowest variantOrder leads it) and the size/option is
+  // chosen on the product page. Each variant stays its own Platter row, so prices, prep
+  // sheets, margins and past orders are untouched by the grouping.
+  variantGroup      String? // null = sold on its own
+  variantLabel      String? // what the customer picks, e.g. "Large — feeds 10-15"
+  variantOrder      Int         @default(0) // lowest leads the shop tile
   orders            Order[]
   orderItems        OrderItem[]
   categories        PlatterCategory[]
@@ -55,6 +62,7 @@ model Platter {
   @@index([category])
   @@index([boardType])
   @@index([tier])
+  @@index([variantGroup])
 }
 
 // Occasion-based storefront categories (Hosting, At Home, Office & Corporate, …).

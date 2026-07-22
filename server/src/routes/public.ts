@@ -111,7 +111,17 @@ publicRouter.get("/recommend", async (req, res) => {
 publicRouter.get("/platters/:id", async (req, res) => {
   const platter = await prisma.platter.findUnique({ where: { id: req.params.id } });
   if (!platter || !platter.active) return res.status(404).json({ error: "Platter not found" });
-  res.json(platterDTO(platter));
+
+  // Sizes & options: ship the whole family with the board so the customer can switch size
+  // on the product page without another round trip (and without leaving the page).
+  // `variants` is empty for a board sold on its own, which is what hides the picker.
+  const variants = platter.variantGroup
+    ? await prisma.platter.findMany({
+        where: { active: true, variantGroup: platter.variantGroup },
+        orderBy: [{ variantOrder: "asc" }, { createdAt: "asc" }],
+      })
+    : [];
+  res.json({ ...platterDTO(platter), variants: variants.map((v) => platterDTO(v)) });
 });
 
 publicRouter.get("/experiences", async (_req, res) => {

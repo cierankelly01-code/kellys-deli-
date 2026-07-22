@@ -373,6 +373,34 @@
 .detail-items { list-style: none; padding: 0; margin: 8px 0 16px; display: grid; gap: 8px; }
 .detail-items li { padding: 10px 14px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-sm); font-weight: 600; }
 
+/* Sizes & options picker (product page). Real radios so keyboard and screen readers get
+   proper group semantics; the input itself is hidden and the label carries the styling. */
+.size-picker { border: 0; padding: 0; margin: 18px 0 4px; }
+.size-picker-legend {
+  font-family: var(--serif); font-size: 1.05rem; color: var(--ink);
+  padding: 0; margin-bottom: 10px;
+}
+.size-options { display: grid; gap: 10px; }
+@media (min-width: 520px) {
+  .size-options { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+}
+.size-option {
+  position: relative; display: flex; flex-direction: column; gap: 2px;
+  min-height: 44px; padding: 12px 14px; cursor: pointer;
+  background: var(--card); border: 2px solid var(--line); border-radius: var(--radius-sm);
+  transition: border-color var(--dur-micro) var(--ease-enter), box-shadow var(--dur-micro) var(--ease-enter);
+}
+.size-option:hover { border-color: var(--mustard); }
+.size-option:focus-within { outline: 3px solid var(--mustard); outline-offset: 2px; }
+.size-option.is-selected { border-color: var(--brick); box-shadow: var(--shadow-sm); }
+/* Hidden without display:none, so it stays focusable and announced. */
+.size-option input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.size-option-label { font-weight: 700; color: var(--ink); }
+.size-option-serves { font-size: 0.8rem; color: var(--ink-soft); }
+.size-option-price { font-weight: 800; color: var(--gold-text); }
+.size-option.is-selected .size-option-price { color: var(--brick); }
+@media (prefers-reduced-motion: reduce) { .size-option { transition: none; } }
+
 /* Re-order box */
 .reorder-box { background: #fff; border: 2px dashed var(--mustard); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 18px; }
 .reorder-box .row .input { margin: 0; }

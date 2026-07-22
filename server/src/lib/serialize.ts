@@ -58,6 +58,10 @@ export function platterDTO(p: Platter, opts: { includeCost?: boolean } = {}) {
     feedsMax: p.feedsMax,
     recommendEligible: p.recommendEligible,
     recommendPriority: p.recommendPriority,
+    // Sizes & options — boards sharing a group render as one tile (see groupVariants on the client).
+    variantGroup: p.variantGroup,
+    variantLabel: p.variantLabel,
+    variantOrder: p.variantOrder,
   };
   if (opts.includeCost) return { ...dto, cost: Number(p.cost) };
   return dto;

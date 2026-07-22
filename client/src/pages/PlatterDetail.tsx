@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { api, type Platter, type CategoryCounts, type SubscriptionFrequency } from "../lib/api";
+import { Link, useParams, useNavigate } from "react-router-dom";
+import { api, type Platter, type PlatterWithVariants, type CategoryCounts, type SubscriptionFrequency } from "../lib/api";
 import { addBoard, loadCart, saveCart, emptyCart } from "../lib/cart";
 import { openCartDrawer } from "../components/CartDrawer";
 import { gbp } from "../lib/format";
@@ -9,22 +9,37 @@ import { usePageTitle } from "../lib/title";
 import { DeadlineChip, TrustChips } from "../components/Trust";
 import { SubscribeSave } from "../components/SubscribeSave";
 import { trackViewContent } from "../lib/consent";
+import { pickerHeading } from "../lib/variants";
 
 export default function PlatterDetail() {
   const { id } = useParams();
-  const [platter, setPlatter] = useState<Platter | null>(null);
+  const navigate = useNavigate();
+  const [product, setProduct] = useState<PlatterWithVariants | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [counts, setCounts] = useState<CategoryCounts | null>(null);
   const [subFreq, setSubFreq] = useState<SubscriptionFrequency | null>(null);
+  // Which size/option is chosen. Each one is its own board, so this decides what gets added.
+  const [chosenId, setChosenId] = useState<string | null>(null);
+
+  const variants = product?.variants ?? [];
+  const platter: Platter | null =
+    variants.find((v) => v.id === chosenId) ?? product ?? null;
   usePageTitle(platter?.name);
 
   useEffect(() => {
     if (!id) return;
-    api.platter(id).then(setPlatter).catch((e) => setError(e.message));
+    api.platter(id).then((p) => { setProduct(p); setChosenId(p.id); }).catch((e) => setError(e.message));
     api.categories().then(setCounts).catch(() => setCounts(null));
     // Pre-select any subscription choice already in the cart.
     setSubFreq(loadCart()?.subscription?.frequency ?? null);
   }, [id]);
+
+  // Switching size swaps the URL too, so a refresh or a shared link keeps the choice.
+  // `replace` keeps the back button pointing at the shop rather than at each size tried.
+  const choose = (v: Platter) => {
+    setChosenId(v.id);
+    navigate(`/platter/${v.id}`, { replace: true });
+  };
 
   // Per-board Product structured data — Google rich results + something concrete for
   // AI answer engines to cite. Injected when the board loads, removed on unmount.
@@ -86,6 +101,7 @@ export default function PlatterDetail() {
   }
 
   const cleanDesc = platter.description.replace(/\s*\[CHECK PRICE.*?\]\s*$/i, "");
+  const heroImage = platter.imageUrl ?? variants.find((v) => v.imageUrl)?.imageUrl ?? null;
 
   return (
     <div className="app app-wide">
@@ -93,7 +109,8 @@ export default function PlatterDetail() {
       <Link to="/platters" className="btn-ghost back">← Back to boards</Link>
 
       <div className="detail-grid">
-        {platter.imageUrl && <div className="detail-photo arch vt-hero" style={{ backgroundImage: `url(${platter.imageUrl})` }} role="img" aria-label={platter.name} />}
+        {/* Sizes often share one photo — fall back to any sibling's rather than showing a hole. */}
+        {heroImage && <div className="detail-photo arch vt-hero" style={{ backgroundImage: `url(${heroImage})` }} role="img" aria-label={platter.name} />}
 
         <div className="detail-buy">
           <div className="spread" style={{ marginTop: 18, alignItems: "flex-start" }}>
@@ -105,6 +122,32 @@ export default function PlatterDetail() {
           {platter.serves && <p className="serves">Feeds {platter.serves}</p>}
 
           <p className="detail-desc">{cleanDesc}</p>
+
+          {variants.length > 1 && (
+            <fieldset className="size-picker">
+              <legend className="size-picker-legend">{pickerHeading(variants)}</legend>
+              <div className="size-options">
+                {variants.map((v) => (
+                  <label key={v.id} className={`size-option${v.id === platter.id ? " is-selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="board-size"
+                      value={v.id}
+                      checked={v.id === platter.id}
+                      onChange={() => choose(v)}
+                    />
+                    <span className="size-option-label">{v.variantLabel ?? v.name}</span>
+                    {/* Owners naturally write "Large — feeds 12-15", so only add the feeds line
+                        when the label hasn't already said it. */}
+                    {v.serves && !(v.variantLabel ?? "").includes(v.serves) && (
+                      <span className="size-option-serves">Feeds {v.serves}</span>
+                    )}
+                    <span className="size-option-price">{gbp(v.fixedPrice ?? v.fromPrice)}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
 
           {subOn && (
             <SubscribeSave value={subFreq} onChange={setSubFreq} discountPct={subPct} />

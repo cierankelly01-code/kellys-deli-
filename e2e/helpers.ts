@@ -1,4 +1,16 @@
-import { type Page } from "@playwright/test";
+import { type Page, expect } from "@playwright/test";
+
+/**
+ * Order a specific size of a board that is sold in several. The shop lists one tile per
+ * product now, so the size is chosen on the product page — this walks that path the way a
+ * customer does: tile → "Choose a size" → pick → add.
+ */
+export async function orderBoardSize(page: Page, tileName: string, sizeLabel: string): Promise<void> {
+  await page.locator(".board-card", { hasText: tileName }).getByRole("button", { name: /Choose a size/ }).click();
+  await expect(page).toHaveURL(/\/platter\//);
+  await page.getByRole("radio", { name: sizeLabel }).check();
+  await page.getByRole("button", { name: /^Add & continue/ }).click();
+}
 
 /**
  * Pick the first bookable date, paging the calendar forward if the month on show is

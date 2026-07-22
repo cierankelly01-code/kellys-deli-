@@ -43,12 +43,20 @@ async function main() {
     description: string;
     imageUrl: string;
     items: { label: string; qtyPerUnit: number }[];
+    // Sizes & options: boards sharing a group show as ONE tile, size chosen on the product page.
+    variantGroup?: string;
+    variantLabel?: string;
+    variantOrder?: number;
   }
+
+  // The three plain platters are one product in three sizes, not three products — grouping
+  // them means the shop shows a single tile and the customer picks the size on the page.
+  const PLATTER_SIZES = "board-large-platter";
 
   const boards: BoardSeed[] = [
     // ---- Tier 1: Signature Boards (fast path, prominent on home) ----
     {
-      id: "board-small-platter", tier: "signature", name: "Small Platter", price: 45, cost: 18,
+      id: "board-small-platter", tier: "signature", variantGroup: PLATTER_SIZES, variantLabel: "Small — feeds 4-6", variantOrder: 2, name: "Small Platter", price: 45, cost: 18,
       feedsMin: 4, feedsMax: 6, priority: 30,
       description: `A generous mixed platter for a small group — sandwiches, savouries and fresh bits. ${CHECK}`,
       imageUrl: "https://images.unsplash.com/photo-1447279506476-3faec8071eee?auto=format&fit=crop&w=900&q=70",
@@ -60,7 +68,7 @@ async function main() {
       ],
     },
     {
-      id: "board-medium-platter", tier: "signature", name: "Medium Platter", price: 70, cost: 28,
+      id: "board-medium-platter", tier: "signature", variantGroup: PLATTER_SIZES, variantLabel: "Medium — feeds 8-10", variantOrder: 1, name: "Medium Platter", price: 70, cost: 28,
       feedsMin: 8, feedsMax: 10, priority: 90,
       description: `Our most popular spread — a proper mixed platter for the room. ${CHECK}`,
       imageUrl: "https://images.unsplash.com/photo-1504754524776-8f4f37790ca0?auto=format&fit=crop&w=900&q=70",
@@ -72,7 +80,7 @@ async function main() {
       ],
     },
     {
-      id: "board-large-platter", tier: "signature", name: "Large Platter", price: 100, cost: 42,
+      id: "board-large-platter", tier: "signature", variantGroup: PLATTER_SIZES, variantLabel: "Large — feeds 12-15", variantOrder: 0, name: "Large Platter", price: 100, cost: 42,
       feedsMin: 12, feedsMax: 15, priority: 100,
       description: `The full spread for a bigger gathering — everything the table needs. ${CHECK}`,
       imageUrl: "https://images.unsplash.com/photo-1672826979217-7156a305acf5?auto=format&fit=crop&w=900&q=70",
@@ -173,6 +181,9 @@ async function main() {
       sortOrder: boards.indexOf(b),
       recommendEligible: true,
       recommendPriority: b.priority,
+      variantGroup: b.variantGroup ?? null,
+      variantLabel: b.variantLabel ?? null,
+      variantOrder: b.variantOrder ?? 0,
     };
     // update: {} — create-only so admin corrections survive a reseed.
     await prisma.platter.upsert({ where: { id: b.id }, update: {}, create: { id: b.id, ...data } });

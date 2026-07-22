@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { pickCollectionDate } from "./helpers";
+import { pickCollectionDate, orderBoardSize } from "./helpers";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "owner@kellysdeli.co.uk";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "changeme123";
@@ -40,9 +40,13 @@ test.describe("customer flows", () => {
   test("home renders signature boards from the database with price + feeds", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Signature boards" })).toBeVisible();
-    const card = page.locator(".board-card", { hasText: "Medium Platter" });
+    // The three platter sizes are one product, so home shows a single tile that quotes the
+    // cheapest size and sends you to the page to choose — not three near-identical cards.
+    const card = page.locator(".board-card", { hasText: "Large Platter" });
     await expect(card).toBeVisible();
-    await expect(card.getByText(/feeds \d/)).toBeVisible();
+    await expect(card.getByText(/From £\d+.*feeds \d/)).toBeVisible();
+    await expect(card.getByRole("button", { name: /Choose a size/ })).toBeVisible();
+    await expect(page.locator(".board-card", { hasText: "Medium Platter" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Plan my event/ }).first()).toBeVisible();
   });
 
@@ -77,7 +81,7 @@ test.describe("customer flows", () => {
 
   test("direct signature order with two add-ons has correct totals", async ({ page }) => {
     await page.goto("/platters");
-    await page.locator(".board-card", { hasText: "Medium Platter" }).getByRole("button", { name: /^Order/ }).click();
+    await orderBoardSize(page, "Large Platter", /Medium/);
     await proceedToOrder(page);
     // Add two add-ons: one suggested (per person) + one per-order.
     await page.locator(".addon-card", { hasText: "cutlery" }).getByRole("button", { name: /Add ×/ }).click();
@@ -112,7 +116,7 @@ test.describe("admin", () => {
   test("admin login shows itemised orders with deposit + balance and cycles status", async ({ page }) => {
     // Seed an order first via the customer flow.
     await page.goto("/platters");
-    await page.locator(".board-card", { hasText: "Small Platter" }).getByRole("button", { name: /^Order/ }).click();
+    await orderBoardSize(page, "Large Platter", /Small/);
     await proceedToOrder(page);
     await completeOrder(page);
 

@@ -12,12 +12,14 @@ import { DeadlineChip, Stars } from "../components/Trust";
 import { CorporateEnquiryForm } from "../components/CorporateEnquiryForm";
 import { ReminderCapture } from "../components/ReminderCapture";
 import { morphNavigate } from "../lib/motion";
+import { groupVariants, groupServes, type ProductGroup } from "../lib/variants";
 
 const SITE = "https://www.kellysdeli.co.uk";
 
-function priceFeeds(p: Platter): string {
-  const price = gbp(p.fixedPrice ?? p.fromPrice ?? 0);
-  return p.serves ? `${price} · feeds ${p.serves}` : price;
+function priceFeeds(g: ProductGroup): string {
+  const price = g.hasChoice ? `From ${gbp(g.fromPrice)}` : gbp(g.lead.fixedPrice ?? g.lead.fromPrice ?? 0);
+  const serves = groupServes(g.variants);
+  return serves ? `${price} · feeds ${serves}` : price;
 }
 
 export default function ShopCategory() {
@@ -53,7 +55,9 @@ export default function ShopCategory() {
   // Injected when the category loads (search landing pages), removed on unmount.
   useEffect(() => {
     if (!cat) return;
-    const boards = cat.boards ?? [];
+    // One entry per product, not per size — otherwise the same board is listed to search
+    // engines two or three times, which is exactly the duplication the grouping removed.
+    const boards = groupVariants(cat.boards ?? []).map((g) => g.lead);
     const itemList = {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
@@ -119,6 +123,7 @@ export default function ShopCategory() {
   }
 
   const boards = cat.boards ?? [];
+  const groups = groupVariants(boards);
 
   return (
     <div className="app app-wide shop-cat-page">
@@ -150,27 +155,31 @@ export default function ShopCategory() {
       {boards.length > 0 ? (
         <section className="board-section">
           <div className="board-grid">
-            {boards.map((p, i) => (
-              <article key={p.id} className="board-card card" data-reveal data-reveal-delay={String(i % 2)}>
-                <div className="board-card-img" style={{ backgroundImage: p.imageUrl ? `url(${p.imageUrl})` : undefined }} role="img" aria-label={p.name} />
-                <div className="board-card-body">
-                  <h3 className="board-card-name">{p.name}</h3>
-                  <p className="board-card-price">{priceFeeds(p)}</p>
-                  <p className="board-card-desc muted">{p.description.replace(/\s*\[CHECK PRICE.*?\]\s*$/i, "")}</p>
-                  <div className="board-card-actions">
-                    <button className="btn" onClick={() => startOrder(p)}>Order · {gbp(p.fixedPrice ?? 0)}</button>
-                    <button
-                      className="btn-ghost"
-                      onClick={(e) =>
-                        morphNavigate(navigate, `/platter/${p.id}`, e.currentTarget.closest("article")?.querySelector(".board-card-img") as HTMLElement | null)
-                      }
-                    >
-                      Details
-                    </button>
+            {groups.map((g, i) => {
+              const p = g.lead;
+              const toDetail = (e: React.MouseEvent<HTMLElement>) =>
+                morphNavigate(navigate, `/platter/${p.id}`, e.currentTarget.closest("article")?.querySelector(".board-card-img") as HTMLElement | null);
+              return (
+                <article key={p.id} className="board-card card" data-reveal data-reveal-delay={String(i % 2)}>
+                  <div className="board-card-img" style={{ backgroundImage: p.imageUrl ? `url(${p.imageUrl})` : undefined }} role="img" aria-label={p.name} />
+                  <div className="board-card-body">
+                    <h3 className="board-card-name">{p.name}</h3>
+                    <p className="board-card-price">{priceFeeds(g)}</p>
+                    <p className="board-card-desc muted">{p.description.replace(/\s*\[CHECK PRICE.*?\]\s*$/i, "")}</p>
+                    <div className="board-card-actions">
+                      {g.hasChoice ? (
+                        <button className="btn" onClick={toDetail}>Choose a size · {g.variants.length} options</button>
+                      ) : (
+                        <>
+                          <button className="btn" onClick={() => startOrder(p)}>Order · {gbp(p.fixedPrice ?? 0)}</button>
+                          <button className="btn-ghost" onClick={toDetail}>Details</button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
         </section>
       ) : (

@@ -36,7 +36,16 @@ export interface Platter {
   feedsMax: number | null;
   recommendEligible: boolean;
   recommendPriority: number;
+  // Sizes & options: boards sharing a variantGroup are one product in the shop.
+  variantGroup: string | null;
+  variantLabel: string | null;
+  variantOrder: number;
   cost?: number; // admin only
+}
+
+/** A board plus its sizes — what GET /api/platters/:id returns. Empty when sold on its own. */
+export interface PlatterWithVariants extends Platter {
+  variants: Platter[];
 }
 
 export type AddOnUnitType = "per_person" | "per_order" | "serves";
@@ -414,7 +423,7 @@ export const api = {
   // v2 boards by tier (signature | gallery); omit for all boards.
   boards: (tier?: BoardTier) =>
     req<Platter[]>(`/api/platters?category=board${tier ? `&tier=${tier}` : ""}`),
-  platter: (id: string) => req<Platter>(`/api/platters/${id}`),
+  platter: (id: string) => req<PlatterWithVariants>(`/api/platters/${id}`),
   addOns: () => req<AddOn[]>("/api/add-ons"),
   recommend: (headcount: number) => req<RecommendResponse>(`/api/recommend?headcount=${headcount}`),
   experiences: () => req<Experience[]>("/api/experiences"),

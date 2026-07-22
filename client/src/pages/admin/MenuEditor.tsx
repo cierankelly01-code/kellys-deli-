@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   adminApi,
   type AdminPlatter,
@@ -36,6 +36,9 @@ interface Draft {
   feedsMax: string;
   recommendEligible: boolean;
   recommendPriority: string;
+  variantGroup: string;
+  variantLabel: string;
+  variantOrder: string;
 }
 
 function toDraft(p: AdminPlatter): Draft {
@@ -49,6 +52,7 @@ function toDraft(p: AdminPlatter): Draft {
     tier: p.tier ?? "", feedsMin: p.feedsMin != null ? String(p.feedsMin) : "",
     feedsMax: p.feedsMax != null ? String(p.feedsMax) : "",
     recommendEligible: p.recommendEligible, recommendPriority: String(p.recommendPriority),
+    variantGroup: p.variantGroup ?? "", variantLabel: p.variantLabel ?? "", variantOrder: String(p.variantOrder),
   };
 }
 // The API takes the whole platter on every save, so quick edits send the full
@@ -62,6 +66,7 @@ function toUpsert(p: AdminPlatter): PlatterUpsertInput {
     boardType: p.boardType, size: p.size,
     tier: p.tier, feedsMin: p.feedsMin, feedsMax: p.feedsMax,
     recommendEligible: p.recommendEligible, recommendPriority: p.recommendPriority,
+    variantGroup: p.variantGroup, variantLabel: p.variantLabel, variantOrder: p.variantOrder,
   };
 }
 
@@ -72,6 +77,7 @@ function blankDraft(category: Category = "board"): Draft {
     boardType: category === "platters" ? "charcuterie" : "", size: category === "platters" ? "medium" : "",
     tier: category === "board" ? "signature" : "", feedsMin: "", feedsMax: "",
     recommendEligible: category === "board", recommendPriority: "0",
+    variantGroup: "", variantLabel: "", variantOrder: "0",
   };
 }
 
@@ -110,6 +116,8 @@ export default function MenuEditor() {
     if (!draft) return;
     if (!draft.name.trim()) return setError("Give the platter a name");
     if (priceNum <= 0) return setError("Set a price greater than zero");
+    if (draft.variantGroup.trim() && !draft.variantLabel.trim())
+      return setError('Give this size a label the customer will see, e.g. "Large — feeds 10-15"');
     // Prep items are optional — the owner mainly needs photo, description and price.
     // Any blank rows are dropped; an empty list is fine (prep sheet just shows none).
     const cleanItems = draft.items.filter((i) => i.label.trim() !== "");
@@ -132,6 +140,10 @@ export default function MenuEditor() {
       feedsMax: draft.feedsMax.trim() ? parseInt(draft.feedsMax, 10) : null,
       recommendEligible: draft.recommendEligible,
       recommendPriority: Math.max(0, parseInt(draft.recommendPriority, 10) || 0),
+      // Explicit null (not undefined) so clearing the group actually ungroups the board.
+      variantGroup: draft.variantGroup.trim() || null,
+      variantLabel: draft.variantGroup.trim() ? draft.variantLabel.trim() : null,
+      variantOrder: Math.max(0, parseInt(draft.variantOrder, 10) || 0),
     };
     setSaving(true); setError(null); setMsg(null);
     try {
@@ -266,6 +278,7 @@ export default function MenuEditor() {
             ))}
             <button className="btn-ghost" onClick={() => set("items", [...draft.items, { label: "", qtyPerUnit: 1 }])}>+ Add item</button>
           </div>
+          <VariantFields draft={draft} set={set} platters={platters} />
           <ImageUpload value={draft.imageUrl} onChange={(url) => set("imageUrl", url)} />
           <label className="toggle"><input type="checkbox" checked={draft.active} onChange={(e) => set("active", e.target.checked)} /><span>Active (shown to customers). Turn off to hide without deleting — past orders are kept.</span></label>
           <div className="nav-row">
@@ -287,6 +300,78 @@ export default function MenuEditor() {
       <h2>Locations &amp; daily capacity</h2>
       <p className="muted" style={{ marginTop: -6 }}>Max orders per day at each shop.</p>
       <div className="stack">{locations.map((l) => <LocationRow key={l.id} location={l} onSaved={refresh} />)}</div>
+    </div>
+  );
+}
+
+/**
+ * Sizes & options. Boards that share a group show as ONE tile on the shop and the customer
+ * picks between them on the product page — so "Smoked Salmon small" and "Smoked Salmon large"
+ * stop being two separate products the customer has to compare for themselves.
+ *
+ * The group key is the leading board's id, so it is stable and can't be broken by a typo
+ * (which is what a free-text group name would invite — the catalogue already has one board
+ * saved as "Tomato" and its other size as "Tomatoes").
+ */
+function VariantFields({
+  draft, set, platters,
+}: {
+  draft: Draft; set: <K extends keyof Draft>(key: K, value: Draft[K]) => void; platters: AdminPlatter[];
+}) {
+  // Existing groups, named after whichever member leads the shop tile.
+  const groups = useMemo(() => {
+    const byGroup = new Map<string, AdminPlatter>();
+    for (const p of [...platters].sort((a, b) => a.variantOrder - b.variantOrder)) {
+      if (p.variantGroup && !byGroup.has(p.variantGroup)) byGroup.set(p.variantGroup, p);
+    }
+    return [...byGroup.entries()].map(([key, lead]) => ({ key, name: lead.name }));
+  }, [platters]);
+
+  // Starting a new group keys it on this board's own id. A board being created has no id
+  // yet, so it borrows a name-based key — unique enough, and the owner can re-point it after.
+  const newKey = draft.id ?? `grp-${draft.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40) || "new"}`;
+  const isNewGroup = !!draft.variantGroup && !groups.some((g) => g.key === draft.variantGroup);
+
+  return (
+    <div className="field variant-fields">
+      <label>Sizes &amp; options</label>
+      <p className="muted hint">
+        Boards grouped together show as <strong>one tile</strong> on the shop. The customer picks the
+        size on the product page instead of scrolling past near-identical tiles.
+      </p>
+      <select
+        className="input"
+        value={draft.variantGroup === "" ? "" : isNewGroup ? "__new" : draft.variantGroup}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v === "") { set("variantGroup", ""); set("variantLabel", ""); }
+          else if (v === "__new") set("variantGroup", newKey);
+          else set("variantGroup", v);
+        }}
+      >
+        <option value="">Sold on its own</option>
+        <option value="__new">Start a new group with this board</option>
+        {groups.map((g) => <option key={g.key} value={g.key}>Add as a size of &ldquo;{g.name}&rdquo;</option>)}
+      </select>
+
+      {draft.variantGroup && (
+        <div className="price-row" style={{ marginTop: 10 }}>
+          <div className="field">
+            <label>What the customer picks</label>
+            <input
+              className="input"
+              value={draft.variantLabel}
+              onChange={(e) => set("variantLabel", e.target.value)}
+              placeholder="e.g. Large — feeds 10-15"
+            />
+          </div>
+          <div className="field">
+            <label>Order in the group</label>
+            <input className="input" inputMode="numeric" value={draft.variantOrder} onChange={(e) => set("variantOrder", e.target.value)} />
+            <p className="muted hint">0 shows first — that one fronts the shop tile.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -129,6 +129,10 @@ export interface PlatterUpsertInput {
   feedsMax?: number | null;
   recommendEligible?: boolean;
   recommendPriority?: number;
+  // Sizes & options. Send null explicitly to take a board back out of its group.
+  variantGroup?: string | null;
+  variantLabel?: string | null;
+  variantOrder?: number;
 }
 
 export type AdminAddOn = AddOn;

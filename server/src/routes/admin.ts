@@ -229,6 +229,9 @@ interface PlatterFallback {
   feedsMax?: number | null;
   recommendEligible?: boolean;
   recommendPriority?: number;
+  variantGroup?: string | null;
+  variantLabel?: string | null;
+  variantOrder?: number;
 }
 
 function platterData(d: import("../lib/validation").PlatterUpsertInput, fallback?: PlatterFallback) {
@@ -254,6 +257,12 @@ function platterData(d: import("../lib/validation").PlatterUpsertInput, fallback
     feedsMax: d.feedsMax ?? fallback?.feedsMax ?? null,
     recommendEligible: d.recommendEligible ?? fallback?.recommendEligible ?? false,
     recommendPriority: d.recommendPriority ?? fallback?.recommendPriority ?? 0,
+    // Sizes & options. Tested with `in` rather than `??` because an explicit null is how
+    // the editor takes a board back out of a group — `??` would treat that as "unchanged"
+    // and the board could never be ungrouped.
+    variantGroup: "variantGroup" in d ? (d.variantGroup ?? null) : (fallback?.variantGroup ?? null),
+    variantLabel: "variantLabel" in d ? (d.variantLabel ?? null) : (fallback?.variantLabel ?? null),
+    variantOrder: d.variantOrder ?? fallback?.variantOrder ?? 0,
   };
 }
 
@@ -280,6 +289,9 @@ adminRouter.patch("/platters/:id", async (req, res) => {
       feedsMax: exists.feedsMax,
       recommendEligible: exists.recommendEligible,
       recommendPriority: exists.recommendPriority,
+      variantGroup: exists.variantGroup,
+      variantLabel: exists.variantLabel,
+      variantOrder: exists.variantOrder,
     }),
   });
   res.json(platterDTO(updated, { includeCost: true }));

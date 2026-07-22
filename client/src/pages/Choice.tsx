@@ -9,6 +9,7 @@ import { StickyCta } from "../components/StickyCta";
 import { Faq } from "../components/Faq";
 import { DeadlineChip, Stars, TrustChips } from "../components/Trust";
 import { morphNavigate } from "../lib/motion";
+import { groupVariants, groupServes, type ProductGroup } from "../lib/variants";
 
 const DAY_LABELS: Array<{ key: keyof OpeningHours; label: string }> = [
   { key: "mon", label: "Mon" }, { key: "tue", label: "Tue" }, { key: "wed", label: "Wed" },
@@ -55,9 +56,10 @@ function computeOpenStatus(hours: OpeningHours): { open: boolean; text: string }
   return { open: false, text: "Closed" };
 }
 
-function priceFeeds(p: Platter): string {
-  const price = gbp(p.fixedPrice ?? p.fromPrice ?? 0);
-  return p.serves ? `${price} · feeds ${p.serves}` : price;
+function priceFeeds(g: ProductGroup): string {
+  const price = g.hasChoice ? `From ${gbp(g.fromPrice)}` : gbp(g.lead.fixedPrice ?? g.lead.fromPrice ?? 0);
+  const serves = groupServes(g.variants);
+  return serves ? `${price} · feeds ${serves}` : price;
 }
 
 export default function Choice() {
@@ -84,7 +86,8 @@ export default function Choice() {
 
   const hours = parseHours(counts?.openingHours ?? null);
   const today = DAY_LABELS[(new Date().getDay() + 6) % 7];
-  const signature = boards ?? [];
+  // One tile per board, not one per size (see lib/variants).
+  const signature = groupVariants(boards ?? []);
 
   return (
     <div className="choice">
@@ -170,30 +173,34 @@ export default function Choice() {
             <p className="muted">Loading boards…</p>
           ) : (
             <div className="board-grid">
-              {signature.map((p, i) => (
-                <article key={p.id} className="board-card card" data-reveal data-reveal-delay={String(i % 2)}>
-                  <div className="board-card-img" style={{ backgroundImage: p.imageUrl ? `url(${p.imageUrl})` : undefined }} role="img" aria-label={p.name} />
-                  <div className="board-card-body">
-                    <h3 className="board-card-name">{p.name}</h3>
-                    <p className="board-card-price">{priceFeeds(p)}</p>
-                    <div className="board-card-actions">
-                      <button className="btn" onClick={() => startOrder(p)}>Order · {gbp(p.fixedPrice ?? 0)}</button>
-                      <button
-                        className="btn-ghost"
-                        onClick={(e) =>
-                          morphNavigate(
-                            navigate,
-                            `/platter/${p.id}${suffix}`,
-                            e.currentTarget.closest("article")?.querySelector(".board-card-img") as HTMLElement | null,
-                          )
-                        }
-                      >
-                        Details
-                      </button>
+              {signature.map((g, i) => {
+                const p = g.lead;
+                const toDetail = (e: React.MouseEvent<HTMLElement>) =>
+                  morphNavigate(
+                    navigate,
+                    `/platter/${p.id}${suffix}`,
+                    e.currentTarget.closest("article")?.querySelector(".board-card-img") as HTMLElement | null,
+                  );
+                return (
+                  <article key={p.id} className="board-card card" data-reveal data-reveal-delay={String(i % 2)}>
+                    <div className="board-card-img" style={{ backgroundImage: p.imageUrl ? `url(${p.imageUrl})` : undefined }} role="img" aria-label={p.name} />
+                    <div className="board-card-body">
+                      <h3 className="board-card-name">{p.name}</h3>
+                      <p className="board-card-price">{priceFeeds(g)}</p>
+                      <div className="board-card-actions">
+                        {g.hasChoice ? (
+                          <button className="btn" onClick={toDetail}>Choose a size · {g.variants.length} options</button>
+                        ) : (
+                          <>
+                            <button className="btn" onClick={() => startOrder(p)}>Order · {gbp(p.fixedPrice ?? 0)}</button>
+                            <button className="btn-ghost" onClick={toDetail}>Details</button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           )}
           <div data-reveal><DeadlineChip /></div>

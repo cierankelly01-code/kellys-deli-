@@ -117,6 +117,17 @@ export const platterUpsertSchema = z
     feedsMax: z.number().int().positive().max(1000).nullable().optional(),
     recommendEligible: z.boolean().optional(),
     recommendPriority: z.number().int().min(0).max(1000).optional(),
+    // Sizes & options. Boards sharing a group show as one shop tile; the customer picks
+    // between them on the product page.
+    variantGroup: z.string().max(60).nullable().optional(),
+    variantLabel: z.string().max(60).nullable().optional(),
+    variantOrder: z.number().int().min(0).max(100).optional(),
+  })
+  // A group of one is a tile with a pointless picker, and an unlabelled option is a
+  // button with nothing written on it — so a grouped board must say what it is.
+  .refine((d) => !d.variantGroup || !!d.variantLabel?.trim(), {
+    message: "Give this size an option label, e.g. \"Large — feeds 10-15\"",
+    path: ["variantLabel"],
   })
   .refine((d) => (d.pricePerHead != null) !== (d.fixedPrice != null), {
     message: "Set either a per-head price OR a fixed price (not both, not neither)",
