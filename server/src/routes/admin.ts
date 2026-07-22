@@ -463,7 +463,13 @@ adminRouter.post("/margin", (req, res) => {
 // Image upload — returns a URL to store as a platter/experience imageUrl.
 adminRouter.post("/upload", (req, res) => {
   imageUpload.single("image")(req, res, async (err) => {
-    if (err) return res.status(400).json({ error: err.message });
+    // multer's own messages are developer-speak ("File too large"); the owner is not.
+    if (err) {
+      const tooBig = (err as { code?: string }).code === "LIMIT_FILE_SIZE";
+      return res.status(400).json({
+        error: tooBig ? "That photo is too big — please use one under 5 MB" : err.message,
+      });
+    }
     if (!req.file) return res.status(400).json({ error: "No image uploaded" });
     try {
       res.json({ url: await persistUpload(req.file) });

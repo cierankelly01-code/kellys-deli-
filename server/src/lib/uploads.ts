@@ -59,6 +59,10 @@ export const imageUpload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
   fileFilter: (_req, file, cb) => {
     if (ALLOWED.has(file.mimetype)) cb(null, true);
+    // HEIC is the iPhone default and browsers can't display it, so it's rejected here
+    // rather than silently becoming a broken photo on the shop.
+    else if (/heic|heif/i.test(file.mimetype))
+      cb(new Error("iPhone HEIC photos can't be shown on the web — in Photos, choose Share → Options → Most Compatible, then upload the JPG"));
     else cb(new Error("Please upload an image (JPG, PNG, WebP, GIF or AVIF)"));
   },
 });

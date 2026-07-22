@@ -142,6 +142,15 @@ d("admin photo upload", () => {
     expect(res.body.error).toMatch(/image/i);
   });
 
+  it("explains what to do about an iPhone HEIC photo", async () => {
+    const res = await request(app)
+      .post("/api/admin/upload")
+      .set("Authorization", `Bearer ${t}`)
+      .attach("image", PNG, { filename: "IMG_0001.HEIC", contentType: "image/heic" });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/most compatible/i);
+  });
+
   it("needs a login", async () => {
     const res = await request(app).post("/api/admin/upload").attach("image", PNG, { filename: "photo.png", contentType: "image/png" });
     expect(res.status).toBe(401);
