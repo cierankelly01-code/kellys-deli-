@@ -37,7 +37,8 @@ export function Header() {
 
   return (
     <>
-      <a className="skip-link" href="#main">Skip to content</a>
+      {/* The skip link lives in the layout (App.tsx), outside <main> — from in here
+          it would only ever skip to the element containing it. */}
       <Ticker />
       <header className="hdr spread">
         <Link to="/" className="brand">

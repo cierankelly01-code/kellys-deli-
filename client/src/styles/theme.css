@@ -185,6 +185,8 @@ p { text-wrap: pretty; }
 :focus-visible { outline: 2px solid var(--mustard); outline-offset: 2px; border-radius: 4px; }
 
 /* Animated link underline (left-to-right on hover). */
+/* Buttons styled as links are still buttons: keep a 44px tap target. */
+button.u-link { padding-block: 12px; }
 .u-link {
   text-decoration: none;
   background-image: linear-gradient(currentColor, currentColor);

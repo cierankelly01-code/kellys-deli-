@@ -12,7 +12,7 @@ import {
 } from "../lib/validation";
 import { priceOrder, priceLineItemOrder, REFERRAL_DISCOUNT } from "../lib/money";
 import { buildAvailability, canBook, getDayAvailability, meetsNotice, meetsLeadTime, parseDate, formatDate } from "../lib/capacity";
-import { recommendBoards, midpoint, type RecBoard } from "../lib/recommender";
+import { recommendBoards, capacity as boardCapacity, type RecBoard } from "../lib/recommender";
 import { genRef, randomReferralCode } from "../lib/ref";
 import { captureDepositIntent } from "../lib/payments";
 import { notifyOrderReceived } from "../lib/notify";
@@ -98,7 +98,9 @@ publicRouter.get("/recommend", async (req, res) => {
       boardId: l.boardId,
       qty: l.qty,
       board: platterDTO(b),
-      feedsEach: midpoint({ feedsMin: b.feedsMin ?? 0, feedsMax: b.feedsMax ?? 0 }),
+      // Coverage is judged by the top of the printed range — the same number shown
+      // on the board card — so the quote never pads against its own label.
+      feedsEach: boardCapacity({ feedsMin: b.feedsMin ?? 0, feedsMax: b.feedsMax ?? 0 }),
     };
   });
   const totalFeeds = items.reduce((s, i) => s + i.feedsEach * i.qty, 0);

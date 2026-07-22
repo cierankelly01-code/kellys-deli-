@@ -4,7 +4,7 @@ import { test, expect, type Page } from "@playwright/test";
 
 async function toSpread(page: Page) {
   await page.goto("/plan");
-  await page.getByRole("button", { name: "15", exact: true }).click();
+  await page.getByRole("button", { name: /^15 people/ }).click();
   await page.getByRole("button", { name: /Show me a spread/ }).click();
   await expect(page.getByRole("heading", { name: /Our suggestion/ })).toBeVisible();
 }
@@ -63,7 +63,7 @@ test("heading outline reads as a table of contents", async ({ page }) => {
 
 test("headcount tiles announce their state to a screen reader", async ({ page }) => {
   await page.goto("/plan");
-  const tile = page.getByRole("button", { name: "20", exact: true });
+  const tile = page.getByRole("button", { name: /^20 people/ });
   await expect(tile).toHaveAttribute("aria-pressed", "false");
   await tile.click();
   await expect(tile).toHaveAttribute("aria-pressed", "true");

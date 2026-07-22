@@ -30,6 +30,32 @@ export function feedsMid(p: Pick<Platter, "feedsMin" | "feedsMax">): number {
   return (p.feedsMin + p.feedsMax) / 2;
 }
 
+/**
+ * How many a board covers when deciding whether a spread is big enough.
+ *
+ * This is deliberately the TOP of the printed range, not the midpoint. A board
+ * labelled "feeds 12–15" feeds 15 — that is the deli's own published claim, on the
+ * card, two inches from this number. Judging coverage by the midpoint (13.5) made
+ * the planner add a second board to a 15-person order and quote 45% over the
+ * honest price, while the page contradicted the range it had just printed.
+ */
+export function feedsCapacity(p: Pick<Platter, "feedsMin" | "feedsMax">): number {
+  return p.feedsMax ?? 0;
+}
+
+/** Combined "feeds X–Y" range for a set of boards. */
+export function feedsRange(
+  lines: Array<{ board: Pick<Platter, "feedsMin" | "feedsMax">; qty: number }>,
+): { min: number; max: number } {
+  return lines.reduce(
+    (acc, l) => ({
+      min: acc.min + (l.board.feedsMin ?? 0) * l.qty,
+      max: acc.max + (l.board.feedsMax ?? 0) * l.qty,
+    }),
+    { min: 0, max: 0 },
+  );
+}
+
 export interface LineTotals {
   boardsTotal: number;
   addOnsTotal: number;

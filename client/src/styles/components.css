@@ -21,7 +21,9 @@
 
 /* Header / brand */
 .hdr { padding: 16px 0 10px; }
-.brand { display: flex; align-items: baseline; gap: 10px; text-decoration: none; }
+/* Padding rather than min-height: keeps the baseline alignment of the wordmark and
+   its sub-label while giving the link a 44px tap target on a phone. */
+.brand { display: flex; align-items: baseline; gap: 10px; text-decoration: none; padding: 4px 0; }
 .brand-mark { font-family: var(--serif); font-size: 1.5rem; font-weight: 500; color: var(--ink); }
 .brand-sub {
   font-size: 0.66rem; letter-spacing: 0.2em; text-transform: uppercase;
@@ -248,7 +250,8 @@
 .hours-card { margin-top: 18px; padding: 16px 18px; }
 .hours-status {
   display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: none;
-  padding: 0; cursor: pointer; font-family: inherit; text-align: left; color: var(--ink);
+  /* padding-block gives this toggle a 44px thumb target without moving the text. */
+  padding: 12px 0; cursor: pointer; font-family: inherit; text-align: left; color: var(--ink);
 }
 .status-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; background: var(--good); }
 .status-dot.closed { background: var(--danger); }
@@ -568,7 +571,8 @@
 .lh-mark { font-size: clamp(2.4rem, 7vw, 3.4rem); }
 
 /* Aggregate Google rating widget. */
-.stars-widget { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 0.9rem; }
+/* padding-block keeps this above the WCAG 2.2 AA 24px target floor when it is a link. */
+.stars-widget { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 0.9rem; padding-block: 4px; }
 .stars-widget .stars { font-size: 0.85rem; }
 .stars-widget strong { font-size: 0.95rem; }
 
@@ -932,3 +936,32 @@ a.stars-widget:hover strong { text-decoration: underline; }
   font-family: var(--serif); font-size: 1.9rem; font-weight: 600; color: var(--ink);
   font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
 }
+
+/* Planner desktop: the mobile column is the whole page below 1000px. Above it the
+   controls take the left and the product takes the right — a page selling food
+   should show food, and 53% of a 1440px viewport was previously empty cream. */
+.pl-grid-main { min-width: 0; }
+.pl-aside { display: none; }
+@media (min-width: 1000px) {
+  .plan-event .pl-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr); gap: 56px; align-items: start; }
+  .plan-event .pl-cta { max-width: 380px; }
+  .pl-aside { display: block; position: sticky; top: 24px; }
+  .pl-aside-photo { border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); aspect-ratio: 4 / 5; }
+  .pl-aside-photo .pl-thumb { width: 100% !important; height: 100% !important; border: 0; border-radius: 0; font-size: 5rem !important; }
+  .pl-aside-cap { display: flex; flex-direction: column; gap: 2px; margin: 14px 2px 0; font-size: 0.92rem; }
+  .pl-aside-cap span { color: var(--ink-soft); }
+
+  /* Step 2 keeps the list narrow and pins the decision beside it. */
+  .plan-event .plan-combo { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 48px; align-items: start; }
+  .plan-event .plan-combo > .pl-h1, .plan-event .plan-combo > .pl-lede { grid-column: 1 / -1; }
+  .plan-event .pl-summary {
+    position: sticky; top: 24px; margin-top: 0; padding: 22px; border-top: 0;
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  }
+  .plan-event .pl-shortfall { grid-column: 1; }
+}
+.pl-summary-feeds { display: flex; flex-direction: column; gap: 2px; }
+.pl-summary-feeds em { font-style: normal; font-size: 0.86rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.pl-trust-compact { margin-top: 18px; padding-top: 16px; font-size: 0.84rem; gap: 8px; }
+/* 0.68rem was ~10.9px — unreadable on a phone at arm's length. */
+.pl-chip-label { font-size: 0.74rem; }

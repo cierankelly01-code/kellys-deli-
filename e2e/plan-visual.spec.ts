@@ -10,7 +10,7 @@ const SIZES = [
 
 async function toSpread(page: Page) {
   await page.goto("/plan");
-  await page.getByRole("button", { name: "15", exact: true }).click();
+  await page.getByRole("button", { name: /^15 people/ }).click();
   await page.getByRole("button", { name: /Show me a spread/ }).click();
   await expect(page.getByRole("heading", { name: /Our suggestion for 15 people/ })).toBeVisible();
 }
@@ -22,7 +22,7 @@ for (const s of SIZES) {
     await expect(page.getByRole("heading", { name: /How many are you feeding/ })).toBeVisible();
     await page.screenshot({ path: `test-results/plan-step1-${s.name}.png`, fullPage: true });
 
-    await page.getByRole("button", { name: "15", exact: true }).click();
+    await page.getByRole("button", { name: /^15 people/ }).click();
     await page.getByRole("button", { name: /Show me a spread/ }).click();
     await expect(page.getByRole("heading", { name: /Our suggestion/ })).toBeVisible();
     await page.screenshot({ path: `test-results/plan-step2-${s.name}.png`, fullPage: true });
@@ -85,8 +85,35 @@ test("a very long board name does not break the row", async ({ page }) => {
 
 test("keyboard: headcount tiles and CTA are reachable and operable", async ({ page }) => {
   await page.goto("/plan");
-  const tile = page.getByRole("button", { name: "20", exact: true });
+  const tile = page.getByRole("button", { name: /^20 people/ });
   await tile.focus();
   await page.keyboard.press("Enter");
   await expect(tile).toHaveAttribute("aria-pressed", "true");
+});
+
+test("the suggested spread is not padded with boards the headcount doesn't need", async ({ page }) => {
+  // Regression: coverage was judged on the midpoint of each board's feeds range, so a
+  // board printed "feeds 12–15" scored 13.5 and a 15-person order got a second board
+  // bolted on — quoting ~45% over the honest price while contradicting the card.
+  await toSpread(page);
+
+  const lines = await page.evaluate(() =>
+    [...document.querySelectorAll(".combo-row")].map((r) => {
+      const meta = r.querySelector(".muted")?.textContent ?? "";
+      const qty = Number(r.querySelector(".stepper-val")?.textContent ?? "1");
+      const feedsMax = Number(meta.match(/feeds\s+\d+[–-](\d+)/)?.[1] ?? 0);
+      return { feedsMax, qty };
+    }),
+  );
+  expect(lines.length).toBeGreaterThan(0);
+
+  const capacity = lines.reduce((s, l) => s + l.feedsMax * l.qty, 0);
+  expect(capacity, "suggestion must cover the headcount").toBeGreaterThanOrEqual(15);
+
+  // ...and must be minimal: dropping any single board would leave it short.
+  const smallest = Math.min(...lines.map((l) => l.feedsMax));
+  expect(capacity - smallest, `over-provisioned: covers ${capacity} for 15`).toBeLessThan(15);
+
+  // The shortfall warning must not fire on our own suggestion.
+  await expect(page.locator(".pl-shortfall")).toHaveCount(0);
 });

@@ -43,7 +43,10 @@ function CustomerLayout() {
 
   return (
     <>
-      <main id="main">
+      {/* Lives here, not in Header: the Header renders inside <main>, so a skip link
+          in there targets its own container and does nothing. */}
+      <a className="skip-link" href="#main">Skip to content</a>
+      <main id="main" tabIndex={-1}>
         <Outlet />
       </main>
       <CartDrawer />

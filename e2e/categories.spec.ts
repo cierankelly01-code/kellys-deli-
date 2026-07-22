@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { pickCollectionDate } from "./helpers";
 
 /** Fill the checkout details step and open the review (no submit). */
 async function toReview(page: Page) {
@@ -7,7 +8,7 @@ async function toReview(page: Page) {
   await page.getByLabel("Your name").fill("E2E Sub");
   await page.getByLabel("Phone").fill("07700900777");
   await page.getByLabel("Email").fill("sub-e2e@example.com");
-  await page.locator(".cal-day:not([disabled])").first().click();
+  await pickCollectionDate(page);
   await page.getByRole("button", { name: "Review order" }).click();
 }
 

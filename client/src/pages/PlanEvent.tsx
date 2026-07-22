@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, type CategoryCounts, type Platter, type RecommendResponse } from "../lib/api";
-import { feedsMid } from "../lib/addOnPricing";
+import { feedsCapacity, feedsRange, roundTo5p } from "../lib/addOnPricing";
 import { saveCart } from "../lib/cart";
 import { gbp } from "../lib/format";
 import { usePageTitle } from "../lib/title";
@@ -59,35 +59,42 @@ export default function PlanEvent() {
   const [picking, setPicking] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [boardsFailed, setBoardsFailed] = useState(false);
+  // Focused when the spread appears, so a keyboard/screen-reader user knows the
+  // step changed instead of pressing a button and hearing nothing.
+  const spreadHeadingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    api.boards().then(setBoards).catch(() => setBoards([]));
+    // A silent [] here used to produce a "£0.00, feeds 0" dead end with no way
+    // forward. If the boards can't load, say so and give people the phone.
+    api.boards()
+      .then((b) => { setBoards(b); setBoardsFailed(b.length === 0); })
+      .catch(() => setBoardsFailed(true));
     api.categories().then(setCounts).catch(() => setCounts(null));
   }, []);
 
   const boardById = useMemo(() => new Map(boards.map((b) => [b.id, b])), [boards]);
 
-  // The server fills against its own feeds data; this page judges the combo with
-  // feedsMid(). If the two disagree, the fresh suggestion could trip our own
-  // under-catering warning — so top the suggestion up by OUR metric before showing
-  // it. User edits after this point are deliberately left alone (the warning is
-  // then genuinely useful).
+  // The server recommends against its own feeds data; this page judges coverage by
+  // the top of each board's printed range. If the server under-fills by that measure,
+  // top it up before showing it, so the suggestion never trips our own shortfall
+  // warning. User edits after this point are left alone — the warning is then real.
   useEffect(() => {
     if (!rec || boards.length === 0) return;
     setCombo((prev) => {
       const next = new Map(prev);
       let feeds = [...next.entries()].reduce((s, [id, q]) => {
         const b = boardById.get(id);
-        return b ? s + feedsMid(b) * q : s;
+        return b ? s + feedsCapacity(b) * q : s;
       }, 0);
       if (feeds >= headcount) return prev;
-      const bySize = boards.filter((b) => feedsMid(b) > 0).sort((a, b) => feedsMid(a) - feedsMid(b));
+      const bySize = boards.filter((b) => feedsCapacity(b) > 0).sort((a, b) => feedsCapacity(a) - feedsCapacity(b));
       let guard = 0;
       while (feeds < headcount && bySize.length > 0 && guard++ < 50) {
         const gap = headcount - feeds;
-        const pick = bySize.find((b) => feedsMid(b) >= gap) ?? bySize[bySize.length - 1];
+        const pick = bySize.find((b) => feedsCapacity(b) >= gap) ?? bySize[bySize.length - 1];
         next.set(pick.id, (next.get(pick.id) ?? 0) + 1);
-        feeds += feedsMid(pick);
+        feeds += feedsCapacity(pick);
       }
       return next;
     });
@@ -103,6 +110,7 @@ export default function PlanEvent() {
       setCombo(new Map(r.items.map((i) => [i.boardId, i.qty])));
       setStep("combo");
       window.scrollTo({ top: 0, behavior: "smooth" });
+      window.requestAnimationFrame(() => spreadHeadingRef.current?.focus());
     } catch {
       setError("Couldn't build a recommendation. Please try again.");
     } finally {
@@ -121,9 +129,13 @@ export default function PlanEvent() {
     [combo, boardById],
   );
 
-  const totalFeeds = comboLines.reduce((s, l) => s + feedsMid(l.board) * l.qty, 0);
+  const feeds = feedsRange(comboLines);
   const totalPrice = comboLines.reduce((s, l) => s + (l.board.fixedPrice ?? 0) * l.qty, 0);
-  const undercatered = totalFeeds < headcount;
+  // Judged against the top of the printed range — the same number on the board card.
+  const undercatered = feeds.max < headcount;
+  const perHead = headcount > 0 ? totalPrice / headcount : 0;
+  const deposit = roundTo5p(totalPrice * 0.25);
+  const balance = Math.round((totalPrice - deposit) * 100) / 100;
 
   const setQty = (id: string, qty: number) => {
     const next = new Map(combo);
@@ -139,9 +151,9 @@ export default function PlanEvent() {
 
   /** One tap out of the under-catering warning: add the board that closes the gap. */
   const fixShortfall = () => {
-    const gap = headcount - totalFeeds;
-    const bySize = boards.filter((b) => feedsMid(b) > 0).sort((a, b) => feedsMid(a) - feedsMid(b));
-    const pick = bySize.find((b) => feedsMid(b) >= gap) ?? bySize[bySize.length - 1];
+    const gap = headcount - feeds.max;
+    const bySize = boards.filter((b) => feedsCapacity(b) > 0).sort((a, b) => feedsCapacity(a) - feedsCapacity(b));
+    const pick = bySize.find((b) => feedsCapacity(b) >= gap) ?? bySize[bySize.length - 1];
     if (pick) setQty(pick.id, (combo.get(pick.id) ?? 0) + 1);
   };
 
@@ -158,14 +170,24 @@ export default function PlanEvent() {
   const otherBoards = boards.filter((b) => !combo.has(b.id));
   const rating = counts?.reviewRating;
   const reviews = counts?.reviewCount;
+  // Biggest signature board with a photo — the most appetising thing we can show.
+  const hero = useMemo(
+    () =>
+      boards
+        .filter((b) => b.imageUrl && b.tier === "signature")
+        .sort((a, b) => feedsCapacity(b) - feedsCapacity(a))[0]
+      ?? boards.find((b) => b.imageUrl),
+    [boards],
+  );
 
   return (
-    <div className="app plan-event">
+    <div className="app app-wide plan-event">
       <Header />
       <button className="link-back" onClick={() => (step === "combo" ? setStep("count") : navigate("/"))}>← Back</button>
 
       {step === "count" && (
-        <section className="plan-count">
+        <section className="plan-count pl-grid">
+          <div className="pl-grid-main">
           <p className="pl-eyebrow">Event planning · free · takes 20 seconds</p>
           <h1 className="pl-h1">How many are you feeding?</h1>
           <p className="pl-lede">
@@ -173,12 +195,19 @@ export default function PlanEvent() {
             so you&apos;re not doing sums the night before.
           </p>
 
+          {boardsFailed && (
+            <div className="notice danger" role="alert">
+              We can&apos;t load the boards right now. Please refresh, or call the deli on{" "}
+              <a href="tel:01564703441">01564 703441</a> and we&apos;ll sort your event over the phone.
+            </div>
+          )}
+
           <div className="pl-chips">
             {CHIPS.map(({ n, label }) => (
               <button
                 key={n}
                 type="button"
-                aria-label={String(n)}
+                aria-label={`${n} people — ${label}`}
                 aria-pressed={headcount === n}
                 className={`pl-chip${headcount === n ? " selected" : ""}`}
                 onClick={() => setHeadcount(n)}
@@ -210,14 +239,31 @@ export default function PlanEvent() {
           <ul className="pl-trust">
             <li><strong>48 hours&apos;</strong> notice is all we need</li>
             <li><strong>25% deposit</strong> confirms it — balance on collection</li>
-            {rating && reviews && <li><strong>{rating}★</strong> from {reviews} Google reviews</li>}
+            {rating && reviews
+              ? <li><strong>{rating}★</strong> from {reviews} Google reviews</li>
+              : <li><strong>Independent</strong> and family-run since day one</li>}
           </ul>
+          </div>
+
+          {/* Desktop only: the product this page is actually selling. A page about
+              food that shows no food is the reason this one used to read as a form. */}
+          {hero && (
+            <aside className="pl-aside" aria-hidden="true">
+              <div className="pl-aside-photo">
+                <BoardThumb board={hero} size={520} />
+              </div>
+              <p className="pl-aside-cap">
+                <strong>{hero.name}</strong>
+                <span>{gbp(hero.fixedPrice ?? 0)} · {feedsLabel(hero)}</span>
+              </p>
+            </aside>
+          )}
         </section>
       )}
 
       {step === "combo" && rec && (
         <section className="plan-combo">
-          <h1 className="pl-h1 pl-h1-sm">Our suggestion for {headcount} people</h1>
+          <h1 className="pl-h1 pl-h1-sm" ref={spreadHeadingRef} tabIndex={-1}>Our suggestion for {headcount} people</h1>
           <p className="pl-lede">Swap anything you like — remove a board, add another. Totals update as you go.</p>
 
           <ul className="combo-list">
@@ -270,22 +316,38 @@ export default function PlanEvent() {
 
           {undercatered && (
             <div className="pl-shortfall" role="alert">
-              <p>
-                This mix feeds about {Math.round(totalFeeds)} — it may not stretch to {headcount}.
-              </p>
+              <p>This mix feeds up to {feeds.max} — it won&apos;t stretch to {headcount}.</p>
               <button type="button" className="btn-ghost" onClick={fixShortfall}>Add a board to cover it</button>
             </div>
           )}
 
           <div className="pl-summary">
             <div className="pl-summary-nums">
-              <span>Feeds about <strong>{Math.round(totalFeeds)}</strong></span>
+              <span className="pl-summary-feeds">
+                Feeds <strong>{feeds.min === feeds.max ? feeds.max : `${feeds.min}–${feeds.max}`}</strong>
+                {perHead > 0 && <em>{gbp(perHead)} a head</em>}
+              </span>
               <span className="pl-summary-total">{gbp(totalPrice)}</span>
             </div>
             <button className="btn" disabled={comboLines.length === 0} onClick={proceed}>
               Continue with these boards
             </button>
-            <p className="pl-micro">Next: pick your collection day. Still nothing charged.</p>
+            {totalPrice > 0 && (
+              <p className="pl-micro">
+                <strong>{gbp(deposit)}</strong> confirms it — {gbp(balance)} on collection.
+                Nothing charged yet.
+              </p>
+            )}
+
+            {/* Proof belongs on the screen where the money decision is made, not only
+                on the one before it. Rating falls back to plain policy if unavailable. */}
+            <ul className="pl-trust pl-trust-compact">
+              <li><strong>48 hours&apos;</strong> notice is all we need</li>
+              <li><strong>Made by hand</strong> in Solihull, collected from the deli</li>
+              {rating && reviews
+                ? <li><strong>{rating}★</strong> from {reviews} Google reviews</li>
+                : <li><strong>Independent</strong> and family-run since day one</li>}
+            </ul>
           </div>
         </section>
       )}

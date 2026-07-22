@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { recommendBoards, comboFeeds, midpoint, type RecBoard } from "../src/lib/recommender";
+import { recommendBoards, comboFeeds, midpoint, capacity, type RecBoard } from "../src/lib/recommender";
 
-// Synthetic fixtures with clean integer midpoints so outcomes are unambiguous.
+// Synthetic fixtures. Coverage is judged by feedsMax (the top of the printed range),
+// so the interesting numbers below are 6 / 10 / 16, not the midpoints.
 const small: RecBoard = { id: "small", feedsMin: 4, feedsMax: 6, priority: 0, price: 45 }; // mid 5
 const medium: RecBoard = { id: "medium", feedsMin: 8, feedsMax: 10, priority: 0, price: 70 }; // mid 9
 const large: RecBoard = { id: "large", feedsMin: 12, feedsMax: 16, priority: 0, price: 100 }; // mid 14
@@ -39,10 +40,10 @@ describe("recommendBoards — never under-caters", () => {
 });
 
 describe("recommendBoards — minimal overshoot", () => {
-  it("overshoot is always less than the largest eligible midpoint", () => {
-    const largestMid = Math.max(...THREE.map(midpoint));
+  it("overshoot is always less than the largest eligible board", () => {
+    const largest = Math.max(...THREE.map(capacity));
     for (const hc of [5, 10, 15, 23, 40, 60]) {
-      expect(feeds(hc) - hc).toBeLessThan(largestMid);
+      expect(feeds(hc) - hc).toBeLessThan(largest);
     }
   });
 
@@ -50,9 +51,21 @@ describe("recommendBoards — minimal overshoot", () => {
     expect(recommendBoards(THREE, 5)).toEqual([{ boardId: "small", qty: 1 }]);
   });
 
-  it("finishes an exact fit with no overshoot (23 = large 14 + medium 9)", () => {
-    expect(feeds(23)).toBe(23);
-    expect(count(23)).toBe(2);
+  it("finishes an exact fit with no overshoot (26 = large 16 + medium 10)", () => {
+    expect(feeds(26)).toBe(26);
+    expect(count(26)).toBe(2);
+  });
+
+  // The bug this file exists to prevent coming back: a board printed "feeds 12-15"
+  // covers 15 people on its own. Filling against the midpoint (13.5) added a second
+  // board and quoted ~45% over the honest price for a 15-person party.
+  it("does not add a second board when one covers the headcount by its printed range", () => {
+    const boards: RecBoard[] = [
+      { id: "small", feedsMin: 4, feedsMax: 6, priority: 0, price: 45 },
+      { id: "large", feedsMin: 12, feedsMax: 15, priority: 0, price: 100 },
+    ];
+    expect(recommendBoards(boards, 15)).toEqual([{ boardId: "large", qty: 1 }]);
+    expect(comboFeeds(recommendBoards(boards, 15), boards)).toBe(15);
   });
 });
 

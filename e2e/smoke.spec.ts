@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { pickCollectionDate } from "./helpers";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "owner@kellysdeli.co.uk";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "changeme123";
@@ -25,8 +26,7 @@ async function completeOrder(page: Page): Promise<string> {
   await page.getByLabel("Your name").fill("E2E Buyer");
   await page.getByLabel("Phone").fill("07700900999");
   await page.getByLabel("Email").fill("e2e@example.com");
-  // Pick the first bookable (enabled) date in the capacity calendar.
-  await page.locator(".cal-day:not([disabled])").first().click();
+  await pickCollectionDate(page);
   await page.getByRole("button", { name: "Review order" }).click();
   await expect(page.locator("p.deposit-policy")).toBeVisible();
   await page.getByRole("button", { name: "Place order request" }).click();
@@ -58,7 +58,7 @@ test.describe("customer flows", () => {
 
   test("plan my event: 15 people → recommendation → swap → add-ons → order completes", async ({ page }) => {
     await page.goto("/plan");
-    await page.getByRole("button", { name: "15", exact: true }).click();
+    await page.getByRole("button", { name: /^15 people/ }).click();
     await page.getByRole("button", { name: /Show me a spread/ }).click();
     await expect(page.getByRole("heading", { name: /Our suggestion for 15 people/ })).toBeVisible();
     // Swap: add another board from the picker.
@@ -87,7 +87,7 @@ test.describe("customer flows", () => {
     await page.getByLabel("Your name").fill("Totals Buyer");
     await page.getByLabel("Phone").fill("07700900888");
     await page.getByLabel("Email").fill("totals@example.com");
-    await page.locator(".cal-day:not([disabled])").first().click();
+    await pickCollectionDate(page);
     await page.getByRole("button", { name: "Review order" }).click();
     // Deposit must be 25% of total, rounded to nearest 5p; balance = total − deposit.
     const total = money(await page.locator(".review-row.total span").last().innerText());
