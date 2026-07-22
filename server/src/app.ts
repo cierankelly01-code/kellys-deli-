@@ -113,7 +113,16 @@ export function createApp(): Express {
     // `storage` tells us where admin photo uploads land without needing shell access
     // to the host: "disk" on a container with no mounted volume means photos are lost
     // on redeploy. No secrets — just which of the two backends is configured.
-    res.json({ ok: true, service: "kellys-deli-api", storage: storageMode, time: new Date().toISOString() });
+    // `storage`/`uploadDir` make it checkable from outside whether photo uploads are
+    // landing on a mounted volume (they survive a redeploy) or the container's own
+    // filesystem (they do not). No secrets — a backend name and a path.
+    res.json({
+      ok: true,
+      service: "kellys-deli-api",
+      storage: storageMode,
+      uploadDir: storageMode === "disk" ? UPLOAD_DIR : null,
+      time: new Date().toISOString(),
+    });
   });
 
   // Whether live payments are configured. The storefront copy stays "payment-ready" until

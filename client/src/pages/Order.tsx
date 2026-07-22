@@ -14,7 +14,7 @@ import {
 import { loadCart, saveCart, clearCart, type Cart } from "../lib/cart";
 import { computeTotals, feedsMid, roundTo5p } from "../lib/addOnPricing";
 import { gbp, formatDate } from "../lib/format";
-import { CapacityCalendar } from "../components/CapacityCalendar";
+import { CapacityCalendar, daysInMonth, monthStart } from "../components/CapacityCalendar";
 import { AddOnsStep } from "../components/AddOnsStep";
 import { Header } from "../components/Header";
 import { SubscribeSave } from "../components/SubscribeSave";
@@ -39,6 +39,7 @@ export default function Order() {
   const [addOns, setAddOns] = useState<AddOn[]>([]);
   const [locations, setLocations] = useState<LocationT[]>([]);
   const [availability, setAvailability] = useState<AvailabilityResponse | null>(null);
+  const [calMonth, setCalMonth] = useState(() => monthStart(new Date().toISOString().slice(0, 10)));
   const [counts, setCounts] = useState<CategoryCounts | null>(null);
   const [step, setStep] = useState<Step>("extras");
   const [submitting, setSubmitting] = useState(false);
@@ -88,12 +89,17 @@ export default function Order() {
     });
   }
 
-  // Availability follows the chosen location.
+  // Availability follows the chosen location AND the month on show, so paging the
+  // calendar forward fetches that month rather than only ever the next three weeks.
   useEffect(() => {
     if (!locationId) return;
     setAvailability(null);
-    api.availability(locationId).then(setAvailability).catch(() => setAvailability(null));
-  }, [locationId]);
+    const today = new Date().toISOString().slice(0, 10);
+    // Never ask for dates in the past; for the current month start from today.
+    const from = calMonth.slice(0, 7) === today.slice(0, 7) ? today : calMonth;
+    const span = daysInMonth(calMonth) - (Number(from.slice(8, 10)) - 1) + 1;
+    api.availability(locationId, from, span).then(setAvailability).catch(() => setAvailability(null));
+  }, [locationId, calMonth]);
 
   const boardById = useMemo(() => new Map(boards.map((b) => [b.id, b])), [boards]);
 
@@ -292,11 +298,14 @@ export default function Order() {
 
           <div className="field">
             <span>Collection date</span>
-            {availability ? (
-              <CapacityCalendar days={availability.days} selected={date} onSelect={setDate} />
-            ) : (
-              <p className="muted">Loading dates…</p>
-            )}
+            <CapacityCalendar
+              days={availability?.days ?? []}
+              selected={date}
+              onSelect={setDate}
+              month={calMonth}
+              onMonthChange={setCalMonth}
+            />
+            {!availability && <p className="muted">Loading dates…</p>}
           </div>
 
           <label className="field">

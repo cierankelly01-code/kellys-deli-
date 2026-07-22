@@ -73,7 +73,9 @@ export type CreateBookingInput = z.infer<typeof createBookingSchema>;
 export const availabilityQuerySchema = z.object({
   locationId: z.string().min(1),
   from: dateString.optional(),
-  days: z.coerce.number().int().min(1).max(60).optional(),
+  // Up to ~13 months out: customers book birthdays, christenings and Christmas
+  // months ahead, and the calendar pages through a month at a time.
+  days: z.coerce.number().int().min(1).max(400).optional(),
 });
 
 export const experienceAvailabilityQuerySchema = availabilityQuerySchema.extend({
