@@ -10,6 +10,7 @@ import { authRouter } from "./routes/auth";
 import { adminRouter } from "./routes/admin";
 import { requireAdmin } from "./lib/auth";
 import { UPLOAD_DIR, storageMode } from "./lib/uploads";
+import { emailMode } from "./lib/notify";
 import { prisma } from "./lib/prisma";
 import { parseWebhook } from "./lib/payments";
 
@@ -110,17 +111,17 @@ export function createApp(): Express {
   const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, skip, message: { error: "Too many attempts — try again later" } });
 
   app.get("/api/health", (_req, res) => {
-    // `storage` tells us where admin photo uploads land without needing shell access
-    // to the host: "disk" on a container with no mounted volume means photos are lost
-    // on redeploy. No secrets — just which of the two backends is configured.
-    // `storage`/`uploadDir` make it checkable from outside whether photo uploads are
-    // landing on a mounted volume (they survive a redeploy) or the container's own
-    // filesystem (they do not). No secrets — a backend name and a path.
+    // Makes the two things that fail silently in production checkable from outside,
+    // without shell access to the host and without exposing any secret:
+    //   storage/uploadDir — "disk" on a container with no mounted volume means
+    //     uploaded photos are destroyed on the next redeploy.
+    //   email — "off" means customers never receive their order confirmation.
     res.json({
       ok: true,
       service: "kellys-deli-api",
       storage: storageMode,
       uploadDir: storageMode === "disk" ? UPLOAD_DIR : null,
+      email: emailMode,
       time: new Date().toISOString(),
     });
   });

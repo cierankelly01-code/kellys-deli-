@@ -12,6 +12,16 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const EMAIL_FROM = process.env.EMAIL_FROM;
 const SANDBOX_FROM = "Kelly's Deli <onboarding@resend.dev>";
 
+/**
+ * Whether real customer email can be delivered, for /api/health — so this is
+ * checkable from outside without shell access to the host. Never exposes the key.
+ *  "live"    — key + a verified from-address: customers get their emails.
+ *  "sandbox" — key but no EMAIL_FROM: only ever reaches the Resend account owner.
+ *  "off"     — no key: emails are logged and silently never sent.
+ */
+export const emailMode: "live" | "sandbox" | "off" =
+  !RESEND_API_KEY ? "off" : EMAIL_FROM ? "live" : "sandbox";
+
 // Fail loud (once, at boot) if production is missing real email config — otherwise
 // order/review/referral emails silently never send and nobody notices.
 if (process.env.NODE_ENV === "production") {
