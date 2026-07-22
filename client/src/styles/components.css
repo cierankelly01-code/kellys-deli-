@@ -434,7 +434,10 @@
 .page-h { font-family: var(--serif); font-size: 1.8rem; color: var(--ink); margin: 8px 0 14px; }
 .section-h { font-family: var(--serif); font-size: 1.3rem; color: var(--ink); margin: 20px 0 12px; }
 .step-h { font-size: 1.1rem; color: var(--ink); margin: 14px 0 8px; }
-.link-back { background: none; border: none; color: var(--ink-soft); font: inherit; cursor: pointer; padding: 6px 0; }
+.link-back {
+  background: none; border: none; color: var(--ink-soft); font: inherit; cursor: pointer;
+  padding: 10px 0; min-height: 44px; display: inline-flex; align-items: center;
+}
 .small { font-size: 0.82rem; }
 
 /* Hero CTAs + trust strip */
@@ -484,11 +487,16 @@
 .steps-dot.done { color: var(--good); }
 
 /* Compact stepper (boards + add-ons + headcount) */
-.stepper { display: inline-flex; align-items: center; gap: 8px; }
+.stepper { display: inline-flex; align-items: center; gap: 6px; }
+/* 44px minimum: these are thumb targets on a phone, next to each other, and
+   mis-tapping "−" when you meant "+" changes what someone is about to buy. */
 .stepper button {
-  width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line); background: #fff;
+  width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--line); background: #fff;
   font-size: 1.2rem; color: var(--brick); cursor: pointer; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: border-color var(--dur-micro) var(--ease-enter);
 }
+@media (hover: hover) { .stepper button:hover { border-color: var(--brick); } }
 .stepper input { width: 56px; text-align: center; font-size: 1rem; padding: 6px; border: 1px solid var(--line); border-radius: 8px; }
 .stepper .stepper-val { min-width: 24px; text-align: center; font-weight: 700; }
 
