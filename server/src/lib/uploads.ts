@@ -5,6 +5,7 @@ import multer from "multer";
 import path from "node:path";
 import fs from "node:fs";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { processImage } from "./image";
 
 // Where disk-stored uploads live. Override with UPLOAD_DIR to point at a mounted
 // volume — inside a container the default sits on the ephemeral layer, so every
@@ -44,19 +45,18 @@ function client(): SupabaseClient {
 }
 
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"]);
-const cleanExt = (name: string) => (path.extname(name) || ".jpg").toLowerCase().replace(/[^.a-z0-9]/g, "") || ".jpg";
-const newName = (name: string) => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${cleanExt(name)}`;
+const newName = (ext: string) => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
 
-const storage = useSupabaseStorage
-  ? multer.memoryStorage()
-  : multer.diskStorage({
-      destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-      filename: (_req, file, cb) => cb(null, newName(file.originalname)),
-    });
+/**
+ * Uploads are held in memory so they can be resized before anything is written — the file
+ * that lands on disk / in the bucket is the web-sized one, never the 12 MP original.
+ */
+export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+export const MAX_UPLOAD_LABEL = "20 MB";
 
 export const imageUpload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_UPLOAD_BYTES },
   fileFilter: (_req, file, cb) => {
     if (ALLOWED.has(file.mimetype)) cb(null, true);
     // HEIC is the iPhone default and browsers can't display it, so it's rejected here
@@ -67,16 +67,21 @@ export const imageUpload = multer({
   },
 });
 
-/** Persist an uploaded file and return a public URL. */
+/** Resize an uploaded file, persist it, and return a public URL. */
 export async function persistUpload(file: Express.Multer.File): Promise<string> {
+  const image = await processImage(file.buffer);
+  const key = newName(image.ext);
+
   if (useSupabaseStorage) {
-    const key = newName(file.originalname);
-    const { error } = await client().storage.from(BUCKET).upload(key, file.buffer, {
-      contentType: file.mimetype,
+    const { error } = await client().storage.from(BUCKET).upload(key, image.buffer, {
+      contentType: image.contentType,
       upsert: false,
     });
     if (error) throw new Error(error.message);
     return client().storage.from(BUCKET).getPublicUrl(key).data.publicUrl;
   }
-  return `/uploads/${file.filename}`; // disk (multer already wrote the file)
+
+  await fs.promises.mkdir(UPLOAD_DIR, { recursive: true });
+  await fs.promises.writeFile(path.join(UPLOAD_DIR, key), image.buffer);
+  return `/uploads/${key}`;
 }

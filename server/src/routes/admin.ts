@@ -24,7 +24,8 @@ import { parseDate, formatDate } from "../lib/capacity";
 import { buildPrepSheet, type PrepInputOrder } from "../lib/prep-sheet";
 import { summarizeOrders, rankPlattersByMargin, profitOf, type StatOrderInput } from "../lib/stats";
 import { notifyReviewRequest, notifyReferralOffer, notifyBlast } from "../lib/notify";
-import { imageUpload, persistUpload } from "../lib/uploads";
+import { imageUpload, persistUpload, MAX_UPLOAD_LABEL } from "../lib/uploads";
+import { ImageRejected } from "../lib/image";
 
 export const adminRouter = asyncRouter();
 
@@ -467,13 +468,15 @@ adminRouter.post("/upload", (req, res) => {
     if (err) {
       const tooBig = (err as { code?: string }).code === "LIMIT_FILE_SIZE";
       return res.status(400).json({
-        error: tooBig ? "That photo is too big — please use one under 5 MB" : err.message,
+        error: tooBig ? `That photo is too big — please use one under ${MAX_UPLOAD_LABEL}` : err.message,
       });
     }
     if (!req.file) return res.status(400).json({ error: "No image uploaded" });
     try {
       res.json({ url: await persistUpload(req.file) });
     } catch (e) {
+      // A file that isn't a readable image is the owner's mistake, not a server fault.
+      if (e instanceof ImageRejected) return res.status(400).json({ error: e.message });
       console.error("[upload] failed", e);
       // Admin-only endpoint: surface the underlying storage error so upload
       // misconfiguration (missing/misnamed bucket, bad key) is diagnosable.

@@ -71,6 +71,11 @@ throwaway file via `POST /api/admin/upload`, redeploy, then re-request the retur
 
 Seeded platters use hosted image URLs, so the site looks right even before this is set.
 
+Every upload is resized server-side before it is stored (`server/src/lib/image.ts`): max 1600px
+on the longest edge, re-encoded as WebP, EXIF rotation applied and the EXIF block dropped. So a
+20 MB phone photo lands as a few hundred KB, portrait shots aren't stored sideways, and the GPS
+coordinates baked into a camera photo never reach the public `/uploads` directory.
+
 ## 3. Client — Vercel
 1. Import the GitHub repo at https://vercel.com.
 2. **Root Directory:** `client`. Framework preset: **Vite** (build `npm run build`, output `dist`).
