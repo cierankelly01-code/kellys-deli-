@@ -601,7 +601,26 @@ publicRouter.post("/orders", async (req, res) => {
     await prisma.order.update({ where: { id: order.id }, data: { depositIntentId: intent.intentId } });
     await notifyOrderReceived(
       { name: order.customerName, phone: order.phone, email: order.email },
-      { ref: order.ref, total: pricing.total, deposit: pricing.deposit, collectionDate: formatDate(order.collectionOrDeliveryDate), locationName: order.location.name },
+      {
+        ref: order.ref,
+        total: pricing.total,
+        deposit: pricing.deposit,
+        collectionDate: formatDate(order.collectionOrDeliveryDate),
+        locationName: order.location.name,
+        // The confirmation shows what they actually ordered, photos and all.
+        boards: order.items.map((i) => ({
+          name: i.platter.name,
+          qty: i.quantity,
+          lineTotal: Number(i.unitPrice) * i.quantity,
+          imageUrl: i.platter.imageUrl,
+          meta: i.platter.serves ? `Feeds ${i.platter.serves}` : null,
+        })),
+        addOns: order.addOns.map((a) => ({
+          name: a.name,
+          qty: a.quantity,
+          lineTotal: Number(a.unitPrice) * a.quantity,
+        })),
+      },
     );
     res.status(201).json({ order: orderDTO(order), pricing, freebie });
   } catch (err) {
@@ -679,7 +698,16 @@ publicRouter.post("/bookings", async (req, res) => {
     await captureDepositIntent(pricing.deposit, order.ref);
     await notifyOrderReceived(
       { name: order.customerName, phone: order.phone, email: order.email },
-      { ref: order.ref, total: pricing.total, deposit: pricing.deposit, collectionDate: formatDate(order.collectionOrDeliveryDate), locationName: order.location.name },
+      {
+        ref: order.ref,
+        total: pricing.total,
+        deposit: pricing.deposit,
+        collectionDate: formatDate(order.collectionOrDeliveryDate),
+        locationName: order.location.name,
+        boards: order.experience
+          ? [{ name: order.experience.name, qty: 1, lineTotal: pricing.total, imageUrl: order.experience.imageUrl }]
+          : [],
+      },
     );
     res.status(201).json({ order: orderDTO(order), pricing });
   } catch (err) {
