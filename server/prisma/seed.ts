@@ -419,16 +419,23 @@ async function main() {
   }
 
   // --- Users (staff) ---
-  const isProd = process.env.NODE_ENV === "production";
+  const target = process.env.DATABASE_URL ?? "";
+  // Gate on the DATABASE we're pointed at, NOT on NODE_ENV. A dev shell routinely
+  // runs with NODE_ENV unset while its DATABASE_URL points at the live Supabase DB
+  // (local dev shares the production database), so a NODE_ENV-only check never fires
+  // where it matters. Treat a hosted Postgres (Supabase / a connection pooler) as prod.
+  const looksProd = process.env.NODE_ENV === "production" || /supabase\.com|pooler\./i.test(target);
   const email = process.env.ADMIN_EMAIL ?? "owner@kellysdeli.co.uk";
   const password = process.env.ADMIN_PASSWORD ?? "changeme123";
-  // Never seed a weak admin password in production.
-  if (isProd && (password === "changeme123" || password.length < 10)) {
-    throw new Error("Refusing to seed in production with a weak ADMIN_PASSWORD — set a strong ADMIN_PASSWORD env var (>= 10 chars).");
+  // Never seed a weak admin password against a production database.
+  if (looksProd && (password === "changeme123" || password.length < 10)) {
+    throw new Error("Refusing to seed against a production database with a weak ADMIN_PASSWORD — set a strong ADMIN_PASSWORD env var (>= 10 chars).");
   }
+  // Create-only: a reseed must NEVER overwrite an already-rotated admin password.
+  // Password rotation has its own dedicated path (scripts/rotate-admin.ts).
   await prisma.user.upsert({
     where: { email },
-    update: { passwordHash: await bcrypt.hash(password, 10), role: "admin" },
+    update: {},
     create: { email, passwordHash: await bcrypt.hash(password, 10), role: "admin" },
   });
   // No demo account. Local dev shares the production database, so a "dev-only"

@@ -356,5 +356,10 @@ export function publicOrderDTO(
     notes: null,
     phone: maskPhone(dto.phone),
     email: maskEmail(dto.email),
+    // A delivery address is postal PII and must never travel on a link-shareable,
+    // ref-only lookup. Latent today (orders are collection-only) but masked now so it
+    // stays hidden the day delivery ships. The gift recipient/message are intentionally
+    // shown on the buyer's own confirmation page and are left as-is.
+    deliveryAddress: null,
   };
 }

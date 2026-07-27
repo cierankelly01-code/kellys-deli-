@@ -544,7 +544,12 @@ publicRouter.post("/orders", async (req, res) => {
       const referralCode = await uniqueReferralCode(tx);
       const customer = await tx.customer.upsert({
         where: { phone: input.phone },
-        update: { name: input.customerName, email: input.email },
+        // Do NOT overwrite an existing customer's saved name/email just because a new
+        // order reused their phone number — otherwise anyone can hijack a known
+        // customer's record (poisoning the SMS list, CSV export and self-referral check)
+        // by ordering with that number. The name/email used at checkout are still
+        // recorded on the order itself below, so nothing is lost; admin can reconcile.
+        update: {},
         create: { name: input.customerName, phone: input.phone, email: input.email, referralCode },
       });
 
@@ -678,7 +683,8 @@ publicRouter.post("/bookings", async (req, res) => {
       const referralCode = await uniqueReferralCode(tx);
       const customer = await tx.customer.upsert({
         where: { phone: input.phone },
-        update: { name: input.customerName, email: input.email },
+        // See POST /orders: never overwrite a saved identity from a reused phone number.
+        update: {},
         create: { name: input.customerName, phone: input.phone, email: input.email, referralCode },
       });
       const created = await tx.order.create({
