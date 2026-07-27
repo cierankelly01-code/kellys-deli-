@@ -158,6 +158,47 @@ export function createApp(): Express {
     res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`);
   });
 
+  // --- Optional site-wide "coming soon" gate --------------------------------
+  // When the DB Setting "sitePassword" holds a non-empty value, the whole public
+  // site + public API sit behind an HTTP Basic Auth prompt, so the shop is hidden
+  // from the public (and search engines) while the owner finishes setting up.
+  // Exempt: the health check, the Stripe webhook, /api/auth and /api/admin — so
+  // the platform stays healthy and the owner can always reach /admin, log in, and
+  // switch the gate off from Site Settings. Unset/empty => fully open (default).
+  // The value is cached briefly so this is not a DB hit on every request, and a DB
+  // blip keeps the last known state rather than abruptly locking or unlocking.
+  let sitePw = { value: "", ts: 0 };
+  const sitePassword = async (): Promise<string> => {
+    if (Date.now() - sitePw.ts < 30_000) return sitePw.value;
+    try {
+      const s = await prisma.setting.findUnique({ where: { key: "sitePassword" } });
+      sitePw = { value: (s?.value ?? "").trim(), ts: Date.now() };
+    } catch {
+      sitePw.ts = Date.now(); // keep the last known value on a DB error
+    }
+    return sitePw.value;
+  };
+  app.use(async (req, res, next) => {
+    // Admin login/API and the health check bypass the gate entirely.
+    if (
+      req.path.startsWith("/api/auth") ||
+      req.path.startsWith("/api/admin") ||
+      req.path === "/api/health"
+    ) {
+      return next();
+    }
+    const pw = await sitePassword();
+    if (!pw) return next(); // gate off
+    const header = req.headers.authorization ?? "";
+    if (header.startsWith("Basic ")) {
+      const decoded = Buffer.from(header.slice(6), "base64").toString();
+      const supplied = decoded.slice(decoded.indexOf(":") + 1);
+      if (supplied === pw) return next();
+    }
+    res.set("WWW-Authenticate", 'Basic realm="Kelly\'s Deli"');
+    return res.status(401).send("Kelly's Deli is putting the finishing touches on — please check back very soon.");
+  });
+
   app.use("/api", apiLimiter);
   app.use("/api/auth", authLimiter, authRouter);
   app.use("/api", publicRouter);

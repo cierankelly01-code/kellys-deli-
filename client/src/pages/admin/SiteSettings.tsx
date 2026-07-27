@@ -19,6 +19,7 @@ export default function SiteSettings() {
   const [reviewRating, setReviewRating] = useState("");
   const [reviewCount, setReviewCount] = useState("");
   const [leadHours, setLeadHours] = useState("48");
+  const [sitePassword, setSitePassword] = useState("");
   const [clickCollectOpen, setClickCollectOpen] = useState(false);
   const [freeGift, setFreeGift] = useState(false);
   const [freeGiftThreshold, setFreeGiftThreshold] = useState("");
@@ -41,6 +42,7 @@ export default function SiteSettings() {
       setReviewRating(s.reviewRating ?? "");
       setReviewCount(s.reviewCount ?? "");
       setLeadHours(s.orderLeadTimeHours ?? "48");
+      setSitePassword(s.sitePassword ?? "");
       setClickCollectOpen(s.clickCollectComingSoon === "off");
       setFreeGift(s.freeGift === "on");
       setFreeGiftThreshold(s.freeGiftThreshold ?? "");
@@ -76,6 +78,7 @@ export default function SiteSettings() {
       await adminApi.setSetting("reviewRating", reviewRating.trim());
       await adminApi.setSetting("reviewCount", reviewCount.trim());
       await adminApi.setSetting("orderLeadTimeHours", String(Math.max(0, parseInt(leadHours || "48", 10) || 48)));
+      await adminApi.setSetting("sitePassword", sitePassword.trim());
       await adminApi.setSetting("freeGift", freeGift ? "on" : "off");
       await adminApi.setSetting("freeGiftThreshold", String(Math.max(0, parseFloat(freeGiftThreshold || "0") || 0)));
       await adminApi.setSetting("freeGiftText", freeGiftText.trim());
@@ -107,6 +110,25 @@ export default function SiteSettings() {
       <h1>Site Settings</h1>
       {msg && <div className="notice good">{msg}</div>}
       {error && <div className="notice danger">{error}</div>}
+
+      <h2>Coming soon (password-protect the site)</h2>
+      <div className="card" style={{ marginBottom: 18 }}>
+        <div className="field" style={{ marginBottom: 8 }}>
+          <label>Site password</label>
+          <input
+            className="input"
+            value={sitePassword}
+            onChange={(e) => setSitePassword(e.target.value)}
+            placeholder="Leave blank to open the site to everyone"
+            autoComplete="off"
+          />
+          <span className="muted small">
+            {sitePassword.trim()
+              ? "🔒 The whole site is hidden from the public — visitors must type this password to see it. Clear this box and press Save all to go live."
+              : "The site is OPEN to everyone. Type a password here to hide the site while you finish setting up (nobody can browse without it, not even Google)."}
+          </span>
+        </div>
+      </div>
 
       <h2>Click &amp; Collect</h2>
       <div className="card loc-row" style={{ marginBottom: 18 }}>
