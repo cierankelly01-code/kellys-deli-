@@ -430,8 +430,13 @@ async function main() {
   ];
   for (let i = 0; i < categories.length; i++) {
     const c = categories[i];
-    await prisma.category.upsert({
-      where: { id: c.id },
+    // Upsert by slug, not id: slug is the real unique business key (URL + SEO), and a
+    // category can already exist with a different id than this file's fixture id — e.g.
+    // created through admin before this row was added here, or by an earlier seed run
+    // that predates fixed ids. Upserting by id in that case would try to CREATE a second
+    // row and fail on the slug's unique constraint instead of finding the existing one.
+    const saved = await prisma.category.upsert({
+      where: { slug: c.slug },
       update: {},
       create: {
         id: c.id, slug: c.slug, name: c.name, tagline: c.tagline, description: c.description,
@@ -441,12 +446,13 @@ async function main() {
       },
     });
     // Assign boards (create-only per pair so admin reassignments survive a reseed).
+    // Use the row's real id (saved.id), not c.id — they can differ, see above.
     for (let j = 0; j < c.boardIds.length; j++) {
       const platterId = c.boardIds[j];
       await prisma.platterCategory.upsert({
-        where: { categoryId_platterId: { categoryId: c.id, platterId } },
+        where: { categoryId_platterId: { categoryId: saved.id, platterId } },
         update: {},
-        create: { categoryId: c.id, platterId, sortOrder: j },
+        create: { categoryId: saved.id, platterId, sortOrder: j },
       });
     }
   }
@@ -522,20 +528,7 @@ async function main() {
   }
 
   // --- Bread pre-ordering (sensible defaults; all editable in /admin/bread/settings) ---
-  await prisma.breadSettings.upsert({
-    where: { id: "singleton" },
-    update: {},
-    create: { id: "singleton" }, // leadTimeHours 48, cutoffMode "rolling", minOrderQty 1, maxItemQty 20
-  });
-  for (const loc of locations) {
-    await prisma.breadShopSetting.upsert({
-      where: { locationId: loc.id },
-      update: {},
-      create: { locationId: loc.id, dailyCapacity: null, closedWeekdays: [] }, // unlimited, no recurring closures
-    });
-  }
-
-  // --- Bread catalogue (2026-09 restructure). Seeded INACTIVE, price 0 placeholder, no
+  // Bread catalogue (2026-09 restructure). Seeded INACTIVE, price 0 placeholder, no
   // description/photo — never invent a customer-facing price. The owner sets a real price,
   // description and photo in admin (Bread Settings) and flips each item active. Available
   // at every shop by default; the owner narrows that per-shop in admin if needed.
@@ -547,19 +540,40 @@ async function main() {
     { id: "bread-baguette", name: "Baguette" },
     { id: "bread-rolls", name: "Bread Rolls" },
   ];
-  for (let i = 0; i < breadProducts.length; i++) {
-    const b = breadProducts[i];
-    await prisma.breadProduct.upsert({
-      where: { id: b.id },
+  // Guarded: the bread tables ship via their own migrations (bread_preordering,
+  // bread_shop_notify_email), which may not be deployed everywhere the rest of this
+  // catalogue is seeded from. Skip cleanly rather than crash the whole seed run when
+  // they're not there yet — a reseed later picks this section up once they are.
+  const breadTablesReady = await prisma.$queryRaw<{ ready: boolean }[]>`SELECT to_regclass('public."BreadProduct"') IS NOT NULL AS ready`;
+  if (!breadTablesReady[0]?.ready) {
+    console.log("Skipping bread catalogue seed — BreadProduct table not found (pending migration).");
+  } else {
+    await prisma.breadSettings.upsert({
+      where: { id: "singleton" },
       update: {},
-      create: { id: b.id, name: b.name, description: null, price: 0, active: false, sortOrder: i },
+      create: { id: "singleton" }, // leadTimeHours 48, cutoffMode "rolling", minOrderQty 1, maxItemQty 20
     });
     for (const loc of locations) {
-      await prisma.breadProductLocation.upsert({
-        where: { productId_locationId: { productId: b.id, locationId: loc.id } },
+      await prisma.breadShopSetting.upsert({
+        where: { locationId: loc.id },
         update: {},
-        create: { productId: b.id, locationId: loc.id },
+        create: { locationId: loc.id, dailyCapacity: null, closedWeekdays: [] }, // unlimited, no recurring closures
       });
+    }
+    for (let i = 0; i < breadProducts.length; i++) {
+      const b = breadProducts[i];
+      await prisma.breadProduct.upsert({
+        where: { id: b.id },
+        update: {},
+        create: { id: b.id, name: b.name, description: null, price: 0, active: false, sortOrder: i },
+      });
+      for (const loc of locations) {
+        await prisma.breadProductLocation.upsert({
+          where: { productId_locationId: { productId: b.id, locationId: loc.id } },
+          update: {},
+          create: { productId: b.id, locationId: loc.id },
+        });
+      }
     }
   }
 
