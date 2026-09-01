@@ -278,6 +278,80 @@ async function main() {
     await prisma.platter.upsert({ where: { id: b.id }, update: {}, create: { id: b.id, ...data } });
   }
 
+  // --- 2026-09 catalogue restructure: new boards, pots & dips, desserts, office sandwiches.
+  // Seeded INACTIVE with no price/description/photo — never invent customer-facing price or
+  // copy. The owner adds a real photo, description and price in admin (Menu & Pricing) and
+  // flips each one active, exactly like every other draft product on this site. `cost` is a
+  // placeholder for margin reporting only. create-only so admin edits survive a reseed.
+  interface DraftPlatterSeed {
+    id: string;
+    category: "board" | "pot" | "dessert" | "sandwich";
+    name: string;
+    variantGroup?: string;
+    variantLabel?: string;
+    variantOrder?: number;
+  }
+  const draftPlatters: DraftPlatterSeed[] = [
+    // Boards — Small/Large pairs share a variantGroup (one shop tile, size picked on the
+    // product page), same pattern as the existing signature platters.
+    { id: "board-antipasti-small", category: "board", name: "Antipasti Board", variantGroup: "board-antipasti", variantLabel: "Small", variantOrder: 1 },
+    { id: "board-antipasti-large", category: "board", name: "Antipasti Board", variantGroup: "board-antipasti", variantLabel: "Large", variantOrder: 0 },
+    { id: "board-ploughmans-small", category: "board", name: "Ploughman's Board", variantGroup: "board-ploughmans", variantLabel: "Small", variantOrder: 1 },
+    { id: "board-ploughmans-large", category: "board", name: "Ploughman's Board", variantGroup: "board-ploughmans", variantLabel: "Large", variantOrder: 0 },
+    { id: "board-mezze-small", category: "board", name: "Mezze & Dips Board", variantGroup: "board-mezze", variantLabel: "Small", variantOrder: 1 },
+    { id: "board-mezze-large", category: "board", name: "Mezze & Dips Board", variantGroup: "board-mezze", variantLabel: "Large", variantOrder: 0 },
+    { id: "board-loaded-crisps-ploughmans", category: "board", name: "Loaded Crisps — Ploughman's" },
+    { id: "board-loaded-crisps-second", category: "board", name: "Loaded Crisps — Second Flavour" }, // owner renames to the real second flavour
+    { id: "board-ultimate", category: "board", name: "The Ultimate Board" },
+    { id: "board-grazing-table", category: "board", name: "Grazing Table" }, // large/enquiry-scale — price with the owner before activating
+    // Pots & dips — single size each.
+    { id: "pot-hummus", category: "pot", name: "Hummus" },
+    { id: "pot-tzatziki", category: "pot", name: "Tzatziki" },
+    { id: "pot-sour-cream-chive", category: "pot", name: "Sour Cream & Chive" },
+    { id: "pot-coleslaw", category: "pot", name: "Coleslaw" },
+    { id: "pot-potato-salad", category: "pot", name: "Potato Salad" },
+    { id: "pot-three-bean-salad", category: "pot", name: "Three-Bean Salad" },
+    { id: "pot-olives", category: "pot", name: "Olives" },
+    { id: "pot-cornichons", category: "pot", name: "Cornichons" },
+    { id: "pot-sun-dried-tomatoes", category: "pot", name: "Sun-Dried Tomatoes" },
+    { id: "pot-smoked-salmon", category: "pot", name: "Smoked Salmon" },
+    // Desserts
+    { id: "dessert-brownie-board", category: "dessert", name: "Brownie Board" },
+    { id: "dessert-mini-selection", category: "dessert", name: "Mini Dessert Selection" },
+    { id: "dessert-cheesecake-pots", category: "dessert", name: "Cheesecake Pots" },
+    { id: "dessert-fruit-platter", category: "dessert", name: "Fruit Platter" },
+    { id: "dessert-chocolate-dipping", category: "dessert", name: "Chocolate Dipping Board" },
+    { id: "dessert-cake-slice-selection", category: "dessert", name: "Cake Slice Selection" },
+    // Office
+    { id: "office-working-lunch-box", category: "sandwich", name: "Working Lunch Box" },
+    { id: "office-boxed-lunch-bulk", category: "sandwich", name: "Boxed Lunch — Bulk" }, // enquiry-scale — price with the owner before activating
+  ];
+  for (let i = 0; i < draftPlatters.length; i++) {
+    const d = draftPlatters[i];
+    const data = {
+      category: d.category,
+      tier: d.category === "board" ? ("gallery" as const) : null,
+      name: d.name,
+      description: "",
+      pricePerHead: null as number | null,
+      fixedPrice: null as number | null,
+      cost: 0,
+      serves: null as string | null,
+      minHeadcount: 1,
+      items: [] as { label: string; qtyPerUnit: number }[],
+      imageUrl: null as string | null,
+      active: false,
+      sortOrder: 200 + i,
+      recommendEligible: false,
+      recommendPriority: 0,
+      variantGroup: d.variantGroup ?? null,
+      variantLabel: d.variantLabel ?? null,
+      variantOrder: d.variantOrder ?? 0,
+    };
+    // create-only so admin edits (and the eventual active:true flip) survive a reseed.
+    await prisma.platter.upsert({ where: { id: d.id }, update: {}, create: { id: d.id, ...data } });
+  }
+
   // --- Occasion categories (browse-by-occasion storefront). Admin renames / reassigns;
   // create-only upsert so those edits survive a reseed. Board assignments below are also
   // create-only. ---
@@ -292,6 +366,7 @@ async function main() {
     seoDescription: string;
     isCorporate?: boolean;
     promotePlanner?: boolean;
+    active?: boolean; // default true — set false for a shell page with nothing to show yet
     boardIds: string[];
   }
   const categories: CategorySeed[] = [
@@ -303,7 +378,12 @@ async function main() {
       seoTitle: "Party & Event Catering Boards, Solihull — Kelly's Deli",
       seoDescription: "Grazing boards and catering platters for parties and events in Solihull. Feeds 10+, made fresh for collection, 25% deposit. Tell us your numbers and we'll plan the spread.",
       promotePlanner: true,
-      boardIds: ["board-medium-platter", "board-large-platter", "board-small-platter", "board-sandwich", "board-indian", "board-charcuterie"],
+      boardIds: [
+        "board-medium-platter", "board-large-platter", "board-small-platter", "board-sandwich", "board-indian", "board-charcuterie",
+        "board-antipasti-small", "board-antipasti-large", "board-mezze-small", "board-mezze-large", "board-ultimate", "board-grazing-table",
+        "pot-hummus", "pot-tzatziki", "pot-sour-cream-chive", "pot-coleslaw", "pot-potato-salad", "pot-three-bean-salad", "pot-olives", "pot-cornichons", "pot-sun-dried-tomatoes", "pot-smoked-salmon",
+        "dessert-brownie-board", "dessert-mini-selection", "dessert-cheesecake-pots", "dessert-fruit-platter", "dessert-chocolate-dipping", "dessert-cake-slice-selection",
+      ],
     },
     {
       id: "cat-at-home", slug: "at-home", name: "At Home",
@@ -312,7 +392,12 @@ async function main() {
       heroImageUrl: "https://images.unsplash.com/photo-1541529086526-db283c563270?auto=format&fit=crop&w=1400&q=70",
       seoTitle: "Date Night & Grazing Boards for Two, Solihull — Kelly's Deli",
       seoDescription: "Small grazing boards for a night in — date nights, movie nights, Sunday grazing. Made fresh in Bentley Heath for collection. Feeds two to four.",
-      boardIds: ["board-date-night", "board-too-hot-to-cook", "board-sunday-graze", "board-movie-night", "board-just-because", "board-payday-treat", "board-new-neighbours", "board-duvet-day", "board-cheese", "board-charcuterie", "board-salmon"],
+      boardIds: [
+        "board-date-night", "board-too-hot-to-cook", "board-sunday-graze", "board-movie-night", "board-just-because", "board-payday-treat", "board-new-neighbours", "board-duvet-day", "board-cheese", "board-charcuterie", "board-salmon",
+        "board-antipasti-small", "board-antipasti-large", "board-ploughmans-small", "board-ploughmans-large", "board-mezze-small", "board-mezze-large", "board-loaded-crisps-ploughmans", "board-loaded-crisps-second",
+        "pot-hummus", "pot-tzatziki", "pot-sour-cream-chive", "pot-coleslaw", "pot-potato-salad", "pot-three-bean-salad", "pot-olives", "pot-cornichons", "pot-sun-dried-tomatoes", "pot-smoked-salmon",
+        "dessert-brownie-board", "dessert-mini-selection", "dessert-cheesecake-pots", "dessert-fruit-platter", "dessert-chocolate-dipping", "dessert-cake-slice-selection",
+      ],
     },
     {
       id: "cat-office", slug: "office-corporate", name: "Office & Corporate",
@@ -322,7 +407,25 @@ async function main() {
       seoTitle: "Office Catering & Corporate Platters, Solihull — Kelly's Deli",
       seoDescription: "Office catering and corporate platters in Solihull. One-off meeting orders or a standing weekly/monthly office platter — delivery available for regular orders, we'll confirm your schedule.",
       isCorporate: true,
-      boardIds: ["board-sandwich", "board-breakfast", "board-medium-platter", "board-large-platter", "board-small-platter"],
+      boardIds: [
+        "board-sandwich", "board-breakfast", "board-medium-platter", "board-large-platter", "board-small-platter", "board-grazing-table",
+        "office-working-lunch-box", "office-boxed-lunch-bulk",
+        "pot-hummus", "pot-tzatziki", "pot-sour-cream-chive", "pot-coleslaw", "pot-potato-salad", "pot-three-bean-salad", "pot-olives", "pot-cornichons", "pot-sun-dried-tomatoes", "pot-smoked-salmon",
+        "dessert-brownie-board", "dessert-mini-selection", "dessert-cheesecake-pots", "dessert-fruit-platter", "dessert-chocolate-dipping", "dessert-cake-slice-selection",
+      ],
+    },
+    {
+      // No canapé products exist yet to assign — the prior catalogue prompt assumed a
+      // canapés section that was never built. Shell only, left INACTIVE so an empty page
+      // never goes live; the owner activates it once canapé products are seeded.
+      id: "cat-canapes", slug: "canapes", name: "Canapés",
+      tagline: "Bite-sized catering for a standing crowd.",
+      description: "Canapé menus for events and receptions — coming soon.",
+      heroImageUrl: "https://images.unsplash.com/photo-1478145046317-39f10e56b5e9?auto=format&fit=crop&w=1400&q=70",
+      seoTitle: "Canapés, Solihull — Kelly's Deli",
+      seoDescription: "Canapé catering for events in Solihull — coming soon.",
+      active: false,
+      boardIds: [],
     },
   ];
   for (let i = 0; i < categories.length; i++) {
@@ -334,7 +437,7 @@ async function main() {
         id: c.id, slug: c.slug, name: c.name, tagline: c.tagline, description: c.description,
         heroImageUrl: c.heroImageUrl, seoTitle: c.seoTitle, seoDescription: c.seoDescription,
         isCorporate: c.isCorporate ?? false, promotePlanner: c.promotePlanner ?? false,
-        active: true, sortOrder: i,
+        active: c.active ?? true, sortOrder: i,
       },
     });
     // Assign boards (create-only per pair so admin reassignments survive a reseed).
@@ -418,6 +521,48 @@ async function main() {
     await prisma.setting.upsert({ where: { key: s.key }, update: {}, create: s });
   }
 
+  // --- Bread pre-ordering (sensible defaults; all editable in /admin/bread/settings) ---
+  await prisma.breadSettings.upsert({
+    where: { id: "singleton" },
+    update: {},
+    create: { id: "singleton" }, // leadTimeHours 48, cutoffMode "rolling", minOrderQty 1, maxItemQty 20
+  });
+  for (const loc of locations) {
+    await prisma.breadShopSetting.upsert({
+      where: { locationId: loc.id },
+      update: {},
+      create: { locationId: loc.id, dailyCapacity: null, closedWeekdays: [] }, // unlimited, no recurring closures
+    });
+  }
+
+  // --- Bread catalogue (2026-09 restructure). Seeded INACTIVE, price 0 placeholder, no
+  // description/photo — never invent a customer-facing price. The owner sets a real price,
+  // description and photo in admin (Bread Settings) and flips each item active. Available
+  // at every shop by default; the owner narrows that per-shop in admin if needed.
+  const breadProducts = [
+    { id: "bread-crusty-cobs", name: "Crusty Cobs" },
+    { id: "bread-bloomer", name: "Bloomer" },
+    { id: "bread-sourdough", name: "Sourdough" },
+    { id: "bread-seeded-loaf", name: "Seeded Loaf" },
+    { id: "bread-baguette", name: "Baguette" },
+    { id: "bread-rolls", name: "Bread Rolls" },
+  ];
+  for (let i = 0; i < breadProducts.length; i++) {
+    const b = breadProducts[i];
+    await prisma.breadProduct.upsert({
+      where: { id: b.id },
+      update: {},
+      create: { id: b.id, name: b.name, description: null, price: 0, active: false, sortOrder: i },
+    });
+    for (const loc of locations) {
+      await prisma.breadProductLocation.upsert({
+        where: { productId_locationId: { productId: b.id, locationId: loc.id } },
+        update: {},
+        create: { productId: b.id, locationId: loc.id },
+      });
+    }
+  }
+
   // --- Users (staff) ---
   const target = process.env.DATABASE_URL ?? "";
   // Gate on the DATABASE we're pointed at, NOT on NODE_ENV. A dev shell routinely
@@ -449,7 +594,7 @@ async function main() {
     create: { name: "Demo Customer", phone: "07700900123", email: "demo@example.com", referralCode: randomReferralCode() },
   });
 
-  console.log(`Seeded ${locations.length} locations, ${boards.length + atHomeBoards.length} boards, ${categories.length} categories, ${addOns.length} add-ons, ${settings.length} settings, admin <${email}>.`);
+  console.log(`Seeded ${locations.length} locations, ${boards.length + atHomeBoards.length + draftPlatters.length} boards/pots/desserts/sandwiches (${draftPlatters.length} draft, inactive), ${categories.length} categories, ${addOns.length} add-ons, ${breadProducts.length} bread products (draft, inactive), ${settings.length} settings, admin <${email}>.`);
 }
 
 main()
