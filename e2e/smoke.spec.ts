@@ -39,7 +39,7 @@ async function completeOrder(page: Page): Promise<string> {
 test.describe("customer flows", () => {
   test("home renders signature boards from the database with price + feeds", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Signature boards" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Made for the middle of the table." })).toBeVisible();
     // The three platter sizes are one product, so home shows a single tile that quotes the
     // cheapest size and sends you to the page to choose — not three near-identical cards.
     const card = page.locator(".board-card", { hasText: "Large Platter" });
@@ -121,7 +121,7 @@ test.describe("admin", () => {
     await completeOrder(page);
 
     await login(page);
-    await page.getByRole("link", { name: "Orders" }).click();
+    await page.getByRole("link", { name: "Orders", exact: true }).click();
     const firstCard = page.locator(".order-card").first();
     await expect(firstCard).toBeVisible();
     await expect(firstCard.getByText(/deposit due \(25%\)/i)).toBeVisible();

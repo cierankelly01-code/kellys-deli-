@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, type CategoryCounts, type OpeningHours, type Platter, type ShopCategory } from "../lib/api";
 import { addBoard } from "../lib/cart";
 import { openCartDrawer } from "../components/CartDrawer";
@@ -10,6 +10,9 @@ import { Faq } from "../components/Faq";
 import { DeadlineChip, Stars, TrustChips } from "../components/Trust";
 import { morphNavigate } from "../lib/motion";
 import { groupVariants, groupServes, type ProductGroup } from "../lib/variants";
+import { Bundles } from "../components/Bundles";
+import { ReminderCapture } from "../components/ReminderCapture";
+import { DeliVideos } from "../components/DeliVideos";
 
 const DAY_LABELS: Array<{ key: keyof OpeningHours; label: string }> = [
   { key: "mon", label: "Mon" }, { key: "tue", label: "Tue" }, { key: "wed", label: "Wed" },
@@ -18,7 +21,6 @@ const DAY_LABELS: Array<{ key: keyof OpeningHours; label: string }> = [
 
 const DEFAULT_HERO_IMG = "https://images.unsplash.com/photo-1695606392727-d8b959879721?auto=format&fit=crop&w=1400&q=70";
 const DEFAULT_MISSION = "The deli your grandparents would recognise — local produce, no shortcuts, boards built the same way every time.";
-const DEFAULT_FOUNDER_NOTE = "We've been doing this the same way for years — proper local produce, boards built by hand, nothing rushed. Every order that goes out the door is one we'd be happy to serve our own family.";
 
 function parseHours(raw: string | null): OpeningHours | null {
   if (!raw) return null;
@@ -87,41 +89,33 @@ export default function Choice() {
   const hours = parseHours(counts?.openingHours ?? null);
   const today = DAY_LABELS[(new Date().getDay() + 6) % 7];
   // One tile per board, not one per size (see lib/variants).
-  const signature = groupVariants(boards ?? []);
+  const signature = groupVariants(boards ?? []).slice(0, 6);
 
   return (
     <div className="choice">
       <Header />
-      <header className="landing-hero" style={{ backgroundImage: `url(${counts?.heroImageUrl || DEFAULT_HERO_IMG})` }}>
-        <div className="lh-scrim">
-          <p className="lh-eyebrow">Independent · family-run</p>
-          <h1 className="lh-promise">Feed the room without cooking a thing.</h1>
-          <p className="lh-tag">
-            {counts?.aboutText ?? "Grazing boards and platters built by hand in Bentley Heath — order in a minute, collect from the deli."}
-          </p>
-          <div className="hero-ctas">
-            <button className="btn hero-cta" onClick={() => go("/platters")}>Order a board</button>
-            <button className="btn-ghost hero-cta-2" onClick={() => go("/plan")}>Plan my event</button>
-          </div>
-          <p className="hero-reassure">Order in under a minute — no account needed</p>
-          {counts?.reviewRating && (
-            <div className="lh-trust">
-              <span className="stars" aria-hidden="true">★</span>
-              <span>{counts.reviewRating} {counts.reviewCount ? `· ${counts.reviewCount} Google reviews` : ""}</span>
-            </div>
-          )}
+      <header className="deli-hero">
+        <div className="deli-hero-copy">
+          <p className="deli-eyebrow">A little something worth sharing</p>
+          <h1>The deli counter.<br /><em>At your table.</em></h1>
+          <p className="deli-hero-intro">Hand-prepared boards, generous platters and deli favourites. For a table full of friends, or simply something lovely for the weekend.</p>
+          <Link className="btn deli-primary" to={`/platters${suffix}`}>Explore our boards <span aria-hidden="true">↗</span></Link>
+          <p className="deli-hero-note">Made to order. Collected from your local deli.</p>
+          {counts?.reviewRating && <Stars rating={counts.reviewRating} count={counts.reviewCount} />}
         </div>
+        <figure className="deli-hero-photo">
+          <img src={counts?.heroImageUrl || DEFAULT_HERO_IMG} alt="A generous spread of cheese, charcuterie and accompaniments" width="1000" height="1100" fetchPriority="high" />
+          <figcaption><span>THE KELLY’S TABLE</span><span>Something for everyone.</span></figcaption>
+        </figure>
       </header>
-
-      <div className="mission-band"><p>{counts?.missionTagline || DEFAULT_MISSION}</p></div>
 
       {/* Trust strip (build spec §5.3) */}
       <div className="trust-strip">
-        <span>Family-run</span>
+        <span>Independent &amp; family-run</span>
         <span aria-hidden="true">·</span>
-        <span>Three local shops</span>
+        <span>Made in Bentley Heath</span>
         <span aria-hidden="true">·</span>
-        <span>Collect from your chosen shop</span>
+        <span>Prepared for your occasion</span>
       </div>
 
       {counts?.firstOrderHook && counts.firstOrderHookText && (
@@ -132,10 +126,54 @@ export default function Choice() {
       )}
 
       <div className="app app-wide">
+        <section className="board-section">
+          <div className="spread shelf-head" data-reveal>
+            <div><p className="deli-eyebrow">From the deli counter</p><h2 className="section-h" style={{ margin: 0 }}>Made for the middle of the table.</h2></div>
+            <button className="btn-ghost" onClick={() => go("/platters")}>See all →</button>
+          </div>
+          {signature.length === 0 ? (
+            <p className="muted" role="status">{boards === null ? "Bringing you our boards…" : "Our board selection is being updated. Browse the shop for what’s available."} {boards !== null && <Link to="/shop">Browse the shop →</Link>}</p>
+          ) : (
+            <div className="board-grid">
+              {signature.map((g, i) => {
+                const p = g.lead;
+                const toDetail = (e: React.MouseEvent<HTMLElement>) =>
+                  morphNavigate(
+                    navigate,
+                    `/platter/${p.id}${suffix}`,
+                    e.currentTarget.closest("article")?.querySelector(".board-card-img") as HTMLElement | null,
+                  );
+                return (
+                  <article key={p.id} className="board-card card" data-reveal data-reveal-delay={String(i % 2)}>
+                    <Link to={`/platter/${p.id}${suffix}`} className="deli-product-image" aria-label={`View ${p.name}`}>
+                      {p.imageUrl ? <img className="board-card-img" src={p.imageUrl} alt={p.name} width="640" height="480" loading="lazy" /> : <span className="deli-image-placeholder">Kelly’s Deli<br /><small>{p.name}</small></span>}
+                    </Link>
+                    <div className="board-card-body">
+                      <h3 className="board-card-name"><Link to={`/platter/${p.id}${suffix}`}>{p.name}</Link></h3>
+                      <p className="board-card-price">{priceFeeds(g)}</p>
+                      <div className="board-card-actions">
+                        {g.hasChoice ? (
+                          <button className="btn" onClick={toDetail}>Choose a size · {g.variants.length} options</button>
+                        ) : (
+                          <>
+                            <button className="btn" onClick={() => startOrder(p)}>Order · {gbp(p.fixedPrice ?? 0)}</button>
+                            <button className="btn-ghost" onClick={toDetail}>Details</button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+          <div data-reveal><DeadlineChip /></div>
+        </section>
+
         {shopCats.length > 0 && (
           <section className="occasion-section" data-reveal>
             <div className="spread shelf-head">
-              <h2 className="section-h" style={{ margin: 0 }}>Shop by occasion</h2>
+              <div><p className="deli-eyebrow">Bring something lovely</p><h2 className="section-h" style={{ margin: 0 }}>Every occasion, well fed.</h2></div>
               <button className="btn-ghost" onClick={() => go("/shop")}>See all →</button>
             </div>
             <div className="occasion-grid">
@@ -161,49 +199,11 @@ export default function Choice() {
           </section>
         )}
 
-        <section className="board-section">
-          <div className="spread shelf-head" data-reveal>
-            <h2 className="section-h" style={{ margin: 0 }}>Signature boards</h2>
-            <button className="btn-ghost" onClick={() => go("/platters")}>See all →</button>
-          </div>
-          {counts?.reviewRating && (
-            <div data-reveal><Stars rating={counts.reviewRating} count={counts.reviewCount} /></div>
-          )}
-          {signature.length === 0 ? (
-            <p className="muted">Loading boards…</p>
-          ) : (
-            <div className="board-grid">
-              {signature.map((g, i) => {
-                const p = g.lead;
-                const toDetail = (e: React.MouseEvent<HTMLElement>) =>
-                  morphNavigate(
-                    navigate,
-                    `/platter/${p.id}${suffix}`,
-                    e.currentTarget.closest("article")?.querySelector(".board-card-img") as HTMLElement | null,
-                  );
-                return (
-                  <article key={p.id} className="board-card card" data-reveal data-reveal-delay={String(i % 2)}>
-                    <div className="board-card-img" style={{ backgroundImage: p.imageUrl ? `url(${p.imageUrl})` : undefined }} role="img" aria-label={p.name} />
-                    <div className="board-card-body">
-                      <h3 className="board-card-name">{p.name}</h3>
-                      <p className="board-card-price">{priceFeeds(g)}</p>
-                      <div className="board-card-actions">
-                        {g.hasChoice ? (
-                          <button className="btn" onClick={toDetail}>Choose a size · {g.variants.length} options</button>
-                        ) : (
-                          <>
-                            <button className="btn" onClick={() => startOrder(p)}>Order · {gbp(p.fixedPrice ?? 0)}</button>
-                            <button className="btn-ghost" onClick={toDetail}>Details</button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-          <div data-reveal><DeadlineChip /></div>
+        <Bundles />
+        <DeliVideos />
+        <section className="deli-story" data-reveal>
+          <div><p className="deli-eyebrow">A proper neighbourhood deli</p><h2>A warm welcome.<br />A well-stocked table.</h2></div>
+          <div><p>{counts?.missionTagline || DEFAULT_MISSION}</p><p>Pop in for your favourites, pick up something new, or let us take care of the food for your next get-together.</p><a className="deli-text-link" href="#our-shops">Find your local Kelly’s <span aria-hidden="true">↗</span></a></div>
         </section>
 
         <section className="how-it-works" data-reveal>
@@ -212,12 +212,12 @@ export default function Choice() {
             <li>
               <span className="hiw-num" aria-hidden="true">1</span>
               <h3 className="hiw-h">Pick your board</h3>
-              <p>Choose a size, add any extras — it takes under a minute, and 25% secures it.</p>
+              <p>Choose your favourites, select a size and add something extra for the table.</p>
             </li>
             <li>
               <span className="hiw-num" aria-hidden="true">2</span>
               <h3 className="hiw-h">We build it fresh</h3>
-              <p>Your board is made by hand the day you collect — never the night before.</p>
+              <p>We prepare your order for your occasion, ready for your chosen collection date.</p>
             </li>
             <li>
               <span className="hiw-num" aria-hidden="true">3</span>
@@ -232,20 +232,7 @@ export default function Choice() {
           <span className="pb-sub">Plan my event — tell us your numbers and we&apos;ll suggest the spread →</span>
         </button>
 
-        <section className="founder-note" data-reveal>
-          <p className="founder-eyebrow">A note from the deli counter</p>
-          <p className="founder-copy">{counts?.founderNote || DEFAULT_FOUNDER_NOTE}</p>
-          <p className="founder-sign">— Kelly</p>
-        </section>
-
-        <section className="family-promise grain" data-reveal>
-          <h2 className="fp-h">The Family Promise</h2>
-          <p className="fp-copy">
-            Every board leaves the counter fresh, full and built the way we&apos;d serve our own family.
-            Change your plans up to 48 hours before and your deposit comes straight back — no forms, no fuss.
-          </p>
-          <TrustChips />
-        </section>
+        <div className="deli-reassurance"><TrustChips /></div>
 
         {hours && (
           <div className="info-row">
@@ -274,6 +261,7 @@ export default function Choice() {
           <span className="muted">Every order gives you a code to share — turns up on your confirmation page.</span>
         </div>
 
+        <ReminderCapture />
         <Faq />
       </div>
       <StickyCta label="Order a board" to={`/platters${suffix}`} />

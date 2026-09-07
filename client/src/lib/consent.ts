@@ -234,8 +234,7 @@ export async function initTracking(): Promise<TrackingState> {
 
   if (!needsConsent(config)) {
     // Nothing that needs consent — show the honest, one-off "we don't track you" notice.
-    const dismissed = safeGet(NOTICE_KEY) === "1";
-    return { config, mode: "notice", show: !dismissed };
+    return { config, mode: "notice", show: false };
   }
 
   // A live Global Privacy Control signal is a standing opt-out — honour it even over a
@@ -284,9 +283,6 @@ export function dismissNotice(): void {
   safeSet(NOTICE_KEY, "1");
 }
 
-function safeGet(k: string): string | null {
-  try { return localStorage.getItem(k); } catch { return null; }
-}
 function safeSet(k: string, v: string): void {
   try { localStorage.setItem(k, v); } catch { /* non-fatal */ }
 }
@@ -323,4 +319,10 @@ export function trackViewContent(opts: { id: string; name: string; value?: numbe
   window.fbq?.("track", "ViewContent", { content_ids: [id], content_name: name, value, currency });
   window.ttq?.track?.("ViewContent", { content_id: id, content_name: name, value, currency });
   window.gtag?.("event", "view_item", { currency, value, items: [{ item_id: id, item_name: name }] });
+}
+
+/** Conversion feature events. No contact details or occasion dates are sent. */
+export function trackShoppingEvent(name: "bundle_added" | "bundle_completed" | "basket_extra_added" | "product_video_play" | "occasion_reminder_signup", detail: { item_id?: string; value?: number } = {}): void {
+  if (!consentGranted) return;
+  window.gtag?.("event", name, detail);
 }

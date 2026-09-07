@@ -19,6 +19,11 @@ model Location {
   active         Boolean  @default(true)
   orders         Order[]
   createdAt      DateTime @default(now())
+  // Bread pre-ordering (separate subsystem — see models below).
+  breadOrders       BreadOrder[]
+  breadProducts     BreadProductLocation[]
+  breadShopSetting  BreadShopSetting?
+  breadClosures     BreadClosure[]
 }
 
 model Platter {
@@ -158,6 +163,16 @@ model ReminderSignup {
   reminderDate DateTime? @db.Date // optional specific date to prompt before
   notified     Boolean   @default(false)
   createdAt    DateTime  @default(now())
+  phone        String?
+  emailConsent Boolean @default(false)
+  smsConsent   Boolean @default(false)
+  consentAt    DateTime?
+  dueAt        DateTime?
+  emailStatus  String @default("pending")
+  smsStatus    String @default("pending")
+  cancelled    Boolean @default(false)
+
+  @@index([cancelled, dueAt])
 
   @@index([occasion])
 }
@@ -174,6 +189,7 @@ model Bundle {
   imageUrl    String?
   active      Boolean      @default(true)
   sortOrder   Int          @default(0)
+  discountPct Int          @default(0)
   items       BundleItem[]
   createdAt   DateTime     @default(now())
 
@@ -408,4 +424,114 @@ model Referral {
 model Setting {
   key   String @id // e.g. "firstOrderHook", "firstOrderHookText"
   value String
+}
+
+// --- Bread pre-ordering ---
+// Customers pre-order bread for collection, paying in-shop or via a manual payment link
+// (no Stripe/deposit here, unlike platter Order). See docs/PLAN.md "Bread Pre-Ordering".
+
+// A bread item available for pre-order (cob, loaf, bloomer, roll, ...). Fully admin-managed.
+model BreadProduct {
+  id          String                 @id @default(cuid())
+  name        String
+  description String?
+  price       Decimal                @db.Decimal(10, 2)
+  active      Boolean                @default(true)
+  sortOrder   Int                    @default(0)
+  locations   BreadProductLocation[] // which shops sell this item
+  orderItems  BreadOrderItem[]
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  @@index([active, sortOrder])
+}
+
+// Per-shop availability join (a product can be sold at some shops, not others).
+model BreadProductLocation {
+  id         String       @id @default(cuid())
+  productId  String
+  product    BreadProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  locationId String
+  location   Location     @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  createdAt  DateTime     @default(now())
+
+  @@unique([productId, locationId])
+  @@index([locationId])
+}
+
+// A bread pre-order for collection.
+model BreadOrder {
+  id             String           @id @default(cuid())
+  ref            String           @unique // e.g. "KDB-7F3K9Q" — distinct prefix from platter orders (KD-)
+  locationId     String
+  location       Location         @relation(fields: [locationId], references: [id])
+  collectionDate DateTime         @db.Date
+  customerName   String
+  phone          String
+  email          String?
+  notes          String? // free text, 200 chars enforced by zod
+  status         String           @default("pending") // pending | confirmed | collected | cancelled
+  items          BreadOrderItem[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([locationId, collectionDate])
+  @@index([status])
+}
+
+// A product line on a bread order. name + unitPrice are snapshots at order time — a later
+// admin price edit must not rewrite history (mirrors OrderItem).
+model BreadOrderItem {
+  id        String       @id @default(cuid())
+  orderId   String
+  order     BreadOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   BreadProduct @relation(fields: [productId], references: [id])
+  name      String
+  quantity  Int
+  unitPrice Decimal      @db.Decimal(10, 2)
+  createdAt DateTime     @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+// Per-shop bread settings: daily capacity + recurring closed weekdays.
+model BreadShopSetting {
+  id             String   @id @default(cuid())
+  locationId     String   @unique
+  location       Location @relation(fields: [locationId], references: [id])
+  dailyCapacity  Int? // max total item quantity per day; null = unlimited
+  closedWeekdays Int[] // 0=Sun..6=Sat, recurring closures (e.g. always shut Mondays)
+  notifyEmail    String? // where this shop's new-bread-order emails go; unset = no shop email sent
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// One-off closed dates per shop (bank holidays, unplanned closures), on top of closedWeekdays.
+model BreadClosure {
+  id         String   @id @default(cuid())
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  date       DateTime @db.Date
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  @@unique([locationId, date])
+  @@index([locationId])
+}
+
+// Singleton row: global ordering rules, editable in admin, no deploys needed.
+model BreadSettings {
+  id               String   @id @default("singleton")
+  leadTimeHours    Int      @default(48) // used when cutoffMode = "rolling"
+  cutoffMode       String   @default("rolling") // "rolling" | "cutoff"
+  // cutoff mode: orders for a collection date close `cutoffDaysBefore` days before it, at
+  // `cutoffTime` (24h "HH:MM", Europe/London). E.g. Wed collection + cutoffDaysBefore=2 +
+  // cutoffTime="14:00" -> orders close Monday 2pm.
+  cutoffDaysBefore Int?
+  cutoffTime       String?
+  minOrderQty      Int      @default(1) // minimum total items per order
+  maxItemQty       Int      @default(20) // maximum quantity per line item
+  updatedAt        DateTime @updatedAt
 }

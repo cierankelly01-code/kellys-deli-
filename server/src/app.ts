@@ -67,6 +67,7 @@ export function createApp(): Express {
         directives: {
           ...helmet.contentSecurityPolicy.getDefaultDirectives(),
           "img-src": ["'self'", "data:", "https:"], // menu photos, hero, pixel img-beacons
+          "media-src": ["'self'", "https:"],
           "script-src": ["'self'", ...TRACKER_SCRIPT_SRC],
           "connect-src": ["'self'", ...TRACKER_CONNECT_SRC],
           "frame-src": ["'self'", ...TRACKER_FRAME_SRC],

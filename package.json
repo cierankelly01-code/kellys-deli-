@@ -20,6 +20,10 @@
     "test": "npm --workspace server run test && npm --workspace client run test",
     "test:e2e": "playwright test"
   },
+  "overrides": {
+    "deepmerge-ts": "^8.0.2",
+    "qs": "^6.16.0"
+  },
   "devDependencies": {
     "concurrently": "^9.1.2"
   }

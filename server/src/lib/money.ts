@@ -149,13 +149,15 @@ export function priceLineItemOrder(
   addOns: LineItem[],
   hasValidReferral: boolean,
   subscriptionDiscountPct = 0,
+  bundleSaving = 0,
 ): LineItemPricing {
   const boardsTotal = lineItemsTotal(boards);
   const addOns_ = addOnsTotal(addOns);
   const base = toMoney(boardsTotal + addOns_);
   const pct = Math.max(0, Math.min(100, subscriptionDiscountPct));
-  const subscriptionDiscount = pct > 0 ? toMoney(base * (pct / 100)) : 0;
-  const afterSub = toMoney(base - subscriptionDiscount);
+  const afterBundle = toMoney(Math.max(0, base - Math.max(0, bundleSaving)));
+  const subscriptionDiscount = pct > 0 ? toMoney(afterBundle * (pct / 100)) : 0;
+  const afterSub = toMoney(afterBundle - subscriptionDiscount);
   const total = applyReferral(afterSub, hasValidReferral);
   const discount = toMoney(afterSub - total);
   const deposit = roundTo5p(total * DEPOSIT_RATE);

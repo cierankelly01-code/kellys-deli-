@@ -11,7 +11,7 @@ export default function Privacy() {
       <Header />
       <article className="legal">
         <h1>Privacy Policy</h1>
-        <p className="muted">Last updated: 21 July 2026</p>
+        <p className="muted">Last updated: 6 September 2026</p>
 
         <p>
           This policy explains what personal information Kelly&apos;s Deli (&quot;we&quot;, &quot;us&quot;)
@@ -38,6 +38,7 @@ export default function Privacy() {
         </ul>
 
         <h2>Who we share it with</h2>
+        <p>If you request an occasion reminder, we store the upcoming occasion date, your chosen contact details and your channel consent. We send one reminder per chosen channel for that date. Email reminders use Resend and text reminders use Twilio when those services are enabled. You can cancel using the reminder’s cancellation link or contact us to request removal of your reminder information.</p>
         <p>We never sell your data. We share it only with the trusted service providers that run this site, acting on our instructions:</p>
         <ul>
           <li>Our website and database hosting providers (which store your order securely).</li>

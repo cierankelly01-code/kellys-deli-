@@ -1,5 +1,7 @@
 import { asyncRouter } from "../lib/async-router";
 import { prisma } from "../lib/prisma";
+import { bestBundleDiscount } from "../lib/bundle-discount";
+import { occasionReminderRouter } from "./occasion-reminders";
 import {
   createOrderSchema,
   createBookingSchema,
@@ -9,16 +11,29 @@ import {
   corporateEnquirySchema,
   reminderSchema,
   giftVoucherSchema,
+  createBreadOrderSchema,
+  breadAvailabilityQuerySchema,
 } from "../lib/validation";
 import { priceOrder, priceLineItemOrder, REFERRAL_DISCOUNT } from "../lib/money";
 import { buildAvailability, canBook, getDayAvailability, meetsNotice, meetsLeadTime, parseDate, formatDate } from "../lib/capacity";
+import { buildBreadAvailability, canBookBread, getBreadDayAvailability, type BreadOrderingSettings } from "../lib/bread-capacity";
 import { recommendBoards, capacity as boardCapacity, type RecBoard } from "../lib/recommender";
-import { genRef, randomReferralCode } from "../lib/ref";
+import { genRef, genBreadRef, randomReferralCode } from "../lib/ref";
 import { captureDepositIntent } from "../lib/payments";
-import { notifyOrderReceived } from "../lib/notify";
-import { platterDTO, experienceDTO, locationDTO, orderDTO, publicOrderDTO, boardComponentDTO, boardGroupDTO, addOnDTO, categoryDTO, bundleDTO } from "../lib/serialize";
+import { notifyOrderReceived, notifyBreadOrderReceived, notifyShopOfBreadOrder } from "../lib/notify";
+import type { BreadEmailItem } from "../lib/emailTemplate";
+import { platterDTO, experienceDTO, locationDTO, orderDTO, publicOrderDTO, boardComponentDTO, boardGroupDTO, addOnDTO, categoryDTO, bundleDTO, breadProductDTO, breadOrderDTO } from "../lib/serialize";
 
 export const publicRouter = asyncRouter();
+publicRouter.use("/occasion-reminders", occasionReminderRouter);
+publicRouter.get("/deli-videos", async (_req, res) => {
+  const { deliVideosSchema } = await import("../lib/deli-videos");
+  try {
+    const config = await prisma.setting.findUnique({ where: { key: "deliVideos" } });
+    const result = deliVideosSchema.safeParse(JSON.parse(config?.value || "[]"));
+    res.json(result.success ? result.data : []);
+  } catch { res.json([]); }
+});
 
 class CapacityError extends Error {}
 
@@ -51,6 +66,36 @@ async function uniqueReferralCode(tx: { customer: { findUnique: (a: any) => Prom
     if (!(await tx.customer.findUnique({ where: { referralCode: code } }))) return code;
   }
   throw new Error("Could not generate a unique referral code");
+}
+
+// Same pattern for a bread order reference (KDB- prefix, separate table from Order).
+async function uniqueBreadRef(tx: { breadOrder: { findUnique: (a: any) => Promise<unknown> } }): Promise<string> {
+  for (let i = 0; i < 6; i++) {
+    const ref = genBreadRef();
+    if (!(await tx.breadOrder.findUnique({ where: { ref } }))) return ref;
+  }
+  throw new Error("Could not generate a unique bread order reference");
+}
+
+class BreadCapacityError extends Error {
+  constructor(public reason: "closed" | "too_soon" | "full") {
+    super(reason);
+  }
+}
+
+/** Global bread ordering rules (Setting-equivalent singleton row), with safe defaults. */
+async function getBreadSettings(): Promise<{ ordering: BreadOrderingSettings; minOrderQty: number; maxItemQty: number }> {
+  const s = await prisma.breadSettings.findUnique({ where: { id: "singleton" } });
+  return {
+    ordering: {
+      leadTimeHours: s?.leadTimeHours ?? 48,
+      cutoffMode: (s?.cutoffMode as "rolling" | "cutoff") ?? "rolling",
+      cutoffDaysBefore: s?.cutoffDaysBefore ?? null,
+      cutoffTime: s?.cutoffTime ?? null,
+    },
+    minOrderQty: s?.minOrderQty ?? 1,
+    maxItemQty: s?.maxItemQty ?? 20,
+  };
 }
 
 // --- Menu ---
@@ -135,6 +180,184 @@ publicRouter.get("/experiences", async (_req, res) => {
 publicRouter.get("/locations", async (_req, res) => {
   const locations = await prisma.location.findMany({ where: { active: true }, orderBy: { name: "asc" } });
   res.json(locations.map(locationDTO));
+});
+
+// --- Bread pre-ordering ---
+
+// Just the two numbers the customer form needs to enforce min/max quantities client-side.
+// Lead time / cutoff aren't exposed directly — their effect is already encoded per-date
+// in GET /bread/availability.
+publicRouter.get("/bread/settings", async (_req, res) => {
+  const { minOrderQty, maxItemQty } = await getBreadSettings();
+  res.json({ minOrderQty, maxItemQty });
+});
+
+publicRouter.get("/bread/products", async (req, res) => {
+  const locationId = typeof req.query.locationId === "string" ? req.query.locationId : undefined;
+  const products = await prisma.breadProduct.findMany({
+    where: { active: true, ...(locationId ? { locations: { some: { locationId } } } : {}) },
+    include: { locations: true },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+  res.json(products.map(breadProductDTO));
+});
+
+publicRouter.get("/bread/availability", async (req, res) => {
+  const parsed = breadAvailabilityQuerySchema.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid query", details: parsed.error.flatten() });
+  const { locationId, from, days } = parsed.data;
+  const location = await prisma.location.findUnique({ where: { id: locationId } });
+  if (!location || !location.active) return res.status(404).json({ error: "Location not available" });
+
+  const now = new Date();
+  const fromDate = from ?? formatDate(now);
+  const span = days ?? 21;
+  const start = parseDate(fromDate);
+  const end = new Date(start.getTime() + span * 86_400_000);
+
+  const [{ ordering }, shopSetting, closures, items] = await Promise.all([
+    getBreadSettings(),
+    prisma.breadShopSetting.findUnique({ where: { locationId } }),
+    prisma.breadClosure.findMany({ where: { locationId, date: { gte: start, lt: end } } }),
+    prisma.breadOrderItem.findMany({
+      where: { order: { locationId, status: { not: "cancelled" }, collectionDate: { gte: start, lt: end } } },
+      select: { quantity: true, order: { select: { collectionDate: true } } },
+    }),
+  ]);
+
+  const bookedByDate: Record<string, number> = {};
+  for (const i of items) {
+    const key = formatDate(i.order.collectionDate);
+    bookedByDate[key] = (bookedByDate[key] ?? 0) + i.quantity;
+  }
+
+  const dailyCapacity = shopSetting?.dailyCapacity ?? null;
+  res.json({
+    locationId,
+    dailyCapacity,
+    days: buildBreadAvailability(
+      fromDate,
+      span,
+      now,
+      ordering,
+      shopSetting?.closedWeekdays ?? [],
+      closures.map((c) => formatDate(c.date)),
+      dailyCapacity,
+      bookedByDate,
+    ),
+  });
+});
+
+publicRouter.post("/bread/orders", async (req, res) => {
+  const parsed = createBreadOrderSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid order", details: parsed.error.flatten() });
+  const input = parsed.data;
+  const now = new Date();
+
+  if (Number.isNaN(parseDate(input.collectionDate).getTime())) {
+    return res.status(400).json({ error: "Invalid date" });
+  }
+
+  const location = await prisma.location.findUnique({ where: { id: input.locationId } });
+  if (!location || !location.active) return res.status(404).json({ error: "Location not available" });
+
+  // Items must exist, be active, and be sold at this shop.
+  const productIds = [...new Set(input.items.map((i) => i.productId))];
+  const products = await prisma.breadProduct.findMany({
+    where: { id: { in: productIds }, active: true, locations: { some: { locationId: input.locationId } } },
+  });
+  const productById = new Map(products.map((p) => [p.id, p]));
+  for (const it of input.items) {
+    if (!productById.get(it.productId)) return res.status(404).json({ error: "A selected item is no longer available at this shop" });
+  }
+
+  // Never trust the client's min/max — re-check against the current admin-configured values.
+  const { ordering, minOrderQty, maxItemQty } = await getBreadSettings();
+  const totalQty = input.items.reduce((sum, i) => sum + i.quantity, 0);
+  if (totalQty < minOrderQty) {
+    return res.status(400).json({ error: `Minimum order is ${minOrderQty} item${minOrderQty === 1 ? "" : "s"}` });
+  }
+  for (const it of input.items) {
+    if (it.quantity > maxItemQty) return res.status(400).json({ error: `Maximum quantity per item is ${maxItemQty}` });
+  }
+
+  const shopSetting = await prisma.breadShopSetting.findUnique({ where: { locationId: input.locationId } });
+  const closedWeekdays = shopSetting?.closedWeekdays ?? [];
+  const dailyCapacity = shopSetting?.dailyCapacity ?? null;
+
+  try {
+    const order = await prisma.$transaction(async (tx) => {
+      // Lock this shop's settings row so racing orders can't both take the last item of capacity.
+      await tx.$queryRaw`SELECT 1 FROM "BreadShopSetting" WHERE "locationId" = ${input.locationId} FOR UPDATE`;
+
+      const closureRow = await tx.breadClosure.findUnique({
+        where: { locationId_date: { locationId: input.locationId, date: parseDate(input.collectionDate) } },
+      });
+      const closureDates = closureRow ? [input.collectionDate] : [];
+
+      const bookedAgg = await tx.breadOrderItem.aggregate({
+        _sum: { quantity: true },
+        where: { order: { locationId: input.locationId, collectionDate: parseDate(input.collectionDate), status: { not: "cancelled" } } },
+      });
+      const bookedQty = bookedAgg._sum.quantity ?? 0;
+
+      if (!canBookBread(input.collectionDate, now, ordering, closedWeekdays, closureDates, dailyCapacity, bookedQty)) {
+        const avail = getBreadDayAvailability(input.collectionDate, now, ordering, closedWeekdays, closureDates, dailyCapacity, bookedQty);
+        throw new BreadCapacityError(avail.reason ?? "full");
+      }
+
+      const ref = await uniqueBreadRef(tx);
+      const itemLines = input.items.map((it) => ({
+        productId: it.productId,
+        name: productById.get(it.productId)!.name,
+        quantity: it.quantity,
+        unitPrice: productById.get(it.productId)!.price,
+      }));
+
+      return tx.breadOrder.create({
+        data: {
+          ref,
+          locationId: input.locationId,
+          collectionDate: parseDate(input.collectionDate),
+          customerName: input.customerName,
+          phone: input.phone,
+          email: input.email || null,
+          notes: input.notes || null,
+          items: { create: itemLines },
+        },
+        include: { location: true, items: true },
+      });
+    });
+
+    const dto = breadOrderDTO(order);
+    const emailItems: BreadEmailItem[] = dto.items.map((i) => ({ name: i.name, quantity: i.quantity, unitPrice: i.unitPrice, lineTotal: i.lineTotal }));
+    const emailData = {
+      ref: dto.ref,
+      customerName: dto.customerName,
+      phone: dto.phone,
+      email: dto.email,
+      locationName: dto.locationName ?? location.name,
+      collectionDate: dto.collectionDate,
+      notes: dto.notes,
+      items: emailItems,
+      total: dto.total,
+    };
+    if (dto.email) await notifyBreadOrderReceived(dto.email, emailData);
+    if (shopSetting?.notifyEmail) await notifyShopOfBreadOrder(shopSetting.notifyEmail, emailData);
+
+    res.status(201).json({ order: dto });
+  } catch (err) {
+    if (err instanceof BreadCapacityError) {
+      const messages: Record<string, string> = {
+        closed: "We're closed that day — please choose another date.",
+        too_soon: "That date no longer gives us enough notice — please choose a later date.",
+        full: "That date just filled up — please choose another date.",
+      };
+      return res.status(409).json({ error: messages[err.reason] });
+    }
+    console.error("[bread orders] create failed", err);
+    res.status(500).json({ error: "Could not place order" });
+  }
 });
 
 // Build-your-own board ingredients, grouped by category.
@@ -307,7 +530,7 @@ publicRouter.get("/bundles", async (_req, res) => {
   };
   const dtos = bundles
     .map((b) => ({ b, dto: bundleDTO(b, resolve) }))
-    .filter(({ b, dto }) => dto.items.length > 0 && dto.items.length === b.items.length)
+    .filter(({ b, dto }) => dto.items.some((i) => i.kind === "board") && dto.items.length === b.items.length)
     .map(({ dto }) => dto);
   res.json(dtos);
 });
@@ -509,11 +732,17 @@ publicRouter.post("/orders", async (req, res) => {
   const subPctRaw = parseInt((await getSetting("subscribeSaveDiscountPct")) ?? "10", 10);
   const subPct = wantsSub && subOn && Number.isFinite(subPctRaw) ? Math.max(0, Math.min(100, subPctRaw)) : 0;
 
+  const bundleOffers = await prisma.bundle.findMany({ where: { active: true, discountPct: { gt: 0 } }, include: { items: true }, orderBy: { id: "asc" } });
+  const bundleSaving = bestBundleDiscount(bundleOffers, [
+    ...boardLines.map((b) => ({ kind: "board", refId: b.platterId, quantity: b.quantity, price: b.unitPrice })),
+    ...addOnLines.map((a) => ({ kind: "addon", refId: a.addOnId, quantity: a.quantity, price: a.unitPrice })),
+  ]);
   const pricing = priceLineItemOrder(
     boardLines.map((b) => ({ unitPrice: b.unitPrice, quantity: b.quantity })),
     addOnLines.map((a) => ({ unitPrice: a.unitPrice, quantity: a.quantity })),
     referrerCode != null,
     subPct,
+    bundleSaving.amount,
   );
 
   // Freebies added to the order at no charge (recorded on the order so the owner includes them).
@@ -586,7 +815,7 @@ publicRouter.post("/orders", async (req, res) => {
           customerName: input.customerName,
           phone: input.phone,
           email: input.email,
-          notes: input.notes ?? null,
+          notes: [input.notes, bundleSaving.amount > 0 ? `Bundle saving: ${bundleSaving.name} — £${bundleSaving.amount.toFixed(2)}` : null].filter(Boolean).join("\n") || null,
           freebie,
           src: input.src ?? "direct",
           referralCodeUsed: referrerCode,

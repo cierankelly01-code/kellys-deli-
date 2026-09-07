@@ -202,6 +202,9 @@ export interface BundleItem {
   imageUrl: string | null;
 }
 export interface Bundle {
+  discountPct: number;
+  saving: number;
+  bundlePrice: number;
   id: string;
   name: string;
   tagline: string | null;
@@ -224,6 +227,7 @@ export interface GiftVoucherInput {
 
 // Admin: create/update payload for a bundle (items reference boards/add-ons by id + kind).
 export interface BundleInput {
+  discountPct?: number;
   name: string;
   tagline?: string | null;
   description?: string | null;
@@ -390,6 +394,70 @@ export interface CreateBookingInput {
   src?: string;
 }
 
+// --- Bread pre-ordering ---
+
+export interface BreadProduct {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  active: boolean;
+  sortOrder: number;
+  locationIds: string[];
+}
+
+export type BreadDayReason = "closed" | "too_soon" | "full" | null;
+
+export interface BreadDayAvailability {
+  date: string;
+  bookable: boolean;
+  reason: BreadDayReason;
+  remaining: number | null;
+}
+
+export interface BreadAvailabilityResponse {
+  locationId: string;
+  dailyCapacity: number | null;
+  days: BreadDayAvailability[];
+}
+
+export interface BreadOrderItemDTO {
+  id: string;
+  productId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+export type BreadOrderStatus = "pending" | "confirmed" | "collected" | "cancelled";
+
+export interface BreadOrderDTO {
+  id: string;
+  ref: string;
+  locationId: string;
+  locationName: string | null;
+  collectionDate: string;
+  customerName: string;
+  phone: string;
+  email: string | null;
+  notes: string | null;
+  status: BreadOrderStatus;
+  items: BreadOrderItemDTO[];
+  total: number;
+  createdAt: string;
+}
+
+export interface CreateBreadOrderInput {
+  locationId: string;
+  collectionDate: string;
+  items: { productId: string; quantity: number }[];
+  customerName: string;
+  phone: string;
+  email?: string;
+  notes?: string;
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -468,5 +536,18 @@ export const api = {
   checkReferral: (code: string, phone: string, email: string) => {
     const q = new URLSearchParams({ code, phone, email });
     return req<{ valid: boolean; discount: number }>(`/api/referral/check?${q.toString()}`);
+  },
+
+  bread: {
+    orderLimits: () => req<{ minOrderQty: number; maxItemQty: number }>("/api/bread/settings"),
+    products: (locationId?: string) =>
+      req<BreadProduct[]>(`/api/bread/products${locationId ? `?locationId=${locationId}` : ""}`),
+    availability: (locationId: string, from?: string, days = 21) => {
+      const q = new URLSearchParams({ locationId, days: String(days) });
+      if (from) q.set("from", from);
+      return req<BreadAvailabilityResponse>(`/api/bread/availability?${q.toString()}`);
+    },
+    createOrder: (body: CreateBreadOrderInput) =>
+      req<{ order: BreadOrderDTO }>("/api/bread/orders", { method: "POST", body: JSON.stringify(body) }),
   },
 };

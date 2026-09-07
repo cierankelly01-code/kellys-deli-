@@ -3,6 +3,8 @@ import { adminApi } from "../../lib/admin";
 import { type OpeningHours } from "../../lib/api";
 import { ImageUpload } from "../../components/ImageUpload";
 import { isValidTrackingId } from "../../lib/consent";
+import { VideoSettings } from "../../components/VideoSettings";
+import { ReminderSettings } from "../../components/ReminderSettings";
 
 const DAYS: Array<{ key: keyof OpeningHours; label: string }> = [
   { key: "mon", label: "Monday" }, { key: "tue", label: "Tuesday" }, { key: "wed", label: "Wednesday" },
@@ -108,6 +110,8 @@ export default function SiteSettings() {
   return (
     <div>
       <h1>Site Settings</h1>
+      <VideoSettings />
+      <ReminderSettings />
       {msg && <div className="notice good">{msg}</div>}
       {error && <div className="notice danger">{error}</div>}
 

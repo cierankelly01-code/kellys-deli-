@@ -5,9 +5,9 @@ import { ImageUpload } from "../../components/ImageUpload";
 import { gbp } from "../../lib/format";
 
 type Item = { kind: "board" | "addon"; refId: string; quantity: number };
-type Draft = { id?: string; name: string; tagline: string; description: string; imageUrl: string; active: boolean; items: Item[] };
+type Draft = { id?: string; name: string; tagline: string; description: string; imageUrl: string; active: boolean; discountPct: number; items: Item[] };
 
-const emptyDraft = (): Draft => ({ name: "", tagline: "", description: "", imageUrl: "", active: true, items: [] });
+const emptyDraft = (): Draft => ({ name: "", tagline: "", description: "", imageUrl: "", active: false, discountPct: 0, items: [] });
 
 export default function Bundles() {
   const [bundles, setBundles] = useState<Bundle[] | null>(null);
@@ -36,7 +36,7 @@ export default function Bundles() {
   function edit(b: Bundle) {
     setDraft({
       id: b.id, name: b.name, tagline: b.tagline ?? "", description: b.description ?? "", imageUrl: b.imageUrl ?? "",
-      active: b.active, items: b.items.map((it) => ({ kind: it.kind, refId: it.refId, quantity: it.quantity })),
+      active: b.active, discountPct: b.discountPct ?? 0, items: b.items.map((it) => ({ kind: it.kind, refId: it.refId, quantity: it.quantity })),
     });
     setMsg(null); setError(null);
   }
@@ -57,11 +57,11 @@ export default function Bundles() {
   async function save() {
     if (!draft) return;
     if (!draft.name.trim()) return setError("Give the bundle a name.");
-    if (draft.items.length === 0) return setError("Add at least one board or extra.");
+    if (!draft.items.some((i) => i.kind === "board")) return setError("Add at least one board to the bundle.");
     setSaving(true); setError(null);
     const input: BundleInput = {
       name: draft.name.trim(), tagline: draft.tagline.trim() || null, description: draft.description.trim() || null,
-      imageUrl: draft.imageUrl.trim() || null, active: draft.active, items: draft.items,
+      imageUrl: draft.imageUrl.trim() || null, active: draft.active, items: draft.items, discountPct: draft.discountPct,
     };
     try {
       if (draft.id) await adminApi.updateBundle(draft.id, input);
@@ -83,7 +83,8 @@ export default function Bundles() {
   return (
     <div>
       <h1>Bundles</h1>
-      <p className="muted">Ready-made combos customers add to the basket in one tap. Priced at the total of what&apos;s inside (no fake discounts).</p>
+      <p className="muted">Create a complete spread and an optional genuine discount. The best complete bundle applies automatically in the basket. Subscribe &amp; Save applies afterwards. New bundles start hidden.</p>
+      {draft && <div className="field"><label htmlFor="bundle-discount">Bundle discount (%)</label><input id="bundle-discount" className="input" type="number" min="0" max="50" step="1" value={draft.discountPct} onChange={(e) => setDraft({ ...draft, discountPct: Number(e.target.value) })} /><p className="muted">Customer price: {gbp(Math.round(total * (1 - draft.discountPct / 100) * 100) / 100)} · 0% keeps the normal component total.</p></div>}
       {msg && <div className="notice good">{msg}</div>}
       {error && <div className="notice danger">{error}</div>}
 

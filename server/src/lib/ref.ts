@@ -20,6 +20,15 @@ export function genRef(): string {
   return `KD-${randomChars(6)}`;
 }
 
+/**
+ * Bread pre-order reference, e.g. "KDB-7F3K9Q". Distinct prefix from genRef() so a bread
+ * order ref is never confusable with a platter order ref when staff search by ref.
+ * Collision-checked by the caller (against BreadOrder.ref, a separate table).
+ */
+export function genBreadRef(): string {
+  return `KDB-${randomChars(6)}`;
+}
+
 /** A customer's shareable referral code, e.g. "KELLY-4QF9KP". */
 export function randomReferralCode(): string {
   return `KELLY-${randomChars(6)}`;

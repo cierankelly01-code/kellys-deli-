@@ -6,6 +6,8 @@ import "./styles/theme.css";
 import "./styles/components.css";
 import "./styles/shop.css";
 import "./styles/admin.css";
+import "./styles/tokens.css";
+import "./styles/editorial.css";
 import { startMotion } from "./lib/motion";
 
 startMotion();

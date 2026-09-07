@@ -88,6 +88,9 @@
 .pill.status-ready { background: #e9f7ef; color: var(--good); }
 .pill.status-completed { background: var(--good-bg); color: var(--good); }
 .pill.status-cancelled { background: var(--danger-bg); color: var(--danger); }
+/* Bread pre-ordering statuses (pending/collected have no platter equivalent above). */
+.pill.status-pending { background: var(--warn-bg); color: var(--warn); }
+.pill.status-collected { background: var(--good-bg); color: var(--good); }
 
 /* Prep sheet */
 .prep-sheet { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }

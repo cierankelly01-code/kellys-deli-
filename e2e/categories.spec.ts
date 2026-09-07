@@ -15,7 +15,7 @@ async function toReview(page: Page) {
 test.describe("category storefront", () => {
   test("home shows a Shop by occasion band with the seeded categories", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Shop by occasion" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Every occasion, well fed." })).toBeVisible();
     await expect(page.locator(".occasion-card", { hasText: "Hosting" })).toBeVisible();
     await expect(page.locator(".occasion-card", { hasText: "At Home" })).toBeVisible();
     await expect(page.locator(".occasion-card", { hasText: "Office & Corporate" })).toBeVisible();

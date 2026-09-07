@@ -2,7 +2,26 @@ import { asyncRouter } from "../lib/async-router";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { env } from "../lib/env";
-import { orderDTO, platterDTO, experienceDTO, locationDTO, boardComponentDTO, boardGroupDTO, addOnDTO, categoryDTO, corporateEnquiryDTO, subscriptionDTO, bundleDTO, giftVoucherDTO, type PlatterItem } from "../lib/serialize";
+import {
+  orderDTO,
+  platterDTO,
+  experienceDTO,
+  locationDTO,
+  boardComponentDTO,
+  boardGroupDTO,
+  addOnDTO,
+  categoryDTO,
+  corporateEnquiryDTO,
+  subscriptionDTO,
+  bundleDTO,
+  giftVoucherDTO,
+  breadProductDTO,
+  breadOrderDTO,
+  breadShopSettingDTO,
+  breadClosureDTO,
+  breadSettingsDTO,
+  type PlatterItem,
+} from "../lib/serialize";
 import {
   platterUpsertSchema,
   experienceUpsertSchema,
@@ -18,10 +37,16 @@ import {
   subscriptionStatusSchema,
   bundleUpsertSchema,
   giftVoucherStatusSchema,
+  breadProductUpsertSchema,
+  breadOrderStatusSchema,
+  breadSettingsUpdateSchema,
+  breadShopSettingUpdateSchema,
+  breadClosureUpsertSchema,
 } from "../lib/validation";
 import { calcMargin } from "../lib/money";
 import { parseDate, formatDate } from "../lib/capacity";
 import { buildPrepSheet, type PrepInputOrder } from "../lib/prep-sheet";
+import { buildBakeSheet, type BakeSheetInputOrder } from "../lib/bread-bake-sheet";
 import { summarizeOrders, rankPlattersByMargin, profitOf, type StatOrderInput } from "../lib/stats";
 import { notifyReviewRequest, notifyReferralOffer, notifyBlast } from "../lib/notify";
 import { imageUpload, persistUpload, MAX_UPLOAD_LABEL } from "../lib/uploads";
@@ -468,6 +493,223 @@ adminRouter.patch("/locations/:id", async (req, res) => {
   res.json(locationDTO(updated));
 });
 
+// =====================  Bread pre-ordering  =====================
+
+const BREAD_ORDER_INCLUDE = { location: true, items: true } as const;
+
+// --- Orders (list, status, delete) ---
+adminRouter.get("/bread/orders", async (req, res) => {
+  const { locationId, date, status, q } = req.query as Record<string, string | undefined>;
+  const where: any = {};
+  if (locationId) where.locationId = locationId;
+  if (status) where.status = status;
+  if (date) where.collectionDate = parseDate(date);
+  if (q?.trim()) {
+    const term = q.trim();
+    where.OR = [
+      { ref: { contains: term, mode: "insensitive" } },
+      { customerName: { contains: term, mode: "insensitive" } },
+      { phone: { contains: term } },
+    ];
+  }
+  const orders = await prisma.breadOrder.findMany({
+    where,
+    include: BREAD_ORDER_INCLUDE,
+    orderBy: [{ collectionDate: "asc" }, { createdAt: "asc" }],
+  });
+  res.json(orders.map(breadOrderDTO));
+});
+
+adminRouter.patch("/bread/orders/:id/status", async (req, res) => {
+  const parsed = breadOrderStatusSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid status" });
+  const exists = await prisma.breadOrder.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Order not found" });
+  const updated = await prisma.breadOrder.update({
+    where: { id: req.params.id },
+    data: { status: parsed.data.status },
+    include: BREAD_ORDER_INCLUDE,
+  });
+  res.json(breadOrderDTO(updated));
+});
+
+// Privacy: a real delete, not a soft one — see build spec §5.
+adminRouter.delete("/bread/orders/:id", async (req, res) => {
+  const exists = await prisma.breadOrder.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Order not found" });
+  await prisma.breadOrder.delete({ where: { id: req.params.id } }); // items cascade
+  res.json({ ok: true });
+});
+
+// --- Bake Sheet: totals per product for one day, per shop, plus the per-order breakdown ---
+adminRouter.get("/bread/bake-sheet", async (req, res) => {
+  const { date, locationId } = req.query as Record<string, string | undefined>;
+  if (!date) return res.status(400).json({ error: "date is required" });
+
+  const locations = await prisma.location.findMany({
+    where: { active: true, ...(locationId ? { id: locationId } : {}) },
+    orderBy: { name: "asc" },
+  });
+  if (locationId && locations.length === 0) return res.status(404).json({ error: "Location not found" });
+
+  const orders = await prisma.breadOrder.findMany({
+    where: { collectionDate: parseDate(date), status: { not: "cancelled" }, ...(locationId ? { locationId } : {}) },
+    include: { items: true },
+    orderBy: { createdAt: "asc" },
+  });
+  const ordersByLocation = new Map<string, typeof orders>();
+  for (const o of orders) {
+    const arr = ordersByLocation.get(o.locationId) ?? [];
+    arr.push(o);
+    ordersByLocation.set(o.locationId, arr);
+  }
+
+  const toInput = (o: (typeof orders)[number]): BakeSheetInputOrder => ({
+    ref: o.ref,
+    customerName: o.customerName,
+    status: o.status,
+    notes: o.notes,
+    items: o.items.map((i) => ({ name: i.name, quantity: i.quantity })),
+  });
+
+  const shops = locations.map((loc) => ({
+    location: { id: loc.id, name: loc.name },
+    sheet: buildBakeSheet((ordersByLocation.get(loc.id) ?? []).map(toInput)),
+  }));
+
+  res.json({ date, shops });
+});
+
+// --- Products ---
+adminRouter.get("/bread/products", async (_req, res) => {
+  const products = await prisma.breadProduct.findMany({
+    include: { locations: true },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+  res.json(products.map(breadProductDTO));
+});
+
+async function setBreadProductLocations(productId: string, locationIds: string[]) {
+  await prisma.breadProductLocation.deleteMany({ where: { productId } });
+  if (locationIds.length) {
+    await prisma.breadProductLocation.createMany({
+      data: locationIds.map((locationId) => ({ productId, locationId })),
+      skipDuplicates: true,
+    });
+  }
+}
+
+adminRouter.post("/bread/products", async (req, res) => {
+  const parsed = breadProductUpsertSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid product", details: parsed.error.flatten() });
+  const count = await prisma.breadProduct.count();
+  const { locationIds, ...data } = parsed.data;
+  const created = await prisma.breadProduct.create({ data: { ...data, sortOrder: parsed.data.sortOrder ?? count } });
+  await setBreadProductLocations(created.id, locationIds);
+  const withLocations = await prisma.breadProduct.findUniqueOrThrow({ where: { id: created.id }, include: { locations: true } });
+  res.status(201).json(breadProductDTO(withLocations));
+});
+
+adminRouter.patch("/bread/products/:id", async (req, res) => {
+  const parsed = breadProductUpsertSchema.partial().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid product", details: parsed.error.flatten() });
+  const exists = await prisma.breadProduct.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Product not found" });
+  const { locationIds, ...data } = parsed.data;
+  await prisma.breadProduct.update({ where: { id: req.params.id }, data });
+  if (locationIds) await setBreadProductLocations(req.params.id, locationIds);
+  const updated = await prisma.breadProduct.findUniqueOrThrow({ where: { id: req.params.id }, include: { locations: true } });
+  res.json(breadProductDTO(updated));
+});
+
+// Past orders reference products by FK, so those can only be hidden, never deleted.
+adminRouter.delete("/bread/products/:id", async (req, res) => {
+  const exists = await prisma.breadProduct.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Product not found" });
+  const orderCount = await prisma.breadOrderItem.count({ where: { productId: req.params.id } });
+  if (orderCount > 0) {
+    return res.status(409).json({ error: "This item has past orders — hide it with the Active toggle instead of deleting" });
+  }
+  await prisma.breadProduct.delete({ where: { id: req.params.id } }); // BreadProductLocation rows cascade
+  res.json({ ok: true });
+});
+
+// --- Global ordering settings (lead time / cutoff / min & max qty) ---
+adminRouter.get("/bread/settings", async (_req, res) => {
+  const settings = await prisma.breadSettings.upsert({ where: { id: "singleton" }, update: {}, create: { id: "singleton" } });
+  res.json(breadSettingsDTO(settings));
+});
+
+adminRouter.patch("/bread/settings", async (req, res) => {
+  const parsed = breadSettingsUpdateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid settings", details: parsed.error.flatten() });
+  const updated = await prisma.breadSettings.upsert({
+    where: { id: "singleton" },
+    update: parsed.data,
+    create: { id: "singleton", ...parsed.data },
+  });
+  res.json(breadSettingsDTO(updated));
+});
+
+// --- Per-shop settings (daily capacity, recurring closed weekdays, notify email) ---
+adminRouter.get("/bread/shop-settings", async (_req, res) => {
+  const locations = await prisma.location.findMany({ orderBy: { name: "asc" } });
+  const rows = await prisma.breadShopSetting.findMany();
+  const byLocation = new Map(rows.map((r) => [r.locationId, r]));
+  res.json(
+    locations.map((loc) => ({
+      ...breadShopSettingDTO(
+        byLocation.get(loc.id) ?? { id: "", locationId: loc.id, dailyCapacity: null, closedWeekdays: [], notifyEmail: null, createdAt: new Date(), updatedAt: new Date() },
+      ),
+      locationName: loc.name,
+    })),
+  );
+});
+
+adminRouter.patch("/bread/shop-settings/:locationId", async (req, res) => {
+  const parsed = breadShopSettingUpdateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid shop settings", details: parsed.error.flatten() });
+  const location = await prisma.location.findUnique({ where: { id: req.params.locationId } });
+  if (!location) return res.status(404).json({ error: "Location not found" });
+  const data = { ...parsed.data, notifyEmail: parsed.data.notifyEmail || null };
+  const updated = await prisma.breadShopSetting.upsert({
+    where: { locationId: req.params.locationId },
+    update: data,
+    create: { locationId: req.params.locationId, dailyCapacity: null, closedWeekdays: [], ...data },
+  });
+  res.json({ ...breadShopSettingDTO(updated), locationName: location.name });
+});
+
+// --- One-off closures (bank holidays, unplanned closures) ---
+adminRouter.get("/bread/closures", async (req, res) => {
+  const { locationId } = req.query as Record<string, string | undefined>;
+  const closures = await prisma.breadClosure.findMany({
+    where: locationId ? { locationId } : {},
+    orderBy: { date: "asc" },
+  });
+  res.json(closures.map(breadClosureDTO));
+});
+
+adminRouter.post("/bread/closures", async (req, res) => {
+  const parsed = breadClosureUpsertSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid closure", details: parsed.error.flatten() });
+  const location = await prisma.location.findUnique({ where: { id: parsed.data.locationId } });
+  if (!location) return res.status(404).json({ error: "Location not found" });
+  const created = await prisma.breadClosure.upsert({
+    where: { locationId_date: { locationId: parsed.data.locationId, date: parseDate(parsed.data.date) } },
+    update: { reason: parsed.data.reason ?? null },
+    create: { locationId: parsed.data.locationId, date: parseDate(parsed.data.date), reason: parsed.data.reason ?? null },
+  });
+  res.status(201).json(breadClosureDTO(created));
+});
+
+adminRouter.delete("/bread/closures/:id", async (req, res) => {
+  const exists = await prisma.breadClosure.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Closure not found" });
+  await prisma.breadClosure.delete({ where: { id: req.params.id } });
+  res.json({ ok: true });
+});
+
 adminRouter.post("/margin", (req, res) => {
   const { price, cost } = req.body ?? {};
   res.json(calcMargin(Number(price) || 0, Number(cost) || 0));
@@ -605,6 +847,7 @@ adminRouter.get("/reminders", async (_req, res) => {
       email: r.email,
       occasion: r.occasion,
       reminderDate: r.reminderDate ? formatDate(r.reminderDate) : null,
+      phone: r.phone, emailStatus: r.emailConsent ? r.emailStatus : "not requested", smsStatus: r.smsConsent ? r.smsStatus : "not requested", cancelled: r.cancelled,
       notified: r.notified,
       createdAt: r.createdAt.toISOString(),
     })),
@@ -656,7 +899,7 @@ adminRouter.post("/bundles", async (req, res) => {
   const created = await prisma.bundle.create({
     data: {
       name: d.name, tagline: d.tagline ?? null, description: d.description ?? null, imageUrl: d.imageUrl ?? null,
-      active: d.active ?? true, sortOrder: d.sortOrder ?? count,
+      active: d.active ?? true, sortOrder: d.sortOrder ?? count, discountPct: d.discountPct ?? 0,
       items: { create: d.items.map((it, i) => ({ kind: it.kind, refId: it.refId, quantity: it.quantity, sortOrder: i })) },
     },
     include: { items: true },
@@ -677,7 +920,7 @@ adminRouter.patch("/bundles/:id", async (req, res) => {
       where: { id: req.params.id },
       data: {
         name: d.name, tagline: d.tagline ?? null, description: d.description ?? null, imageUrl: d.imageUrl ?? null,
-        active: d.active ?? exists.active, sortOrder: d.sortOrder ?? exists.sortOrder,
+        active: d.active ?? exists.active, sortOrder: d.sortOrder ?? exists.sortOrder, discountPct: d.discountPct ?? exists.discountPct,
         items: { create: d.items.map((it, i) => ({ kind: it.kind, refId: it.refId, quantity: it.quantity, sortOrder: i })) },
       },
       include: { items: true },
@@ -717,7 +960,15 @@ adminRouter.get("/settings", async (_req, res) => {
 });
 
 adminRouter.patch("/settings/:key", async (req, res) => {
-  const parsed = settingSchema.safeParse(req.body);
+  if (req.params.key === "deliVideos") {
+    try {
+      const { deliVideosSchema } = await import("../lib/deli-videos");
+      const result = deliVideosSchema.safeParse(JSON.parse(req.body.value));
+      if (!result.success) return res.status(400).json({ error: result.error.issues[0]?.message ?? "Invalid videos" });
+      req.body.value = JSON.stringify(result.data);
+    } catch { return res.status(400).json({ error: "Invalid video configuration" }); }
+  }
+  const parsed = (req.params.key === "deliVideos" ? z.object({ value: z.string().max(25000) }) : settingSchema).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid setting" });
   const updated = await prisma.setting.upsert({
     where: { key: req.params.key },

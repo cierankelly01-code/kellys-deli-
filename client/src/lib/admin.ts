@@ -1,5 +1,5 @@
 // Admin API client + JWT token storage.
-import { ApiError, type OrderDTO, type Platter, type PlatterItem, type LocationT, type Experience, type Category, type BoardComponent, type BoardComponentCategory, type BoardGroup, type BoardType, type BoardSize, type BoardTier, type AddOn, type AddOnUnitType, type ShopCategory, type SubscriptionFrequency, type Bundle, type BundleInput, type GiftVoucherRequestDTO } from "./api";
+import { ApiError, type OrderDTO, type Platter, type PlatterItem, type LocationT, type Experience, type Category, type BoardComponent, type BoardComponentCategory, type BoardGroup, type BoardType, type BoardSize, type BoardTier, type AddOn, type AddOnUnitType, type ShopCategory, type SubscriptionFrequency, type Bundle, type BundleInput, type GiftVoucherRequestDTO, type BreadProduct, type BreadOrderDTO, type BreadOrderStatus } from "./api";
 
 const BASE = import.meta.env.VITE_API_URL || "";
 const TOKEN_KEY = "kd_admin_token";
@@ -230,6 +230,10 @@ export interface AdminReminder {
   email: string;
   occasion: string;
   reminderDate: string | null;
+  phone?: string | null;
+  emailStatus?: string;
+  smsStatus?: string;
+  cancelled?: boolean;
   notified: boolean;
   createdAt: string;
 }
@@ -246,6 +250,60 @@ export interface SubscriptionDTO {
   notes: string | null;
   orderCount: number;
   createdAt: string;
+}
+
+// --- Bread pre-ordering ---
+
+export interface BreadProductUpsertInput {
+  name: string;
+  description?: string | null;
+  price: number;
+  active?: boolean;
+  sortOrder?: number;
+  locationIds: string[];
+}
+
+export interface BreadSettingsDTO {
+  leadTimeHours: number;
+  cutoffMode: "rolling" | "cutoff";
+  cutoffDaysBefore: number | null;
+  cutoffTime: string | null;
+  minOrderQty: number;
+  maxItemQty: number;
+}
+
+export interface BreadShopSettingDTO {
+  locationId: string;
+  locationName: string;
+  dailyCapacity: number | null;
+  closedWeekdays: number[];
+  notifyEmail: string | null;
+}
+
+export interface BreadClosureDTO {
+  id: string;
+  locationId: string;
+  date: string;
+  reason: string | null;
+}
+
+export interface BreadBakeSheetLine {
+  name: string;
+  quantity: number;
+}
+export interface BreadBakeSheetOrder {
+  ref: string;
+  customerName: string;
+  status: BreadOrderStatus;
+  notes: string | null;
+  items: { name: string; quantity: number }[];
+}
+export interface BreadBakeSheetResponse {
+  date: string;
+  shops: Array<{
+    location: { id: string; name: string };
+    sheet: { totalOrders: number; totalItems: number; lines: BreadBakeSheetLine[]; orders: BreadBakeSheetOrder[] };
+  }>;
 }
 
 export const adminApi = {
@@ -393,4 +451,44 @@ export const adminApi = {
       method: "POST",
       body: JSON.stringify({ confirm: "DELETE ALL DATA" }),
     }),
+
+  // Bread pre-ordering
+  bread: {
+    products: () => authedReq<BreadProduct[]>(`/api/admin/bread/products`),
+    createProduct: (input: BreadProductUpsertInput) =>
+      authedReq<BreadProduct>(`/api/admin/bread/products`, { method: "POST", body: JSON.stringify(input) }),
+    updateProduct: (id: string, input: Partial<BreadProductUpsertInput>) =>
+      authedReq<BreadProduct>(`/api/admin/bread/products/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+    deleteProduct: (id: string) => authedReq<{ ok: boolean }>(`/api/admin/bread/products/${id}`, { method: "DELETE" }),
+
+    orders: (filters: { locationId?: string; date?: string; status?: string; q?: string } = {}) => {
+      const q = new URLSearchParams();
+      if (filters.locationId) q.set("locationId", filters.locationId);
+      if (filters.date) q.set("date", filters.date);
+      if (filters.status) q.set("status", filters.status);
+      if (filters.q) q.set("q", filters.q);
+      const qs = q.toString();
+      return authedReq<BreadOrderDTO[]>(`/api/admin/bread/orders${qs ? `?${qs}` : ""}`);
+    },
+    setOrderStatus: (id: string, status: BreadOrderStatus) =>
+      authedReq<BreadOrderDTO>(`/api/admin/bread/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+    deleteOrder: (id: string) => authedReq<{ ok: boolean }>(`/api/admin/bread/orders/${id}`, { method: "DELETE" }),
+
+    bakeSheet: (date: string, locationId?: string) =>
+      authedReq<BreadBakeSheetResponse>(`/api/admin/bread/bake-sheet?date=${date}${locationId ? `&locationId=${locationId}` : ""}`),
+
+    settings: () => authedReq<BreadSettingsDTO>(`/api/admin/bread/settings`),
+    updateSettings: (patch: Partial<BreadSettingsDTO>) =>
+      authedReq<BreadSettingsDTO>(`/api/admin/bread/settings`, { method: "PATCH", body: JSON.stringify(patch) }),
+
+    shopSettings: () => authedReq<BreadShopSettingDTO[]>(`/api/admin/bread/shop-settings`),
+    updateShopSettings: (locationId: string, patch: { dailyCapacity?: number | null; closedWeekdays?: number[]; notifyEmail?: string | null }) =>
+      authedReq<BreadShopSettingDTO>(`/api/admin/bread/shop-settings/${locationId}`, { method: "PATCH", body: JSON.stringify(patch) }),
+
+    closures: (locationId?: string) =>
+      authedReq<BreadClosureDTO[]>(`/api/admin/bread/closures${locationId ? `?locationId=${locationId}` : ""}`),
+    createClosure: (input: { locationId: string; date: string; reason?: string | null }) =>
+      authedReq<BreadClosureDTO>(`/api/admin/bread/closures`, { method: "POST", body: JSON.stringify(input) }),
+    deleteClosure: (id: string) => authedReq<{ ok: boolean }>(`/api/admin/bread/closures/${id}`, { method: "DELETE" }),
+  },
 };

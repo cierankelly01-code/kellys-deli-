@@ -34,7 +34,7 @@ export function TrustChips() {
           <path d="M9 12.5l2 2 4-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       ),
-      label: "Only 25% today",
+      label: "25% deposit to confirm",
     },
     {
       icon: (
@@ -51,7 +51,7 @@ export function TrustChips() {
           <path d="M12 21c-5-3.4-8-6.6-8-10a8 8 0 0 1 16 0c0 3.4-3 6.6-8 10z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
         </svg>
       ),
-      label: "Built fresh the day you collect",
+      label: "Prepared for your occasion",
     },
   ];
   return (

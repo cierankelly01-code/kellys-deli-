@@ -20,6 +20,8 @@ import { Header } from "../components/Header";
 import { SubscribeSave } from "../components/SubscribeSave";
 import { usePageTitle } from "../lib/title";
 import { trackOrderRequest } from "../lib/consent";
+import { bestBundleDiscount } from "../lib/bundle-discount";
+import type { Bundle } from "../lib/api";
 
 const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -35,12 +37,14 @@ export default function Order() {
   const [params] = useSearchParams();
 
   const [cart, setCart] = useState<Cart | null>(null);
+  const [catalogueReady, setCatalogueReady] = useState(false);
   const [boards, setBoards] = useState<Platter[]>([]);
   const [addOns, setAddOns] = useState<AddOn[]>([]);
   const [locations, setLocations] = useState<LocationT[]>([]);
   const [availability, setAvailability] = useState<AvailabilityResponse | null>(null);
   const [calMonth, setCalMonth] = useState(() => monthStart(new Date().toISOString().slice(0, 10)));
   const [counts, setCounts] = useState<CategoryCounts | null>(null);
+  const [bundles, setBundles] = useState<Bundle[]>([]);
   const [step, setStep] = useState<Step>("extras");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,10 +74,12 @@ export default function Order() {
         setBoards(b);
         setAddOns(a);
         setLocations(l);
+        setCatalogueReady(true);
         if (l[0]) setLocationId((prev) => prev || l[0].id);
       })
       .catch(() => setError("Couldn't load the menu. Please try again."));
     api.categories().then(setCounts).catch(() => setCounts(null));
+    api.bundles().then(setBundles).catch(() => setBundles([]));
   }, []);
 
   // Keep the subscription choice on the cart (survives reloads / drawer re-entry).
@@ -94,11 +100,13 @@ export default function Order() {
   useEffect(() => {
     if (!locationId) return;
     setAvailability(null);
+    let current = true;
     const today = new Date().toISOString().slice(0, 10);
     // Never ask for dates in the past; for the current month start from today.
     const from = calMonth.slice(0, 7) === today.slice(0, 7) ? today : calMonth;
     const span = daysInMonth(calMonth) - (Number(from.slice(8, 10)) - 1) + 1;
-    api.availability(locationId, from, span).then(setAvailability).catch(() => setAvailability(null));
+    api.availability(locationId, from, span).then((value) => { if (current) setAvailability(value); }).catch(() => { if (current) setAvailability(null); });
+    return () => { current = false; };
   }, [locationId, calMonth]);
 
   const boardById = useMemo(() => new Map(boards.map((b) => [b.id, b])), [boards]);
@@ -138,9 +146,13 @@ export default function Order() {
   // server money.ts: % off the subtotal first, then 25% deposit rounded to the nearest 5p.
   const subOn = counts?.subscribeSave !== false;
   const subPct = subFreq && subOn ? counts?.subscribeSaveDiscountPct ?? 10 : 0;
-  const subDiscount = subPct > 0 ? money((totals.total * subPct) / 100) : 0;
-  const finalTotal = money(totals.total - subDiscount);
-  const finalDeposit = subPct > 0 ? roundTo5p(finalTotal * 0.25) : totals.deposit;
+  const bundleSaving = bestBundleDiscount(bundles, [
+    ...boardLines.map((l) => ({ kind: "board", refId: l.board.id, quantity: l.quantity, price: l.unitPrice })),
+    ...addOnLines.map((l) => ({ kind: "addon", refId: l.addOn.id, quantity: l.quantity, price: l.unitPrice })),
+  ]);
+  const subDiscount = subPct > 0 ? money(((totals.total - bundleSaving.amount) * subPct) / 100) : 0;
+  const finalTotal = money(totals.total - bundleSaving.amount - subDiscount);
+  const finalDeposit = roundTo5p(finalTotal * 0.25);
   const finalBalance = money(finalTotal - finalDeposit);
 
   // Headcount used for add-on suggestions: the event headcount, or the boards' combined
@@ -173,7 +185,7 @@ export default function Order() {
   const detailsValid =
     !!locationId && !!date && !!selectedDay?.bookable && name.trim().length > 0 && phone.trim().length >= 5 && emailOk(email);
 
-  if (cart && boardLines.length === 0 && boards.length > 0) {
+  if (catalogueReady && boardLines.length === 0) {
     return (
       <div className="app order-page">
         <h1 className="page-h">Your order</h1>
@@ -185,6 +197,10 @@ export default function Order() {
 
   async function submit() {
     setError(null);
+    if (!catalogueReady || boardLines.length === 0) {
+      setError("Please add a board before placing your order.");
+      return;
+    }
     if (!detailsValid || !date) {
       setError("Please complete your details and pick a collection date.");
       setStep("details");
@@ -366,6 +382,7 @@ export default function Order() {
             {addOnLines.map((l) => (
               <div key={l.addOn.id} className="review-row muted"><span>{l.quantity}× {l.addOn.name}</span><span>{gbp(l.unitPrice * l.quantity)}</span></div>
             ))}
+            {bundleSaving.amount > 0 && <div className="review-row discount"><span>{bundleSaving.name} saving</span><span>−{gbp(bundleSaving.amount)}</span></div>}
             {subDiscount > 0 && (
               <>
                 <div className="review-row muted"><span>Subtotal</span><span>{gbp(totals.total)}</span></div>

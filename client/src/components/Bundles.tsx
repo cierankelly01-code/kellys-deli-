@@ -3,6 +3,7 @@ import { api, type Bundle } from "../lib/api";
 import { addBundleToCart } from "../lib/cart";
 import { openCartDrawer, CART_CHANGED_EVENT } from "./CartDrawer";
 import { gbp } from "../lib/format";
+import { trackShoppingEvent } from "../lib/consent";
 
 /* Ready-made combos: a board + the extras that go with it, filled into the basket in one tap.
  * Priced at the real total of the components (no fake discounts) — the win is convenience and
@@ -17,6 +18,7 @@ export function Bundles() {
   if (!bundles || bundles.length === 0) return null;
 
   const add = (b: Bundle) => {
+    trackShoppingEvent("bundle_added", { item_id: b.id, value: b.bundlePrice ?? b.total });
     addBundleToCart(b.items.map((it) => ({ kind: it.kind, refId: it.refId, quantity: it.quantity })));
     window.dispatchEvent(new CustomEvent(CART_CHANGED_EVENT));
     openCartDrawer();
@@ -29,8 +31,8 @@ export function Bundles() {
       <div className="bundle-grid">
         {bundles.map((b) => (
           <article className="bundle-card card" key={b.id}>
-            {b.imageUrl && (
-              <div className="bundle-img" style={{ backgroundImage: `url(${b.imageUrl})` }} role="img" aria-label={b.name} />
+            {(b.imageUrl || b.items.find((i) => i.kind === "board")?.imageUrl) && (
+              <img className="bundle-img" src={b.imageUrl || b.items.find((i) => i.kind === "board")!.imageUrl!} alt={b.name} width="640" height="480" loading="lazy" style={{ width: "100%", objectFit: "cover" }} />
             )}
             <div className="bundle-body">
               <h3 className="bundle-name">{b.name}</h3>
@@ -41,7 +43,7 @@ export function Bundles() {
                 ))}
               </ul>
               <div className="bundle-foot">
-                <span className="bundle-price">{gbp(b.total)}</span>
+                <span className="bundle-price">{b.saving > 0 && <><del className="muted">{gbp(b.total)}</del> </>}{gbp(b.bundlePrice ?? b.total)}{b.saving > 0 && <small className="bundle-saving">Save {gbp(b.saving)}</small>}</span>
                 <button className="btn" onClick={() => add(b)}>Add to basket</button>
               </div>
             </div>

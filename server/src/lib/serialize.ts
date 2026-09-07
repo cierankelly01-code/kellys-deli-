@@ -17,6 +17,13 @@ import type {
   Bundle,
   BundleItem,
   GiftVoucherRequest,
+  BreadProduct,
+  BreadProductLocation,
+  BreadOrder,
+  BreadOrderItem,
+  BreadShopSetting,
+  BreadClosure,
+  BreadSettings,
 } from "@prisma/client";
 import { formatDate } from "./capacity";
 import { toMoney } from "./money";
@@ -213,6 +220,9 @@ export function bundleDTO(
     sortOrder: b.sortOrder,
     items,
     total,
+    discountPct: b.discountPct,
+    saving: toMoney(total * b.discountPct / 100),
+    bundlePrice: toMoney(total - toMoney(total * b.discountPct / 100)),
   };
 }
 
@@ -361,5 +371,80 @@ export function publicOrderDTO(
     // stays hidden the day delivery ships. The gift recipient/message are intentionally
     // shown on the buyer's own confirmation page and are left as-is.
     deliveryAddress: null,
+  };
+}
+
+// --- Bread pre-ordering ---
+
+export function breadProductDTO(p: BreadProduct & { locations?: BreadProductLocation[] | null }) {
+  return {
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    price: Number(p.price),
+    active: p.active,
+    sortOrder: p.sortOrder,
+    locationIds: p.locations ? p.locations.map((l) => l.locationId) : [],
+  };
+}
+
+export function breadOrderItemDTO(i: BreadOrderItem) {
+  return {
+    id: i.id,
+    productId: i.productId,
+    name: i.name,
+    quantity: i.quantity,
+    unitPrice: Number(i.unitPrice),
+    lineTotal: toMoney(Number(i.unitPrice) * i.quantity),
+  };
+}
+
+export function breadOrderDTO(
+  o: BreadOrder & { location?: Location | null; items?: BreadOrderItem[] | null },
+) {
+  const items = o.items ? o.items.map(breadOrderItemDTO) : [];
+  return {
+    id: o.id,
+    ref: o.ref,
+    locationId: o.locationId,
+    locationName: o.location?.name ?? null,
+    collectionDate: formatDate(o.collectionDate),
+    customerName: o.customerName,
+    phone: o.phone,
+    email: o.email,
+    notes: o.notes,
+    status: o.status,
+    items,
+    total: toMoney(items.reduce((sum, i) => sum + i.lineTotal, 0)),
+    createdAt: o.createdAt.toISOString(),
+  };
+}
+
+export function breadShopSettingDTO(s: BreadShopSetting) {
+  return {
+    locationId: s.locationId,
+    dailyCapacity: s.dailyCapacity,
+    closedWeekdays: s.closedWeekdays,
+    notifyEmail: s.notifyEmail,
+  };
+}
+
+export function breadClosureDTO(c: BreadClosure) {
+  return {
+    id: c.id,
+    locationId: c.locationId,
+    date: formatDate(c.date),
+    reason: c.reason,
+  };
+}
+
+export function breadSettingsDTO(s: BreadSettings) {
+  return {
+    leadTimeHours: s.leadTimeHours,
+    cutoffMode: s.cutoffMode,
+    cutoffDaysBefore: s.cutoffDaysBefore,
+    cutoffTime: s.cutoffTime,
+    minOrderQty: s.minOrderQty,
+    maxItemQty: s.maxItemQty,
   };
 }

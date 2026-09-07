@@ -14,6 +14,9 @@ const NAV = [
   { to: "/admin/settings", label: "Site Settings" },
   { to: "/admin/sms", label: "SMS List" },
   { to: "/admin/fill-slots", label: "Fill Slots" },
+  { to: "/admin/bread", label: "Bread Orders" },
+  { to: "/admin/bread/bake-sheet", label: "Bake Sheet" },
+  { to: "/admin/bread/settings", label: "Bread Settings" },
 ];
 
 export default function AdminLayout() {

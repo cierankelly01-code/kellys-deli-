@@ -1,0 +1,23 @@
+/* The Deli Table: heritage navy, warm paper, understated brass. */
+:root {
+  --navy: #102b46;
+  --brick: #102b46;
+  --brick-dark: #091e32;
+  --ink: #142e44;
+  --ink-soft: #58616a;
+  --cream: #faf7f0;
+  --card: #fffcf7;
+  --line: #ddd9cf;
+  --mustard: #b49b65;
+  --gold-text: #766035;
+  --olive: #62747b;
+  --radius: 3px;
+  --radius-sm: 2px;
+  --shadow: 0 8px 24px rgb(16 43 70 / 7%);
+  --shadow-sm: none;
+  --space-section: clamp(64px, 8vw, 120px);
+  --space-gutter: clamp(20px, 5vw, 80px);
+  --space-grid: clamp(18px, 2.5vw, 36px);
+  --display: clamp(3rem, 5.3vw, 5.6rem);
+  --heading: clamp(2rem, 3vw, 3.2rem);
+}

@@ -300,13 +300,14 @@ const bundleItemInput = z.object({
   quantity: z.number().int().positive().max(50).default(1),
 });
 export const bundleUpsertSchema = z.object({
+  discountPct: z.number().int().min(0).max(50).optional(),
   name: z.string().min(1, "Name is required").max(120),
   tagline: z.string().max(160).nullable().optional(),
   description: z.string().max(2000).nullable().optional(),
   imageUrl: z.string().max(500).nullable().optional(),
   active: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
-  items: z.array(bundleItemInput).min(1, "A bundle needs at least one item").max(30),
+  items: z.array(bundleItemInput).min(1, "A bundle needs at least one item").max(30).refine((items) => items.some((i) => i.kind === "board"), "A bundle must include at least one board"),
 });
 export type BundleUpsertInput = z.infer<typeof bundleUpsertSchema>;
 
@@ -321,3 +322,90 @@ export const giftVoucherSchema = z.object({
 });
 export type GiftVoucherInput = z.infer<typeof giftVoucherSchema>;
 export const giftVoucherStatusSchema = z.object({ status: z.enum(["new", "contacted", "fulfilled", "closed"]) });
+
+// --- Bread pre-ordering ---
+
+/**
+ * Loose UK mobile check: strips spaces/hyphens/parens, normalises a +44/0044/44 prefix to
+ * a leading 0, then requires "07" + 9 digits. Deliberately lenient — this rejects obvious
+ * non-numbers, not anything a real UK mobile could plausibly look like.
+ */
+export function isLikelyUkMobile(raw: string): boolean {
+  const digits = raw.replace(/[\s()-]/g, "");
+  const normalised = digits.replace(/^\+?44/, "0").replace(/^00?44/, "0");
+  return /^07\d{9}$/.test(normalised);
+}
+
+const ukMobile = z
+  .string()
+  .min(5, "A mobile number is required")
+  .max(30)
+  .refine(isLikelyUkMobile, "Enter a valid UK mobile number");
+
+const breadOrderItemInput = z.object({
+  productId: z.string().min(1),
+  quantity: z.number().int().positive(),
+});
+
+export const createBreadOrderSchema = z.object({
+  locationId: z.string().min(1),
+  collectionDate: dateString,
+  items: z.array(breadOrderItemInput).min(1, "Add at least one item"),
+  customerName: z.string().min(1, "Name is required").max(120),
+  phone: ukMobile,
+  email: z.string().email("Enter a valid email").max(200).optional().or(z.literal("")),
+  notes: z.string().max(200).optional(),
+});
+export type CreateBreadOrderInput = z.infer<typeof createBreadOrderSchema>;
+
+export const breadOrderStatusSchema = z.object({ status: z.enum(["pending", "confirmed", "collected", "cancelled"]) });
+
+export const breadProductUpsertSchema = z.object({
+  name: z.string().min(1, "Name is required").max(120),
+  description: z.string().max(500).nullable().optional(),
+  price: z.number().nonnegative().max(9999),
+  active: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+  // Which shops sell this item. Empty = available nowhere (kept off every shop's order form).
+  locationIds: z.array(z.string().min(1)).max(20).default([]),
+});
+export type BreadProductUpsertInput = z.infer<typeof breadProductUpsertSchema>;
+
+export const breadSettingsUpdateSchema = z
+  .object({
+    leadTimeHours: z.number().int().min(0).max(24 * 30).optional(),
+    cutoffMode: z.enum(["rolling", "cutoff"]).optional(),
+    cutoffDaysBefore: z.number().int().min(0).max(30).nullable().optional(),
+    cutoffTime: z
+      .string()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Time must be HH:MM (24h)")
+      .nullable()
+      .optional(),
+    minOrderQty: z.number().int().positive().max(1000).optional(),
+    maxItemQty: z.number().int().positive().max(1000).optional(),
+  })
+  .refine((d) => d.minOrderQty == null || d.maxItemQty == null || d.maxItemQty >= d.minOrderQty, {
+    message: "Max per-item quantity must be at least the minimum order quantity",
+    path: ["maxItemQty"],
+  });
+export type BreadSettingsUpdateInput = z.infer<typeof breadSettingsUpdateSchema>;
+
+export const breadShopSettingUpdateSchema = z.object({
+  dailyCapacity: z.number().int().nonnegative().max(100000).nullable().optional(),
+  closedWeekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
+  notifyEmail: z.string().email("Enter a valid email").max(200).nullable().optional().or(z.literal("")),
+});
+export type BreadShopSettingUpdateInput = z.infer<typeof breadShopSettingUpdateSchema>;
+
+export const breadClosureUpsertSchema = z.object({
+  locationId: z.string().min(1),
+  date: dateString,
+  reason: z.string().max(120).nullable().optional(),
+});
+export type BreadClosureUpsertInput = z.infer<typeof breadClosureUpsertSchema>;
+
+export const breadAvailabilityQuerySchema = z.object({
+  locationId: z.string().min(1),
+  from: dateString.optional(),
+  days: z.coerce.number().int().min(1).max(120).optional(),
+});

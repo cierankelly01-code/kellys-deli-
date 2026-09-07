@@ -21,8 +21,8 @@ async function main() {
   // weeklyCapacity = max catering orders per DAY at this location (see SPEC decision #2).
   const locations = [
     { id: "loc-bentley-heath", name: "Bentley Heath", slug: "bentley-heath", weeklyCapacity: 5, active: true },
-    { id: "loc-henley", name: "Henley-in-Arden", slug: "henley-in-arden", weeklyCapacity: 4, active: true },
-    { id: "loc-stratford", name: "Stratford-upon-Avon", slug: "stratford-upon-avon", weeklyCapacity: 3, active: true },
+    { id: "loc-henley", name: "Henley-in-Arden", slug: "henley-in-arden", weeklyCapacity: 4, active: false },
+    { id: "loc-stratford", name: "Stratford-upon-Avon", slug: "stratford-upon-avon", weeklyCapacity: 3, active: false },
   ];
   for (const loc of locations) {
     await prisma.location.upsert({ where: { id: loc.id }, update: loc, create: loc });

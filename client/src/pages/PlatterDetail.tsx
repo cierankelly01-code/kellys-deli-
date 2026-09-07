@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { DeliVideos } from "../components/DeliVideos";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { api, type Platter, type PlatterWithVariants, type CategoryCounts, type SubscriptionFrequency } from "../lib/api";
 import { addBoard, loadCart, saveCart, emptyCart } from "../lib/cart";
@@ -180,6 +181,7 @@ export default function PlatterDetail() {
           )}
 
           <TrustChips />
+          <DeliVideos productId={platter.id} />
           <p className="muted footnote">
             Allergies or dietary needs? Every board can be adapted — tell us in the notes when you order and
             we&apos;ll confirm with you directly. Extras like plates, cutlery and napkins are offered at the

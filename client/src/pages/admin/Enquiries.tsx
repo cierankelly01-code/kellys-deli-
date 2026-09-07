@@ -208,7 +208,7 @@ function RemindersSection() {
           {rows.map((r) => (
             <div className="trow" key={r.id}>
               <span><a href={`mailto:${r.email}`}>{r.email}</a></span>
-              <span>{r.occasion}</span>
+              <span>{r.occasion}<br /><small>{r.cancelled ? "Cancelled" : `Email: ${r.emailStatus || "legacy enquiry"} · Text: ${r.smsStatus || "not requested"}`}{r.phone ? ` · ${r.phone}` : ""}</small></span>
               <span>{r.reminderDate ? formatDate(r.reminderDate) : "—"}</span>
               <span>{formatDate(r.createdAt)}</span>
             </div>

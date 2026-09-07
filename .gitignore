@@ -24,3 +24,6 @@ client/dist/
 test-results/
 playwright-report/
 .playwright/
+
+# Runtime photo uploads (server writes here; prod uses a Coolify volume)
+/uploads/

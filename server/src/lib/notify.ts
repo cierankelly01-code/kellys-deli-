@@ -3,6 +3,13 @@
 // SMS is still a logged stub — swap sendSms for Twilio when ready.
 
 import { orderReceivedHtml, orderReceivedText, type OrderEmailLine } from "./emailTemplate";
+import {
+  breadOrderReceivedHtml,
+  breadOrderReceivedText,
+  breadShopAlertHtml,
+  breadShopAlertText,
+  type BreadOrderEmailData,
+} from "./emailTemplate";
 
 export interface NotifyTarget {
   name: string;
@@ -111,7 +118,7 @@ export async function notifyOrderReceived(
   };
   await Promise.all([
     sendSms(t.phone, sms),
-    sendEmail(t.email, `Order ${o.ref} confirmed — Kelly's Deli`, orderReceivedText(data), orderReceivedHtml(data)),
+    sendEmail(t.email, `Order request ${o.ref} received — Kelly's Deli`, orderReceivedText(data), orderReceivedHtml(data)),
   ]);
 }
 
@@ -119,6 +126,16 @@ export async function notifyOrderReceived(
 export async function notifyReviewRequest(t: NotifyTarget, reviewLink: string): Promise<void> {
   const msg = `Thanks ${t.name}! Hope the food went down well. Leave a 30-second Google review: ${reviewLink}`;
   await Promise.all([sendSms(t.phone, msg), sendEmail(t.email, "How did we do?", msg)]);
+}
+
+/** Sent to the customer when a bread pre-order is placed, if they gave an email. */
+export async function notifyBreadOrderReceived(email: string, d: BreadOrderEmailData): Promise<void> {
+  await sendEmail(email, `Bread order ${d.ref} confirmed — Kelly's Deli`, breadOrderReceivedText(d), breadOrderReceivedHtml(d));
+}
+
+/** Sent to the shop's own inbox (BreadShopSetting.notifyEmail) on every new bread order. */
+export async function notifyShopOfBreadOrder(shopEmail: string, d: BreadOrderEmailData): Promise<void> {
+  await sendEmail(shopEmail, `New bread order ${d.ref} — ${d.collectionDate}`, breadShopAlertText(d), breadShopAlertHtml(d));
 }
 
 /** SMS marketing blast (stub) — logs the recipient count target, not the PII payload. */

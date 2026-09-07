@@ -6,7 +6,7 @@ import { OPEN_CONSENT_EVENT } from "../lib/consent";
 export function Footer() {
   const year = new Date().getFullYear();
   return (
-    <footer className="site-footer grain">
+    <footer className="site-footer grain" id="our-shops">
       <div className="site-footer-inner">
         <p className="footer-word" aria-hidden="true">Kelly&apos;s Deli</p>
 
@@ -14,13 +14,13 @@ export function Footer() {
           <div className="footer-col">
             <p className="footer-col-h">Order</p>
             <Link className="u-link" to="/platters">Grazing boards</Link>
+            <Link className="u-link" to="/shop">Shop the deli</Link>
+            <Link className="u-link" to="/bread">Fresh bread</Link>
             <Link className="u-link" to="/plan">Plan an event</Link>
           </div>
           <div className="footer-col">
             <p className="footer-col-h">Collect from</p>
-            <span>Bentley Heath — 1 Slater Road, Solihull B93 8AQ</span>
-            <span>Henley-in-Arden</span>
-            <span>Stratford-upon-Avon</span>
+            <a href="https://www.google.com/maps/search/?api=1&query=Kelly%27s+Deli+1+Slater+Road+Solihull+B93+8AQ" target="_blank" rel="noreferrer">Bentley Heath — 1 Slater Road, Solihull B93 8AQ ↗</a>
           </div>
           <div className="footer-col">
             <p className="footer-col-h">Get in touch</p>
