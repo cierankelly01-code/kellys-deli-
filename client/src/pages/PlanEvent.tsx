@@ -36,7 +36,7 @@ function BoardThumb({ board, size = 64, eager = false }: { board: Platter; size?
           alt=""
           // The hero is the LCP element — lazy-loading it costs a whole round trip.
           loading={eager ? "eager" : "lazy"}
-          fetchPriority={eager ? "high" : "auto"}
+          {...{ fetchpriority: eager ? "high" : "auto" }}
           decoding="async"
           onError={() => setFailed(true)}
         />

@@ -104,7 +104,7 @@ export default function Choice() {
           {counts?.reviewRating && <Stars rating={counts.reviewRating} count={counts.reviewCount} />}
         </div>
         <figure className="deli-hero-photo">
-          <img src={counts?.heroImageUrl || DEFAULT_HERO_IMG} alt="A generous spread of cheese, charcuterie and accompaniments" width="1000" height="1100" fetchPriority="high" />
+          <img src={counts?.heroImageUrl || DEFAULT_HERO_IMG} alt="A generous spread of cheese, charcuterie and accompaniments" width="1000" height="1100" {...{ fetchpriority: "high" }} />
           <figcaption><span>THE KELLY’S TABLE</span><span>Something for everyone.</span></figcaption>
         </figure>
       </header>

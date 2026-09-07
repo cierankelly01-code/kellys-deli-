@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api, type AddOn, type Bundle, type CategoryCounts, type Platter } from "../lib/api";
 import { emptyCart, loadCart, saveCart, type Cart } from "../lib/cart";
 import { computeTotals, roundTo5p } from "../lib/addOnPricing";
@@ -118,6 +118,13 @@ export function CartDrawer() {
     addOnLines.map((l) => ({ unitPrice: l.d.price, quantity: l.a.quantity })),
   );
 
+  /* "Feeds around 18–24 people" — the question every grazing-board customer is
+   * actually asking, answered before they reach the deposit. Shown only when every
+   * board in the basket has a printed range, so the number is never a guess. */
+  const feedsKnown = lines.length > 0 && lines.every(({ p }) => p.feedsMin != null && p.feedsMax != null);
+  const feedsMin = feedsKnown ? lines.reduce((s, { b, p }) => s + (p.feedsMin ?? 0) * b.quantity, 0) : 0;
+  const feedsMax = feedsKnown ? lines.reduce((s, { b, p }) => s + (p.feedsMax ?? 0) * b.quantity, 0) : 0;
+
   const bundleSaving = bestBundleDiscount(bundles, [
     ...lines.map(({ b, p }) => ({ kind: "board", refId: p.id, quantity: b.quantity, price: p.fixedPrice ?? p.fromPrice ?? 0 })),
     ...addOnLines.map(({ a, d }) => ({ kind: "addon", refId: d.id, quantity: a.quantity, price: d.price })),
@@ -125,6 +132,9 @@ export function CartDrawer() {
   const subscriptionPct = cart.subscription && content?.subscribeSave !== false ? Math.min(100, Math.max(0, content?.subscribeSaveDiscountPct ?? 10)) : 0;
   const subscriptionSaving = Math.round((totals.total - bundleSaving.amount) * subscriptionPct) / 100;
   const basketTotal = Math.round((totals.total - bundleSaving.amount - subscriptionSaving) * 100) / 100;
+  // Split the money into the two moments the customer cares about: today, and on the day.
+  const deposit = roundTo5p(basketTotal * .25);
+  const balance = Math.round((basketTotal - deposit) * 100) / 100;
   const completeOffer = bundles.filter((b) => b.saving > bundleSaving.amount).map((b) => {
     const missing = b.items.map((it) => {
       const quantity = it.kind === "board" ? cart.boards.find((x) => x.platterId === it.refId)?.quantity ?? 0 : cart.addOns.find((x) => x.addOnId === it.refId)?.quantity ?? 0;
@@ -150,6 +160,16 @@ export function CartDrawer() {
   };
   // Upsells: active add-ons not yet in the basket, in admin sort order, capped at 4.
   const upsells = addOns.filter((a) => !cart.addOns.some((c) => c.addOnId === a.id)).slice(0, 4);
+  /* Empty-basket rescue: an empty drawer is a dead end, so offer a way back in.
+   * Owner's own recommend order, one tile per product — sizes share a variantGroup
+   * and are chosen on the product page, so these link through rather than add. */
+  const suggestions = useMemo(() => {
+    const seen = new Set<string>();
+    return boards
+      .filter((b) => { const key = b.variantGroup ?? b.id; if (seen.has(key)) return false; seen.add(key); return true; })
+      .sort((a, b) => (b.recommendPriority - a.recommendPriority) || (a.sortOrder - b.sortOrder))
+      .slice(0, 3);
+  }, [boards]);
 
   // "Spend £X, get a free treat" progress. Only when the owner has switched it on with a
   // threshold + reward. The gift is added at no charge on the server — this is the nudge.
@@ -175,7 +195,34 @@ export function CartDrawer() {
         </div>
 
         <div className="drawer-body">
-          {lines.length === 0 && <p className="muted">Your basket is empty — add a board to get started.</p>}
+          {lines.length === 0 && (
+            <div className="drawer-empty">
+              <p className="drawer-empty-lead">Your basket is empty.</p>
+              {suggestions.length > 0 && (
+                <>
+                  <p className="drawer-upsell-h">Start with one of these</p>
+                  {suggestions.map((s) => (
+                    <Link className="drawer-suggest" key={s.id} to={`/platter/${encodeURIComponent(s.id)}`} onClick={close}>
+                      <span className="drawer-thumb" style={s.imageUrl ? { backgroundImage: `url(${s.imageUrl})` } : undefined} aria-hidden="true" />
+                      <span className="drawer-line-info">
+                        <span className="drawer-line-name">{s.name}</span>
+                        <span className="muted small">
+                          {s.serves ? `Feeds ${s.serves} · ` : ""}
+                          {s.fixedPrice != null ? gbp(s.fixedPrice) : `from ${gbp(s.fromPrice)}`}
+                        </span>
+                      </span>
+                    </Link>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+
+          {feedsKnown && feedsMax > 0 && (
+            <p className="drawer-feeds" role="status">
+              Feeds around <strong>{feedsMin === feedsMax ? feedsMin : `${feedsMin}–${feedsMax}`}</strong> people
+            </p>
+          )}
 
           {lines.length > 0 && giftOn && (
             <div className={`gift-bar${giftUnlocked ? " unlocked" : ""}`} role="status">
@@ -242,7 +289,7 @@ export function CartDrawer() {
               ))}
             </div>
           )}
-          {lines.length > 0 && <DeliVideos productId={lines[0].p.id} compact onProductNavigate={close} />}
+          {lines.length > 0 && <DeliVideos productIds={lines.map((l) => l.p.id)} fill compact onProductNavigate={close} />}
         </div>
 
         {lines.length > 0 && (
@@ -250,8 +297,10 @@ export function CartDrawer() {
             {bundleSaving.amount > 0 && <div className="spread bundle-saving" role="status"><span>{bundleSaving.name} saving</span><span>−{gbp(bundleSaving.amount)}</span></div>}
             {subscriptionSaving > 0 && <div className="spread"><span>Subscribe &amp; save ({subscriptionPct}%)</span><span>−{gbp(subscriptionSaving)}</span></div>}
             <div className="spread"><span className="muted">{subscriptionSaving > 0 ? "Total per delivery" : "Total"}</span><strong>{gbp(basketTotal)}</strong></div>
-            <div className="spread small muted"><span>25% deposit to confirm</span><span>{gbp(roundTo5p(basketTotal * .25))}</span></div>
+            <div className="spread small"><span>Pay today · 25% deposit</span><strong>{gbp(deposit)}</strong></div>
+            <div className="spread small muted"><span>Balance on collection</span><span>{gbp(balance)}</span></div>
             <button className="btn" onClick={checkout}>Continue — choose collection day</button>
+            <p className="drawer-reassure">Deposit is fully refundable up to 48 hours before collection.</p>
             <button className="btn-ghost drawer-keep" onClick={close}>Keep browsing</button>
           </div>
         )}

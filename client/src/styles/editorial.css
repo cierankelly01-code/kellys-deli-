@@ -148,3 +148,25 @@
   .choice .occasion-go { font-size: .65rem; }
   .choice .family-promise { padding: 28px 20px; }
 }
+
+/* ─── Basket conversion layer ──────────────────────────────────────
+   Three quiet answers at the point of commitment: how many people this feeds,
+   what leaves the account today, and a way back in when the basket is empty. */
+.drawer-feeds {
+  margin: 0 0 16px; padding: 11px 14px;
+  border: 1px solid var(--line); background: var(--cream);
+  font-size: .85rem; line-height: 1.4; color: var(--ink-soft);
+}
+.drawer-feeds strong { color: var(--navy); font-weight: 600; font-variant-numeric: tabular-nums; }
+.drawer-empty { padding-block: 6px; }
+.drawer-empty-lead { margin: 0 0 26px; color: var(--ink-soft); }
+.drawer-suggest {
+  display: flex; gap: 12px; align-items: center; padding: 11px 0;
+  border-bottom: 1px solid var(--line); text-decoration: none; color: inherit;
+}
+.drawer-suggest .drawer-thumb { background-size: cover; background-position: center; }
+.drawer-suggest .drawer-line-name { text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; transition: text-decoration-color var(--dur-micro) ease; }
+.drawer-suggest:hover .drawer-line-name, .drawer-suggest:focus-visible .drawer-line-name { text-decoration-color: currentColor; }
+.drawer-foot .spread strong { font-variant-numeric: tabular-nums; }
+.drawer-reassure { margin: 8px 0 0; font-size: .72rem; line-height: 1.5; color: var(--ink-soft); text-align: center; text-wrap: balance; }
+@media (prefers-reduced-motion: reduce) { .drawer-suggest .drawer-line-name { transition: none; } }

@@ -3,14 +3,26 @@ import { Link } from "react-router-dom";
 import { trackShoppingEvent } from "../lib/consent";
 
 export type DeliVideo = { title: string; url: string; poster: string; productId: string; captions: string };
-export function DeliVideos({ productId, compact = false, onProductNavigate }: { productId?: string; compact?: boolean; onProductNavigate?: () => void }) {
+export function DeliVideos({ productId, productIds, fill = false, compact = false, onProductNavigate }: {
+  productId?: string;
+  /** Prefer videos for these products — the basket passes everything it holds. */
+  productIds?: string[];
+  /** Top the list up with the deli's other videos instead of rendering nothing. */
+  fill?: boolean;
+  compact?: boolean;
+  onProductNavigate?: () => void;
+}) {
   const [videos, setVideos] = useState<DeliVideo[]>([]);
   useEffect(() => {
     let current = true;
     fetch("/api/deli-videos").then((r) => r.ok ? r.json() : []).then((v) => { if (current && Array.isArray(v)) setVideos(v); }).catch(() => {});
     return () => { current = false; };
   }, []);
-  const visible = videos.filter((v) => !productId || v.productId === productId).slice(0, compact ? 2 : 6);
+  // Without `fill` this is the original behaviour exactly: a product's own videos, or none.
+  const wanted = productIds ?? (productId ? [productId] : []);
+  const matched = wanted.length ? videos.filter((v) => wanted.includes(v.productId)) : videos;
+  const ordered = fill ? [...matched, ...videos.filter((v) => !matched.includes(v))] : matched;
+  const visible = ordered.slice(0, compact ? 2 : 6);
   if (!visible.length) return null;
   return <section className={`deli-videos${compact ? " compact" : ""}`} aria-label="From the deli kitchen">
     <p className="deli-eyebrow">A taste of Kelly’s</p>
