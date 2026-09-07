@@ -20,7 +20,7 @@ import { buildBreadAvailability, canBookBread, getBreadDayAvailability, type Bre
 import { recommendBoards, capacity as boardCapacity, type RecBoard } from "../lib/recommender";
 import { genRef, genBreadRef, randomReferralCode } from "../lib/ref";
 import { captureDepositIntent } from "../lib/payments";
-import { notifyOrderReceived, notifyBreadOrderReceived, notifyShopOfBreadOrder } from "../lib/notify";
+import { notifyOrderReceived, notifyShopOfOrder, notifyBreadOrderReceived, notifyShopOfBreadOrder, type OrderNotifyInput } from "../lib/notify";
 import type { BreadEmailItem } from "../lib/emailTemplate";
 import { platterDTO, experienceDTO, locationDTO, orderDTO, publicOrderDTO, boardComponentDTO, boardGroupDTO, addOnDTO, categoryDTO, bundleDTO, breadProductDTO, breadOrderDTO } from "../lib/serialize";
 
@@ -36,6 +36,18 @@ publicRouter.get("/deli-videos", async (_req, res) => {
 });
 
 class CapacityError extends Error {}
+
+/** Email the shop's own inbox about a new order, when the owner has set an address in
+ * admin. The order is already committed by the time this runs, so a mail failure must
+ * never surface as a failed order to the customer — log it and move on. */
+async function alertShopOfOrder(t: { name: string; phone: string; email: string }, o: OrderNotifyInput): Promise<void> {
+  try {
+    const to = (await getSetting("orderNotifyEmail"))?.trim();
+    if (to) await notifyShopOfOrder(to, t, o);
+  } catch (err) {
+    console.error("[orders] shop alert failed", err);
+  }
+}
 
 async function getSetting(key: string): Promise<string | null> {
   const s = await prisma.setting.findUnique({ where: { key } });
@@ -866,6 +878,18 @@ publicRouter.post("/orders", async (req, res) => {
         })),
       },
     );
+    await alertShopOfOrder(
+      { name: order.customerName, phone: order.phone, email: order.email },
+      {
+        ref: order.ref,
+        total: pricing.total,
+        deposit: pricing.deposit,
+        collectionDate: formatDate(order.collectionOrDeliveryDate),
+        locationName: order.location.name,
+        boards: order.items.map((i) => ({ name: i.platter.name, qty: i.quantity, lineTotal: Number(i.unitPrice) * i.quantity })),
+        addOns: order.addOns.map((a) => ({ name: a.name, qty: a.quantity, lineTotal: Number(a.unitPrice) * a.quantity })),
+      },
+    );
     res.status(201).json({ order: orderDTO(order), pricing, freebie });
   } catch (err) {
     if (err instanceof CapacityError) return res.status(409).json({ error: "That date is fully booked at this location" });
@@ -952,6 +976,17 @@ publicRouter.post("/bookings", async (req, res) => {
         boards: order.experience
           ? [{ name: order.experience.name, qty: 1, lineTotal: pricing.total, imageUrl: order.experience.imageUrl }]
           : [],
+      },
+    );
+    await alertShopOfOrder(
+      { name: order.customerName, phone: order.phone, email: order.email },
+      {
+        ref: order.ref,
+        total: pricing.total,
+        deposit: pricing.deposit,
+        collectionDate: formatDate(order.collectionOrDeliveryDate),
+        locationName: order.location.name,
+        boards: order.experience ? [{ name: order.experience.name, qty: 1, lineTotal: pricing.total }] : [],
       },
     );
     res.status(201).json({ order: orderDTO(order), pricing });

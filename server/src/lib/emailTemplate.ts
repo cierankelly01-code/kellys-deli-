@@ -58,6 +58,10 @@ export interface OrderEmailData {
   total: number;
   deposit: number;
   balance: number;
+  /** Shop alert only — the counter needs a way to reach the customer. The customer's
+   * own confirmation never echoes these back at them. */
+  customerPhone?: string | null;
+  customerEmail?: string | null;
 }
 
 /** Outer shell: background, 600px card, wordmark, footer. */
@@ -401,4 +405,68 @@ export function breadShopAlertHtml(d: BreadOrderEmailData): string {
     ${d.notes ? `<tr><td style="padding:18px 24px 30px;font-family:${SANS};font-size:15px;color:${C.ink};"><strong>Notes:</strong> ${esc(d.notes)}</td></tr>` : `<tr><td style="padding:0 24px 24px;"></td></tr>`}
   </table>`;
   return layout(inner, `New bread order ${d.ref} for ${d.collectionDate}`);
+}
+
+/* ---------------------------------------------------------------------------
+ * Shop alert for a new board order. Different job from the customer's
+ * confirmation: no reassurance copy, no marketing — just what the counter needs
+ * to act on, with the reference and contact details near the top.
+ * ------------------------------------------------------------------------- */
+
+export function orderShopAlertText(d: OrderEmailData): string {
+  const lines = [...d.boards, ...d.addOns]
+    .map((l) => `  - ${l.name}${l.qty > 1 ? ` x${l.qty}` : ""}  ${money(l.lineTotal)}`)
+    .join("\n");
+  return [
+    `NEW ORDER — ${d.ref}`,
+    ``,
+    `Collection: ${d.collectionDate} — ${d.locationName}`,
+    ``,
+    `Customer: ${d.customerName}`,
+    `Phone: ${d.customerPhone || "(not given)"}`,
+    `Email: ${d.customerEmail || "(not given)"}`,
+    ``,
+    `Order:`,
+    lines,
+    ``,
+    `Total: ${money(d.total)}`,
+    `Deposit to collect (25%): ${money(d.deposit)}`,
+    `Balance on collection: ${money(d.balance)}`,
+    ``,
+    `Manage this order: ${SITE}/admin/orders`,
+  ].join("\n");
+}
+
+export function orderShopAlertHtml(d: OrderEmailData): string {
+  const inner = `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr><td style="padding:24px 24px 0;">
+      <h1 style="margin:0 0 14px;font-family:${SERIF};font-size:22px;font-weight:normal;color:${C.ink};">
+        New order — ${esc(d.ref)}
+      </h1>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.cream};border-radius:10px;margin:0 0 18px;">
+        <tr><td style="padding:14px 16px;font-family:${SANS};font-size:15px;line-height:1.8;color:${C.ink};">
+          <strong>Collection:</strong> ${esc(d.collectionDate)} — ${esc(d.locationName)}<br>
+          <strong>Customer:</strong> ${esc(d.customerName)}<br>
+          <strong>Phone:</strong> ${d.customerPhone ? esc(d.customerPhone) : "(not given)"}<br>
+          <strong>Email:</strong> ${d.customerEmail ? esc(d.customerEmail) : "(not given)"}
+        </td></tr>
+      </table>
+    </td></tr>
+    <tr><td style="padding:0 24px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${[...d.boards, ...d.addOns].map(lineRow).join("")}</table>
+    </td></tr>
+    <tr><td style="padding:14px 24px 24px;">
+      <div style="border-top:1px solid ${C.line};padding-top:10px;"></div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        ${totalsRow("Total", money(d.total))}
+        ${totalsRow("Deposit to collect", money(d.deposit), { strong: true })}
+        ${totalsRow("Balance on collection", money(d.balance))}
+      </table>
+      <p style="margin:18px 0 0;font-family:${SANS};font-size:14px;color:${C.inkSoft};">
+        <a href="${SITE}/admin/orders" style="color:${C.ink};">Manage this order in admin →</a>
+      </p>
+    </td></tr>
+  </table>`;
+  return layout(inner, `New order ${d.ref} — collection ${d.collectionDate}`);
 }

@@ -20,6 +20,7 @@ export default function SiteSettings() {
   const [founderNote, setFounderNote] = useState("");
   const [reviewRating, setReviewRating] = useState("");
   const [reviewCount, setReviewCount] = useState("");
+  const [orderNotifyEmail, setOrderNotifyEmail] = useState("");
   const [leadHours, setLeadHours] = useState("48");
   const [sitePassword, setSitePassword] = useState("");
   const [clickCollectOpen, setClickCollectOpen] = useState(false);
@@ -43,6 +44,7 @@ export default function SiteSettings() {
       setFounderNote(s.founderNote ?? "");
       setReviewRating(s.reviewRating ?? "");
       setReviewCount(s.reviewCount ?? "");
+      setOrderNotifyEmail(s.orderNotifyEmail ?? "");
       setLeadHours(s.orderLeadTimeHours ?? "48");
       setSitePassword(s.sitePassword ?? "");
       setClickCollectOpen(s.clickCollectComingSoon === "off");
@@ -79,6 +81,7 @@ export default function SiteSettings() {
       await adminApi.setSetting("founderNote", founderNote.trim());
       await adminApi.setSetting("reviewRating", reviewRating.trim());
       await adminApi.setSetting("reviewCount", reviewCount.trim());
+      await adminApi.setSetting("orderNotifyEmail", orderNotifyEmail.trim());
       await adminApi.setSetting("orderLeadTimeHours", String(Math.max(0, parseInt(leadHours || "48", 10) || 48)));
       await adminApi.setSetting("sitePassword", sitePassword.trim());
       await adminApi.setSetting("freeGift", freeGift ? "on" : "off");
@@ -172,6 +175,22 @@ export default function SiteSettings() {
       <div className="field">
         <label>Review count</label>
         <input className="input" value={reviewCount} onChange={(e) => setReviewCount(e.target.value)} placeholder="e.g. 47" />
+      </div>
+
+      <h2>Order alerts</h2>
+      <div className="field">
+        <label>Email me when an order comes in</label>
+        <input
+          className="input"
+          type="email"
+          value={orderNotifyEmail}
+          onChange={(e) => setOrderNotifyEmail(e.target.value)}
+          placeholder="e.g. hello@kellysdeli.co.uk"
+        />
+        <p className="muted small">
+          Every new board order sends an alert here with the reference, collection date, what
+          they ordered and how to reach them. Leave blank to turn alerts off.
+        </p>
       </div>
 
       <h2>Free gift over a spend</h2>

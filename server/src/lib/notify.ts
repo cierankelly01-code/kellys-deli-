@@ -2,7 +2,7 @@
 // otherwise payloads are logged so you can see exactly what would go out.
 // SMS is still a logged stub — swap sendSms for Twilio when ready.
 
-import { orderReceivedHtml, orderReceivedText, type OrderEmailLine } from "./emailTemplate";
+import { orderReceivedHtml, orderReceivedText, orderShopAlertHtml, orderShopAlertText, type OrderEmailLine } from "./emailTemplate";
 import {
   breadOrderReceivedHtml,
   breadOrderReceivedText,
@@ -90,13 +90,12 @@ async function sendEmail(to: string, subject: string, body: string, html?: strin
 }
 
 /** Sent when an order request is placed. */
-export async function notifyOrderReceived(
-  t: NotifyTarget,
-  o: {
-    ref: string; total: number; deposit: number; collectionDate: string; locationName: string;
-    boards?: OrderEmailLine[]; addOns?: OrderEmailLine[];
-  },
-): Promise<void> {
+export interface OrderNotifyInput {
+  ref: string; total: number; deposit: number; collectionDate: string; locationName: string;
+  boards?: OrderEmailLine[]; addOns?: OrderEmailLine[];
+}
+
+export async function notifyOrderReceived(t: NotifyTarget, o: OrderNotifyInput): Promise<void> {
   const balance = Math.max(0, Math.round((o.total - o.deposit) * 100) / 100);
   // SMS stays a single line — it is charged per segment and read at a glance.
   const sms =
@@ -131,6 +130,26 @@ export async function notifyReviewRequest(t: NotifyTarget, reviewLink: string): 
 /** Sent to the customer when a bread pre-order is placed, if they gave an email. */
 export async function notifyBreadOrderReceived(email: string, d: BreadOrderEmailData): Promise<void> {
   await sendEmail(email, `Bread order ${d.ref} confirmed — Kelly's Deli`, breadOrderReceivedText(d), breadOrderReceivedHtml(d));
+}
+
+/** Sent to the shop's own inbox (Setting "orderNotifyEmail") on every new board order.
+ * Without this the owner has no idea an order arrived until they open admin. */
+export async function notifyShopOfOrder(shopEmail: string, t: NotifyTarget, o: OrderNotifyInput): Promise<void> {
+  const balance = Math.max(0, Math.round((o.total - o.deposit) * 100) / 100);
+  const d = {
+    customerName: t.name,
+    customerPhone: t.phone,
+    customerEmail: t.email,
+    ref: o.ref,
+    collectionDate: o.collectionDate,
+    locationName: o.locationName,
+    boards: o.boards ?? [],
+    addOns: o.addOns ?? [],
+    total: o.total,
+    deposit: o.deposit,
+    balance,
+  };
+  await sendEmail(shopEmail, `New order ${o.ref} — ${o.collectionDate}`, orderShopAlertText(d), orderShopAlertHtml(d));
 }
 
 /** Sent to the shop's own inbox (BreadShopSetting.notifyEmail) on every new bread order. */
