@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs";
+import crypto from "node:crypto";
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -15,6 +16,20 @@ import { prisma } from "./lib/prisma";
 import { parseWebhook } from "./lib/payments";
 
 const SITE = "https://www.kellysdeli.co.uk";
+
+/**
+ * Constant-time string comparison. Both sides are SHA-256'd first so the compare is over
+ * two fixed 32-byte buffers: timingSafeEqual throws on a length mismatch, and comparing
+ * raw strings would leak the secret's length through that error path.
+ */
+function safeEqual(a: string, b: string): boolean {
+  const h = (s: string) => crypto.createHash("sha256").update(s, "utf8").digest();
+  return crypto.timingSafeEqual(h(a), h(b));
+}
+
+/** Escape text before it goes into the XML sitemap. */
+const xmlEscape = (s: string): string =>
+  s.replace(/[<>&'"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" })[c] as string);
 
 /**
  * Builds the Express app. Kept separate from index.ts so tests (supertest)
@@ -105,11 +120,34 @@ export function createApp(): Express {
 
   // Rate limits. NOTE: in-memory store — effective for a long-running/warm instance.
   // For multi-instance serverless, back this with a shared store (Redis) or a WAF.
-  // Don't throttle the test suite, or a local/E2E run that opts out explicitly
-  // (DISABLE_RATE_LIMIT=1). Never set DISABLE_RATE_LIMIT in production.
-  const skip = () => process.env.NODE_ENV === "test" || process.env.DISABLE_RATE_LIMIT === "1";
-  const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 600, standardHeaders: true, legacyHeaders: false, skip });
-  const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, skip, message: { error: "Too many attempts — try again later" } });
+  //
+  // Two DIFFERENT skip rules, deliberately:
+  //
+  //   apiLimiter  — browse/order traffic. An E2E run makes hundreds of legitimate calls
+  //     in a couple of minutes, so this one still honours DISABLE_RATE_LIMIT=1.
+  //
+  //   authLimiter — the admin-login brute-force guard. This is NEVER switched off by an
+  //     env var. These two limiters used to share one skip rule, and the E2E suite runs
+  //     the server with NODE_ENV=production AND DISABLE_RATE_LIMIT=1 (see
+  //     playwright.config.ts) — so "production" was never the thing keeping the guard on.
+  //     That meant a single stray DISABLE_RATE_LIMIT on the live host would silently
+  //     remove the only limit on password guessing against /api/auth/login, with nothing
+  //     in the UI or logs to show for it. Only NODE_ENV=test bypasses it now: that is
+  //     vitest running supertest in-process, which no deploy ever sets.
+  //
+  //     max=30/15min is sized so the E2E suite (6 logins per full run) can run several
+  //     times back-to-back against a reused server without tripping, while still being a
+  //     hard ceiling on online guessing. Raise the window, not the max, if that ever bites.
+  const isUnitTest = () => process.env.NODE_ENV === "test";
+  const skipApi = () => isUnitTest() || process.env.DISABLE_RATE_LIMIT === "1";
+  if (env.isProd && process.env.DISABLE_RATE_LIMIT === "1") {
+    console.warn(
+      "[app] DISABLE_RATE_LIMIT=1 is set in production — browse rate limits are OFF. " +
+        "Admin-login rate limiting stays ON regardless. Unset this variable on the live host."
+    );
+  }
+  const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 600, standardHeaders: true, legacyHeaders: false, skip: skipApi });
+  const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, skip: isUnitTest, message: { error: "Too many attempts — try again later" } });
 
   app.get("/api/health", (_req, res) => {
     // Makes the two things that fail silently in production checkable from outside,
@@ -153,7 +191,7 @@ export function createApp(): Express {
       console.error("[sitemap] could not load categories", e);
     }
     const urls = [...staticUrls, ...categoryUrls]
-      .map((u) => `  <url><loc>${SITE}${u.loc}</loc><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`)
+      .map((u) => `  <url><loc>${xmlEscape(SITE + u.loc)}</loc><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`)
       .join("\n");
     res.setHeader("Content-Type", "application/xml");
     res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`);
@@ -194,7 +232,7 @@ export function createApp(): Express {
     if (header.startsWith("Basic ")) {
       const decoded = Buffer.from(header.slice(6), "base64").toString();
       const supplied = decoded.slice(decoded.indexOf(":") + 1);
-      if (supplied === pw) return next();
+      if (safeEqual(supplied, pw)) return next();
     }
     res.set("WWW-Authenticate", 'Basic realm="Kelly\'s Deli"');
     return res.status(401).send("Kelly's Deli is putting the finishing touches on — please check back very soon.");
