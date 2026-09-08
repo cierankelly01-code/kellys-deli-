@@ -8,9 +8,13 @@ snack brand's own bag in shot — "Kent Crisps" — another has paper labels rea
 Bits Deli Pot", a different deli's own product line; the rest carry marketing badges
 like "BESTSELLER" and "GLUTEN-FREE" that only appear on a business's own site, never on
 a phone photo of finished food). **None of them are Kelly's Deli's own photos, and
-nothing was uploaded to the live site.** They're now in
-`product-photos/reference-not-owned/` with a README explaining why — keep them as
-inspiration if useful, just not as product photos.
+nothing was uploaded to the live site.** They have now been **removed from this repo entirely** and moved to
+`Desktop/kellys-deli-reference-photos-NOT-OWNED/` on the owner's machine — keep them as
+inspiration if useful, just not as product photos, and not in the project.
+
+Note: `git rm` only stops them being in *future* commits. The images are still reachable
+in this repo's git history, so a clone still contains them. Scrubbing them from history
+needs a rewrite (git-filter-repo / BFG) plus a force-push, which is a separate decision.
 
 Net result: **every product below still needs an actual photo of what your kitchen
 makes.** Nothing changed from square one on photos — sorry for the false start.
