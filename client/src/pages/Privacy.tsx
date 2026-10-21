@@ -1,3 +1,4 @@
+import { Ornament } from "../components/BrandMark";
 
 /**
  * UK GDPR / Data Protection Act 2018 privacy notice. Plain-English, email-contact
@@ -6,10 +7,14 @@
  */
 export default function Privacy() {
   return (
-    <div className="app">
-            <article className="legal">
-        <h1>Privacy Policy</h1>
-        <p className="muted">Last updated: 6 September 2026</p>
+    <div className="legal-page">
+      <article className="legal wrap-narrow">
+        <header className="legal-head">
+          <p className="eyebrow">Good to know</p>
+          <h1>Privacy Policy</h1>
+          <p className="muted">Last updated: 6 September 2026</p>
+          <Ornament />
+        </header>
 
         <p>
           This policy explains what personal information Kelly&apos;s Deli (&quot;we&quot;, &quot;us&quot;)
@@ -110,7 +115,6 @@ export default function Privacy() {
           <a href="https://ico.org.uk" target="_blank" rel="noreferrer">ico.org.uk</a>.
         </p>
       </article>
-      <div style={{ height: 8 }} />
     </div>
   );
 }

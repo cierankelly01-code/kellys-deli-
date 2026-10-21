@@ -53,10 +53,10 @@ export function CorporateEnquiryForm({ nextDayConfirmed = false }: { nextDayConf
 
   if (status === "done") {
     return (
-      <div className="corp-form card corp-done">
+      <div className="corp-form corp-done" role="status">
         <div className="corp-tick" aria-hidden="true">✓</div>
-        <h3>Thanks — that's with us.</h3>
-        <p className="muted">
+        <h3>Thanks — that&apos;s with us.</h3>
+        <p>
           We&apos;ll be in touch to talk through your numbers and set up a schedule that works for your office.
         </p>
       </div>
@@ -64,27 +64,30 @@ export function CorporateEnquiryForm({ nextDayConfirmed = false }: { nextDayConf
   }
 
   return (
-    <form className="corp-form card" onSubmit={submit}>
+    <form className="corp-form" onSubmit={submit} noValidate>
+      <p className="corp-eyebrow">Office enquiry</p>
       <h3 className="corp-h">Set up office catering</h3>
-      <p className="muted corp-sub">
+      <p className="corp-sub">
         Tell us a little about your office and how often you&apos;d like feeding.
         {nextDayConfirmed
           ? " We deliver regular office orders the next working day."
           : " Delivery is available for regular office orders — we'll confirm your schedule with you."}
       </p>
 
-      <label className="field"><span>Company *</span><input value={company} onChange={(e) => setCompany(e.target.value)} autoComplete="organization" /></label>
-      <label className="field"><span>Your name *</span><input value={contactName} onChange={(e) => setContactName(e.target.value)} autoComplete="name" /></label>
       <div className="corp-row">
-        <label className="field"><span>Email *</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" /></label>
+        <label className="field"><span>Company *</span><input value={company} onChange={(e) => setCompany(e.target.value)} autoComplete="organization" required /></label>
+        <label className="field"><span>Your name *</span><input value={contactName} onChange={(e) => setContactName(e.target.value)} autoComplete="name" required /></label>
+      </div>
+      <div className="corp-row">
+        <label className="field"><span>Email *</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
         <label className="field"><span>Phone</span><input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" /></label>
       </div>
       <div className="corp-row">
-        <label className="field"><span>Roughly how many people?</span><input type="number" min={1} value={headcount} onChange={(e) => setHeadcount(e.target.value)} /></label>
+        <label className="field"><span>Roughly how many people?</span><input type="number" inputMode="numeric" min={1} value={headcount} onChange={(e) => setHeadcount(e.target.value)} /></label>
         <label className="field">
           <span>How often?</span>
           <select value={frequency} onChange={(e) => setFrequency(e.target.value)}>
-            <option value="">—</option>
+            <option value="">Choose…</option>
             {FREQUENCIES.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
           </select>
         </label>
@@ -95,7 +98,7 @@ export function CorporateEnquiryForm({ nextDayConfirmed = false }: { nextDayConf
       <button className="btn" disabled={status === "sending"} type="submit">
         {status === "sending" ? "Sending…" : "Send enquiry"}
       </button>
-      <p className="muted corp-foot">We&apos;ll never share your details. This just starts a conversation — nothing&apos;s booked yet.</p>
+      <p className="corp-foot">We&apos;ll never share your details. This just starts a conversation — nothing&apos;s booked yet.</p>
     </form>
   );
 }

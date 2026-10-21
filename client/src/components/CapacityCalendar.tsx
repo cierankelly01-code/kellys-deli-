@@ -10,6 +10,9 @@ interface Props {
   onMonthChange: (month: string) => void;
   /** How many months ahead bookings are taken. */
   monthsAhead?: number;
+  /** Optional paging bounds (YYYY-MM-01) — e.g. a December-only Christmas basket. */
+  minMonth?: string;
+  maxMonth?: string;
 }
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -52,20 +55,22 @@ function leadingBlanks(month: string): number {
  * Full / too-soon dates are disabled; low stock shows the remaining slots.
  */
 export function CapacityCalendar({
-  days, selected, onSelect, month, onMonthChange, monthsAhead = 12,
+  days, selected, onSelect, month, onMonthChange, monthsAhead = 12, minMonth, maxMonth,
 }: Props) {
   const byDate = useMemo(() => new Map(days.map((d) => [d.date, d])), [days]);
 
   const thisMonth = monthStart(new Date().toISOString().slice(0, 10));
   const lastMonth = shiftMonth(thisMonth, monthsAhead);
-  const canGoBack = month > thisMonth;
-  const canGoForward = month < lastMonth;
+  const floor = minMonth && minMonth > thisMonth ? minMonth : thisMonth;
+  const ceiling = maxMonth && maxMonth < lastMonth && maxMonth >= floor ? maxMonth : lastMonth;
+  const canGoBack = month > floor;
+  const canGoForward = month < ceiling;
 
   const total = daysInMonth(month);
   const blanks = leadingBlanks(month);
 
   return (
-    <div className="cal">
+    <div className="cal kd-cal">
       <div className="cal-head">
         <button
           type="button"
@@ -74,7 +79,7 @@ export function CapacityCalendar({
           disabled={!canGoBack}
           aria-label="Previous month"
         >
-          ‹
+          <Chevron dir="left" />
         </button>
         <strong className="cal-month" aria-live="polite">{monthLabel(month)}</strong>
         <button
@@ -84,7 +89,7 @@ export function CapacityCalendar({
           disabled={!canGoForward}
           aria-label="Next month"
         >
-          ›
+          <Chevron dir="right" />
         </button>
       </div>
 
@@ -122,9 +127,18 @@ export function CapacityCalendar({
         <span><i className="dot open" /> Available</span>
         <span><i className="dot limited" /> Filling up</span>
         <span><i className="dot full" /> Full</span>
-        <span>— Not available (too soon, or outside the collection dates)</span>
+        <span><i className="dot closed" /> Not available (too soon, or outside the collection dates)</span>
       </div>
     </div>
+  );
+}
+
+/** Fine-line chevron for the month buttons — shared with the bread calendar. */
+export function Chevron({ dir }: { dir: "left" | "right" }) {
+  return (
+    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+      <path d={dir === "left" ? "M10 3 L5 8 L10 13" : "M6 3 L11 8 L6 13"} fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="square" />
+    </svg>
   );
 }
 

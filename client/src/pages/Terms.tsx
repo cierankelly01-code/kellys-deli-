@@ -1,3 +1,4 @@
+import { Ornament } from "../components/BrandMark";
 
 /**
  * Customer terms for ordering. Covers deposits, allergens (UK food law), collection/
@@ -5,10 +6,14 @@
  */
 export default function Terms() {
   return (
-    <div className="app">
-            <article className="legal">
-        <h1>Terms &amp; Conditions</h1>
-        <p className="muted">Last updated: 7 July 2026</p>
+    <div className="legal-page">
+      <article className="legal wrap-narrow">
+        <header className="legal-head">
+          <p className="eyebrow">Good to know</p>
+          <h1>Terms &amp; Conditions</h1>
+          <p className="muted">Last updated: 7 July 2026</p>
+          <Ornament />
+        </header>
 
         <p>
           These terms apply when you place an order with Kelly&apos;s Deli through this website. By
@@ -80,7 +85,6 @@ export default function Terms() {
           <a href="mailto:hello@kellysdeli.co.uk">hello@kellysdeli.co.uk</a>.
         </p>
       </article>
-      <div style={{ height: 8 }} />
     </div>
   );
 }

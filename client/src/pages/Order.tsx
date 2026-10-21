@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   api,
   OCCASIONS,
@@ -13,7 +13,7 @@ import {
 } from "../lib/api";
 import { loadCart, saveCart, clearCart, type Cart } from "../lib/cart";
 import { computeTotals, feedsMid, roundTo5p } from "../lib/addOnPricing";
-import { gbp, formatDate } from "../lib/format";
+import { gbp, formatDate, formatDateLong } from "../lib/format";
 import { CapacityCalendar, daysInMonth, monthStart } from "../components/CapacityCalendar";
 import { AddOnsStep } from "../components/AddOnsStep";
 import { SubscribeSave } from "../components/SubscribeSave";
@@ -22,6 +22,8 @@ import { trackOrderRequest } from "../lib/consent";
 import { bestBundleDiscount } from "../lib/bundle-discount";
 import { collectionWindow } from "../lib/preorder";
 import type { Bundle } from "../lib/api";
+import { ProductArt } from "../components/ProductArt";
+import { Ornament } from "../components/BrandMark";
 
 const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -48,6 +50,8 @@ export default function Order() {
   const [step, setStep] = useState<Step>("extras");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Phone only: the order summary folds away above the form.
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
   // Details form
   const [locationId, setLocationId] = useState("");
@@ -232,11 +236,20 @@ export default function Order() {
 
   if (catalogueReady && boardLines.length === 0) {
     return (
-      <div className="app order-page">
-        <h1 className="page-h">Your order</h1>
-        <p className="muted">Your order is empty.</p>
-        <button className="btn" onClick={() => navigate("/platters")}>Browse boards</button>
-        <button className="btn-ghost" onClick={() => navigate("/christmas")}>See the Christmas menu</button>
+      <div className="co order-page">
+        <section className="co-empty wrap-narrow">
+          <p className="eyebrow">Your basket</p>
+          <h1 className="co-title">Your order</h1>
+          <Ornament />
+          <p className="muted co-empty-lede">Your order is empty.</p>
+          <div className="co-empty-actions">
+            <button className="btn" onClick={() => navigate("/platters")}>Browse boards</button>
+            <button className="btn-ghost co-textlink" onClick={() => navigate("/christmas")}>See the Christmas menu</button>
+          </div>
+          <p className="co-empty-more">
+            Feeding a crowd? <Link to="/plan">Plan your event</Link> · Just some bread? <Link to="/bread">Order for collection</Link>
+          </p>
+        </section>
       </div>
     );
   }
@@ -292,220 +305,362 @@ export default function Order() {
   }
 
   const stepIdx = STEPS.indexOf(step);
+  // A pre-order basket starts on the details step, so its indicator shows the two steps it
+  // actually goes through (the extras stay reachable with Back).
+  const visibleSteps: Step[] = isPreorder && step !== "extras" ? ["details", "review"] : STEPS;
+  const locationName = locations.find((l) => l.id === locationId)?.name ?? "";
+  const itemCount = boardLines.reduce((s, l) => s + l.quantity, 0);
+  const shopMore = () => navigate(isPreorder ? "/christmas" : "/platters");
 
   return (
-    <div className="app order-page">
-            <button className="link-back" onClick={() => navigate(isPreorder ? "/christmas" : "/platters")}>← Keep shopping</button>
-      <h1 className="page-h">Your order</h1>
+    <div className={`co order-page${isPreorder ? " is-preorder" : ""}`}>
+      <div className="wrap co-wrap">
+        <header className="co-head">
+          <button className="link-back co-back" onClick={shopMore}>← Keep shopping</button>
+          <p className="eyebrow co-eyebrow">{isPreorder ? "Christmas pre-order" : "Checkout"}</p>
+          <h1 className="co-title">Your order</h1>
 
-      {/* progress */}
-      <ol className="steps-bar" aria-label="Order steps">
-        {STEPS.map((s, i) => (
-          <li key={s} className={`steps-dot${i === stepIdx ? " active" : ""}${i < stepIdx ? " done" : ""}`}>
-            {STEP_LABELS[s]}
-          </li>
-        ))}
-      </ol>
+          <ol className="co-steps" aria-label="Order steps">
+            {visibleSteps.map((s, i) => {
+              const idx = STEPS.indexOf(s);
+              const state = idx === stepIdx ? " is-active" : idx < stepIdx ? " is-done" : "";
+              const inner = (
+                <>
+                  <span className="co-step-n" aria-hidden="true">{i + 1}</span>
+                  <span className="co-step-l">{STEP_LABELS[s]}</span>
+                </>
+              );
+              return (
+                <li key={s} className={`co-step${state}`} aria-current={idx === stepIdx ? "step" : undefined}>
+                  {idx < stepIdx ? (
+                    <button type="button" className="co-step-btn" onClick={() => setStep(s)}>{inner}</button>
+                  ) : (
+                    <span className="co-step-btn">{inner}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </header>
 
-      {/* Always-visible board summary */}
-      <section className="order-boards card">
-        <h2 className="step-h">{isPreorder ? "Your order" : "Your boards"}</h2>
-        {boardLines.map((l) => (
-          <div key={l.board.id} className="order-line">
-            <div>
-              <span className="ol-name">{l.board.name}{l.board.variantLabel ? ` — ${l.board.variantLabel}` : ""}</span>
-              {l.board.kind === "product"
-                ? l.board.unitLabel && !l.board.variantLabel && <span className="muted ol-feeds"> · {l.board.unitLabel}</span>
-                : l.board.serves && <span className="muted ol-feeds"> · feeds {l.board.serves}</span>}
-            </div>
-            <div className="stepper" role="group" aria-label={`${l.board.name} quantity`}>
-              <button type="button" onClick={() => setBoardQty(l.board.id, l.quantity - 1)} aria-label="Decrease">−</button>
-              <span className="stepper-val">{l.quantity}</span>
-              <button type="button" onClick={() => setBoardQty(l.board.id, l.quantity + 1)} aria-label="Increase">+</button>
-            </div>
-            <span className="ol-price">{gbp(l.unitPrice * l.quantity)}</span>
-          </div>
-        ))}
-        <button className="btn-ghost" onClick={() => navigate(isPreorder ? "/christmas" : "/platters")}>
-          {isPreorder ? "+ Add something else" : "+ Add another board"}
-        </button>
-      </section>
-
-      {step === "extras" && (
-        <>
-          <AddOnsStep addOns={addOns} headcount={headcount} value={cart?.addOns ?? []} onChange={(next) => update({ addOns: next })} />
-          <RunningTotal total={finalTotal} deposit={finalDeposit} subDiscount={subDiscount} payInFull={payInFull} />
-          <div className="step-actions">
-            <button className="btn" onClick={() => setStep("details")}>Continue to details</button>
-          </div>
-        </>
-      )}
-
-      {step === "details" && (
-        <section className="order-details">
-          <h2 className="step-h">Collection & contact</h2>
-
-          {!isPreorder && <label className="field">
-            <span>How many people are you feeding?</span>
-            <div className="stepper" role="group" aria-label="Headcount">
-              <button type="button" onClick={() => update({ headcount: Math.max(1, headcount - 1) })} aria-label="Decrease">−</button>
-              <input
-                type="number"
-                min={1}
-                value={headcount}
-                onChange={(e) => update({ headcount: Math.max(1, parseInt(e.target.value || "1", 10)) })}
-                aria-label="Headcount"
-              />
-              <button type="button" onClick={() => update({ headcount: headcount + 1 })} aria-label="Increase">+</button>
-            </div>
-          </label>}
-
-          <label className="field">
-            <span>Collect from</span>
-            <select value={locationId} onChange={(e) => setLocationId(e.target.value)}>
-              {locations.map((l) => (
-                <option key={l.id} value={l.id}>{l.name}</option>
-              ))}
-            </select>
-          </label>
-
-          <div className="field">
-            <span>Collection date</span>
-            <CapacityCalendar
-              days={availability?.days ?? []}
-              selected={date}
-              onSelect={setDate}
-              month={calMonth}
-              onMonthChange={setCalMonth}
-            />
-            {!availability && <p className="muted">Loading dates…</p>}
-            {window_.conflict ? (
-              <p className="form-error" role="alert">
-                These items can&apos;t be collected on the same day — please order them separately.
-              </p>
-            ) : window_.note && <p className="muted small">{window_.note}</p>}
-          </div>
-
-          {!isPreorder && <label className="field">
-            <span>Occasion (optional)</span>
-            <select value={occasion} onChange={(e) => setOccasion(e.target.value as Occasion | "")}>
-              <option value="">—</option>
-              {OCCASIONS.map((o) => (
-                <option key={o} value={o}>{o}</option>
-              ))}
-            </select>
-          </label>}
-
-          {subOn && !isPreorder && (
-            <div className="field">
-              <span>Make it a regular thing?</span>
-              <SubscribeSave
-                value={subFreq}
-                onChange={setSubscription}
-                discountPct={counts?.subscribeSaveDiscountPct ?? 10}
-                invoiced={occasion === "Corporate"}
-              />
-            </div>
-          )}
-
-          <div className="field gift-toggle">
-            <label className="gift-check">
-              <input type="checkbox" checked={isGift} onChange={(e) => setIsGift(e.target.checked)} />
-              <span>🎁 This is a gift — add a printed note</span>
-            </label>
-            {isGift && (
-              <div className="gift-fields">
-                <label className="field"><span>Who&apos;s it for?</span><input value={recipientName} onChange={(e) => setRecipientName(e.target.value)} placeholder="Recipient's name" /></label>
-                <label className="field"><span>Gift message (we&apos;ll print it and tuck it in)</span><textarea rows={2} maxLength={500} value={giftMessage} onChange={(e) => setGiftMessage(e.target.value)} placeholder="Happy birthday! Enjoy every bite x" /></label>
-              </div>
-            )}
-          </div>
-
-          <label className="field"><span>Your name</span><input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></label>
-          <label className="field"><span>Phone</span><input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" /></label>
-          <label className="field"><span>Email</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" /></label>
-          <label className="field"><span>{isPreorder ? "Notes — e.g. \"slice the ham, please\" (optional)" : "Allergies / notes (optional)"}</span><textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} /></label>
-
-          <RunningTotal total={finalTotal} deposit={finalDeposit} subDiscount={subDiscount} payInFull={payInFull} />
-          <div className="step-actions">
-            <button className="btn-ghost" onClick={() => setStep("extras")}>Back</button>
-            <button className="btn" disabled={!detailsValid} onClick={() => setStep("review")}>Review order</button>
-          </div>
-        </section>
-      )}
-
-      {step === "review" && (
-        <section className="order-review">
-          <h2 className="step-h">Review & confirm</h2>
-          <div className="card review-summary">
-            {boardLines.map((l) => (
-              <div key={l.board.id} className="review-row"><span>{l.quantity}× {l.board.name}{l.board.variantLabel ? ` — ${l.board.variantLabel}` : ""}</span><span>{gbp(l.unitPrice * l.quantity)}</span></div>
-            ))}
-            {addOnLines.map((l) => (
-              <div key={l.addOn.id} className="review-row muted"><span>{l.quantity}× {l.addOn.name}</span><span>{gbp(l.unitPrice * l.quantity)}</span></div>
-            ))}
-            {bundleSaving.amount > 0 && <div className="review-row discount"><span>{bundleSaving.name} saving</span><span>−{gbp(bundleSaving.amount)}</span></div>}
-            {subDiscount > 0 && (
-              <>
-                <div className="review-row muted"><span>Subtotal</span><span>{gbp(totals.total)}</span></div>
-                <div className="review-row discount"><span>Subscribe &amp; save ({subPct}%)</span><span>−{gbp(subDiscount)}</span></div>
-              </>
-            )}
-            <div className="review-row total"><span>{subDiscount > 0 ? "Total per delivery" : "Total"}</span><span>{gbp(finalTotal)}</span></div>
-            {payInFull ? (
-              <div className="review-row"><span>{paymentsLive ? "To pay now" : "To pay"}</span><span>{gbp(finalDeposit)}</span></div>
-            ) : (
-              <>
-                <div className="review-row"><span>Deposit due (25%)</span><span>{gbp(finalDeposit)}</span></div>
-                <div className="review-row"><span>Balance on collection</span><span>{gbp(finalBalance)}</span></div>
-              </>
-            )}
-            {date && <div className="review-row muted"><span>{activeSub ? "First collection" : "Collection"}</span><span>{formatDate(date)}</span></div>}
-            {isGift && recipientName.trim() && <div className="review-row muted"><span>Gift for</span><span>{recipientName.trim()}</span></div>}
-          </div>
-
-          {activeSub ? (
-            <p className="deposit-policy recurring-note">
-              <strong>You&apos;re setting up a {activeSub} board.</strong> {paymentsLive ? "Only your first board's deposit is taken today" : "No card is taken now"} and nothing bills
-              automatically — we&apos;ll get in touch to set your schedule up with you and confirm each delivery before we
-              make it. The 25% deposit confirms your first board; pause, skip or cancel any time.
-            </p>
-          ) : payInFull ? (
-            <p className="deposit-policy">
-              {paymentsLive
-                ? "You'll pay securely by card, Apple Pay or Google Pay on the next screen. Once it's paid, your order is confirmed and set aside for you."
-                : "We'll send you a secure payment link to confirm your order."}{" "}
-              Need to change something? Just ring the shop.
-            </p>
-          ) : (
-            <p className="deposit-policy">
-              A 25% deposit confirms your order. Deposits are fully refundable up to 48 hours before collection.
-              {paymentsLive && " You'll pay it securely on the next screen."}
-            </p>
-          )}
-
-          {error && <p className="form-error" role="alert">{error}</p>}
-          <div className="step-actions">
-            <button className="btn-ghost" onClick={() => setStep("details")}>Back</button>
-            <button className="btn" disabled={submitting} onClick={submit}>
-              {submitting ? (paymentsLive ? "Taking you to payment…" : "Placing…") : paymentsLive ? `Pay ${gbp(finalDeposit)} securely` : "Place order request"}
+        <div className="co-layout">
+          {/* ---------- Order summary: sticky on the right, collapsible on a phone ---------- */}
+          <aside className={`co-summary${summaryOpen ? " is-open" : ""}`} aria-label="Order summary">
+            <button
+              type="button"
+              className="co-sum-toggle"
+              aria-expanded={summaryOpen}
+              aria-controls="co-sum-panel"
+              onClick={() => setSummaryOpen((o) => !o)}
+            >
+              <span className="co-sum-toggle-l">
+                <span className="co-sum-toggle-t">{summaryOpen ? "Hide" : "Show"} order summary <i className="co-caret" aria-hidden="true" /></span>
+                <small>{itemCount} item{itemCount === 1 ? "" : "s"}{date ? ` · ${formatDate(date)}` : ""}</small>
+              </span>
+              <span className="co-sum-toggle-r">
+                <strong>{gbp(finalTotal)}</strong>
+                <small>{payInFull ? "in full" : `${gbp(finalDeposit)} deposit`}</small>
+              </span>
             </button>
+
+            <div className="co-sum-panel" id="co-sum-panel">
+              <div className="co-sum-head">
+                <h2 className="co-sum-h">{isPreorder ? "Your order" : "Your boards"}</h2>
+                <span className="co-sum-count">{itemCount} item{itemCount === 1 ? "" : "s"}</span>
+              </div>
+
+              <ul className="co-lines">
+                {boardLines.map((l) => {
+                  const meta = l.board.variantLabel
+                    ?? (l.board.kind === "product" ? l.board.unitLabel : l.board.serves ? `feeds ${l.board.serves}` : null);
+                  return (
+                    <li key={l.board.id} className="order-line co-line">
+                      <span className="co-thumb" aria-hidden="true">
+                        {l.board.imageUrl
+                          ? <img src={l.board.imageUrl} alt="" loading="lazy" />
+                          : <ProductArt name={l.board.name} section={l.board.section} />}
+                      </span>
+                      <div className="co-line-info">
+                        <span className="ol-name">{l.board.name}</span>
+                        {meta && <span className="co-line-meta">{meta}</span>}
+                        <div className="stepper co-stepper" role="group" aria-label={`${l.board.name} quantity`}>
+                          <button type="button" onClick={() => setBoardQty(l.board.id, l.quantity - 1)} aria-label="Decrease">−</button>
+                          <span className="stepper-val">{l.quantity}</span>
+                          <button type="button" onClick={() => setBoardQty(l.board.id, l.quantity + 1)} aria-label="Increase">+</button>
+                        </div>
+                      </div>
+                      <span className="ol-price">{gbp(l.unitPrice * l.quantity)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {addOnLines.length > 0 && (
+                <ul className="co-extras" aria-label="Extras">
+                  {addOnLines.map((l) => (
+                    <li key={l.addOn.id}>
+                      <span>{l.quantity} × {l.addOn.name}</span>
+                      <span>{gbp(l.unitPrice * l.quantity)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <button type="button" className="co-add-more" onClick={shopMore}>
+                {isPreorder ? "+ Add something else" : "+ Add another board"}
+              </button>
+
+              {date && (
+                <div className="co-sum-when">
+                  <span className="co-sum-label">{activeSub ? "First collection" : "Collection"}</span>
+                  <strong>{formatDateLong(date)}</strong>
+                  {locationName && <span>From Kelly&apos;s, {locationName}</span>}
+                </div>
+              )}
+            </div>
+
+            <div className="running-total">
+              {(bundleSaving.amount > 0 || subDiscount > 0) && (
+                <div className="rt-row"><span>Subtotal</span><span>{gbp(totals.total)}</span></div>
+              )}
+              {bundleSaving.amount > 0 && (
+                <div className="rt-row is-saving"><span>{bundleSaving.name} saving</span><span>−{gbp(bundleSaving.amount)}</span></div>
+              )}
+              {subDiscount > 0 && (
+                <div className="rt-row is-saving"><span>Regular-order saving ({subPct}%)</span><span>−{gbp(subDiscount)}</span></div>
+              )}
+              <div className="rt-row rt-total">
+                <span>{activeSub ? "Total per delivery" : "Order total"}</span>
+                <strong>{gbp(finalTotal)}</strong>
+              </div>
+              {payInFull ? (
+                <>
+                  <div className="rt-row rt-today"><span>{paymentsLive ? "To pay today" : "To pay"}</span><span>{gbp(finalDeposit)}</span></div>
+                  <p className="rt-note">Paid in full when you order — nothing to pay at the counter.</p>
+                </>
+              ) : (
+                <>
+                  <div className="rt-row rt-today"><span>25% deposit to confirm</span><span>{gbp(finalDeposit)}</span></div>
+                  <div className="rt-row rt-later"><span>Balance on collection</span><span>{gbp(finalBalance)}</span></div>
+                </>
+              )}
+            </div>
+          </aside>
+
+          {/* ---------- Steps ---------- */}
+          <div className="co-main">
+            {step === "extras" && (
+              <section className="co-panel">
+                <AddOnsStep addOns={addOns} headcount={headcount} value={cart?.addOns ?? []} onChange={(next) => update({ addOns: next })} />
+                {addOns.length === 0 && catalogueReady && (
+                  <p className="muted co-none">No extras needed — carry on to your details.</p>
+                )}
+                <div className="step-actions co-actions">
+                  <button className="btn" onClick={() => setStep("details")}>Continue to details</button>
+                </div>
+              </section>
+            )}
+
+            {step === "details" && (
+              <section className="order-details co-panel">
+                <h2 className="co-panel-h">Collection &amp; contact</h2>
+                <p className="co-panel-sub">
+                  {isPreorder
+                    ? "Choose the day you’ll call in. We’ll have it ready with your name on it."
+                    : "Tell us when you’d like to collect and who it’s for. Prices are set — nothing is taken yet."}
+                </p>
+
+                {!isPreorder && (
+                  <div className="co-block">
+                    <h3 className="co-block-h"><span>i.</span> Your party</h3>
+                    <div className="co-grid-2">
+                      <label className="field">
+                        <span>How many people are you feeding?</span>
+                        <div className="stepper co-stepper is-lg" role="group" aria-label="Headcount">
+                          <button type="button" onClick={() => update({ headcount: Math.max(1, headcount - 1) })} aria-label="Decrease">−</button>
+                          <input
+                            type="number"
+                            min={1}
+                            value={headcount}
+                            onChange={(e) => update({ headcount: Math.max(1, parseInt(e.target.value || "1", 10)) })}
+                            aria-label="Headcount"
+                          />
+                          <button type="button" onClick={() => update({ headcount: headcount + 1 })} aria-label="Increase">+</button>
+                        </div>
+                      </label>
+                      <label className="field">
+                        <span>Occasion (optional)</span>
+                        <select value={occasion} onChange={(e) => setOccasion(e.target.value as Occasion | "")}>
+                          <option value="">—</option>
+                          {OCCASIONS.map((o) => (
+                            <option key={o} value={o}>{o}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                <div className="co-block">
+                  <h3 className="co-block-h"><span>{isPreorder ? "i." : "ii."}</span> Collection day</h3>
+                  <label className="field">
+                    <span>Collect from</span>
+                    <select value={locationId} onChange={(e) => setLocationId(e.target.value)}>
+                      {locations.map((l) => (
+                        <option key={l.id} value={l.id}>{l.name}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <div className="field co-cal-field">
+                    <span>Collection date</span>
+                    {window_.note && !window_.conflict && <p className="co-window">{window_.note}</p>}
+                    <CapacityCalendar
+                      days={availability?.days ?? []}
+                      selected={date}
+                      onSelect={setDate}
+                      month={calMonth}
+                      onMonthChange={setCalMonth}
+                      minMonth={window_.from && !window_.conflict ? monthStart(window_.from) : undefined}
+                      maxMonth={window_.to && !window_.conflict ? monthStart(window_.to) : undefined}
+                    />
+                    {!availability && <p className="muted co-loading">Loading dates…</p>}
+                    {window_.conflict && (
+                      <p className="form-error" role="alert">
+                        These items can&apos;t be collected on the same day — please order them separately.
+                      </p>
+                    )}
+                    {date && selectedDay?.bookable && (
+                      <p className="co-chosen" role="status">
+                        Collecting <strong>{formatDateLong(date)}</strong>{locationName ? ` from ${locationName}` : ""}.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {subOn && !isPreorder && (
+                  <div className="co-block">
+                    <h3 className="co-block-h"><span>iii.</span> Make it a regular thing?</h3>
+                    <SubscribeSave
+                      value={subFreq}
+                      onChange={setSubscription}
+                      discountPct={counts?.subscribeSaveDiscountPct ?? 10}
+                      invoiced={occasion === "Corporate"}
+                    />
+                  </div>
+                )}
+
+                <div className="co-block">
+                  <h3 className="co-block-h"><span>{isPreorder ? "ii." : subOn ? "iv." : "iii."}</span> Your details</h3>
+                  <label className="field"><span>Your name</span><input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></label>
+                  <div className="co-grid-2">
+                    <label className="field"><span>Phone</span><input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" /></label>
+                    <label className="field"><span>Email</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" /></label>
+                  </div>
+                  <label className="field"><span>{isPreorder ? "Notes — e.g. \"slice the ham, please\" (optional)" : "Allergies / notes (optional)"}</span><textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} /></label>
+
+                  <div className="field gift-toggle co-gift">
+                    <label className="gift-check">
+                      <input type="checkbox" checked={isGift} onChange={(e) => setIsGift(e.target.checked)} />
+                      <span>This is a gift — add a printed note</span>
+                    </label>
+                    {isGift && (
+                      <div className="gift-fields">
+                        <label className="field"><span>Who&apos;s it for?</span><input value={recipientName} onChange={(e) => setRecipientName(e.target.value)} placeholder="Recipient's name" /></label>
+                        <label className="field"><span>Gift message (we&apos;ll print it and tuck it in)</span><textarea rows={2} maxLength={500} value={giftMessage} onChange={(e) => setGiftMessage(e.target.value)} placeholder="Happy birthday! Enjoy every bite x" /></label>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="step-actions co-actions">
+                  <button className="btn-ghost co-textlink" onClick={() => setStep("extras")}>Back</button>
+                  <button className="btn" disabled={!detailsValid} onClick={() => setStep("review")}>Review order</button>
+                </div>
+                {!detailsValid && (
+                  <p className="co-hint">
+                    {!date ? "Choose a collection day" : "Add your name, phone and email"} to review your order.
+                  </p>
+                )}
+              </section>
+            )}
+
+            {step === "review" && (
+              <section className="order-review co-panel">
+                <h2 className="co-panel-h">Review &amp; confirm</h2>
+                <p className="co-panel-sub">One last look before it goes to the deli.</p>
+
+                <div className="card review-summary co-receipt">
+                  <p className="co-receipt-h">Kelly&apos;s · Delicatessen{locationName ? ` · ${locationName}` : ""}</p>
+                  {boardLines.map((l) => (
+                    <div key={l.board.id} className="review-row"><span>{l.quantity}× {l.board.name}{l.board.variantLabel ? ` — ${l.board.variantLabel}` : ""}</span><span>{gbp(l.unitPrice * l.quantity)}</span></div>
+                  ))}
+                  {addOnLines.map((l) => (
+                    <div key={l.addOn.id} className="review-row muted"><span>{l.quantity}× {l.addOn.name}</span><span>{gbp(l.unitPrice * l.quantity)}</span></div>
+                  ))}
+                  {bundleSaving.amount > 0 && <div className="review-row discount"><span>{bundleSaving.name} saving</span><span>−{gbp(bundleSaving.amount)}</span></div>}
+                  {subDiscount > 0 && (
+                    <>
+                      <div className="review-row muted"><span>Subtotal</span><span>{gbp(totals.total)}</span></div>
+                      <div className="review-row discount"><span>Subscribe &amp; save ({subPct}%)</span><span>−{gbp(subDiscount)}</span></div>
+                    </>
+                  )}
+                  <div className="review-row total"><span>{subDiscount > 0 ? "Total per delivery" : "Total"}</span><span>{gbp(finalTotal)}</span></div>
+                  {payInFull ? (
+                    <div className="review-row is-pay"><span>{paymentsLive ? "To pay now" : "To pay"}</span><span>{gbp(finalDeposit)}</span></div>
+                  ) : (
+                    <>
+                      <div className="review-row is-pay"><span>Deposit due (25%)</span><span>{gbp(finalDeposit)}</span></div>
+                      <div className="review-row"><span>Balance on collection</span><span>{gbp(finalBalance)}</span></div>
+                    </>
+                  )}
+                  {date && <div className="review-row muted is-meta"><span>{activeSub ? "First collection" : "Collection"}</span><span>{formatDate(date)}</span></div>}
+                  {isGift && recipientName.trim() && <div className="review-row muted is-meta"><span>Gift for</span><span>{recipientName.trim()}</span></div>}
+                </div>
+
+                <dl className="co-who">
+                  <div><dt>Name</dt><dd>{name.trim()}</dd></div>
+                  <div><dt>Contact</dt><dd>{phone.trim()} · {email.trim()}</dd></div>
+                  {!isPreorder && <div><dt>Feeding</dt><dd>{headcount} {headcount === 1 ? "person" : "people"}{occasion ? ` · ${occasion}` : ""}</dd></div>}
+                  {notes.trim() && <div><dt>Notes</dt><dd>{notes.trim()}</dd></div>}
+                </dl>
+                <button type="button" className="co-textlink co-edit" onClick={() => setStep("details")}>Change these details</button>
+
+                {activeSub ? (
+                  <p className="deposit-policy recurring-note">
+                    <strong>You&apos;re setting up a {activeSub} board.</strong> {paymentsLive ? "Only your first board's deposit is taken today" : "No card is taken now"} and nothing bills
+                    automatically — we&apos;ll get in touch to set your schedule up with you and confirm each delivery before we
+                    make it. The 25% deposit confirms your first board; pause, skip or cancel any time.
+                  </p>
+                ) : payInFull ? (
+                  <p className="deposit-policy">
+                    {paymentsLive
+                      ? "You'll pay securely by card, Apple Pay or Google Pay on the next screen. Once it's paid, your order is confirmed and set aside for you."
+                      : "We'll send you a secure payment link to confirm your order."}{" "}
+                    Need to change something? Just ring the shop.
+                  </p>
+                ) : (
+                  <p className="deposit-policy">
+                    A 25% deposit confirms your order. Deposits are fully refundable up to 48 hours before collection.
+                    {paymentsLive && " You'll pay it securely on the next screen."}
+                  </p>
+                )}
+
+                {error && <p className="form-error" role="alert">{error}</p>}
+                <div className="step-actions co-actions">
+                  <button className="btn-ghost co-textlink" onClick={() => setStep("details")}>Back</button>
+                  <button className="btn" disabled={submitting} onClick={submit}>
+                    {submitting ? (paymentsLive ? "Taking you to payment…" : "Placing…") : paymentsLive ? `Pay ${gbp(finalDeposit)} securely` : "Place order request"}
+                  </button>
+                </div>
+                <p className="co-terms">
+                  By placing your order you agree to our <Link to="/terms">terms</Link>. See how we look after your details in our <Link to="/privacy">privacy policy</Link>.
+                </p>
+              </section>
+            )}
           </div>
-        </section>
-      )}
-    </div>
-  );
-}
-
-function RunningTotal({ total, deposit, subDiscount = 0, payInFull = false }: { total: number; deposit: number; subDiscount?: number; payInFull?: boolean }) {
-  return (
-    <div className="running-total">
-      <div>
-        <span className="muted">Order total</span> <strong>{gbp(total)}</strong>
-        {subDiscount > 0 && <span className="rt-saved"> · you save {gbp(subDiscount)}</span>}
+        </div>
       </div>
-      <div className="muted small">{payInFull ? "Paid in full when you order" : `25% deposit to confirm: ${gbp(deposit)}`}</div>
     </div>
   );
 }
-

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { BreadDayAvailability } from "../lib/api";
-import { monthStart, shiftMonth, daysInMonth } from "./CapacityCalendar";
+import { monthStart, shiftMonth, daysInMonth, Chevron } from "./CapacityCalendar";
 
 interface Props {
   days: BreadDayAvailability[];
@@ -68,11 +68,11 @@ export function BreadCalendar({ days, selected, onSelect, month, onMonthChange, 
   const blanks = leadingBlanks(month);
 
   return (
-    <div className="cal">
+    <div className="cal kd-cal">
       <div className="cal-head">
-        <button type="button" className="cal-nav" onClick={() => onMonthChange(shiftMonth(month, -1))} disabled={!canGoBack} aria-label="Previous month">‹</button>
+        <button type="button" className="cal-nav" onClick={() => onMonthChange(shiftMonth(month, -1))} disabled={!canGoBack} aria-label="Previous month"><Chevron dir="left" /></button>
         <strong className="cal-month" aria-live="polite">{monthLabel(month)}</strong>
-        <button type="button" className="cal-nav" onClick={() => onMonthChange(shiftMonth(month, 1))} disabled={!canGoForward} aria-label="Next month">›</button>
+        <button type="button" className="cal-nav" onClick={() => onMonthChange(shiftMonth(month, 1))} disabled={!canGoForward} aria-label="Next month"><Chevron dir="right" /></button>
       </div>
 
       <div className="cal-grid" role="grid">
@@ -105,7 +105,7 @@ export function BreadCalendar({ days, selected, onSelect, month, onMonthChange, 
         <span><i className="dot open" /> Available</span>
         <span><i className="dot limited" /> Filling up</span>
         <span><i className="dot full" /> Fully booked</span>
-        <span>— Closed / too soon to order</span>
+        <span><i className="dot closed" /> Closed / too soon to order</span>
       </div>
     </div>
   );

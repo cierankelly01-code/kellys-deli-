@@ -1,141 +1,226 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { api, type CategoryCounts, type Platter } from "../lib/api";
-import { groupVariants, groupServes, type ProductGroup } from "../lib/variants";
-import { addBoard } from "../lib/cart";
-import { openCartDrawer } from "../components/CartDrawer";
+import { groupVariants } from "../lib/variants";
 import { gbp } from "../lib/format";
 import { usePageTitle } from "../lib/title";
 import { StickyCta } from "../components/StickyCta";
 import { Faq } from "../components/Faq";
 import { DeadlineChip, Stars } from "../components/Trust";
+import { ProductArt } from "../components/ProductArt";
 import { morphNavigate } from "../lib/motion";
+import { PageHero } from "../components/site/PageHero";
+import { ProductCard, priceLine } from "../components/site/ProductCard";
+import { SectionHead } from "../components/site/SectionHead";
+import { CollectionToolbar, useSort, sortGroups, maxFeeds } from "./ShopCategory";
 
-/** Price + feeds line, e.g. "£60 · feeds 8–10", or "From £22.50 · feeds 2–4 – 10–15" for a
- *  board sold in several sizes. "From" quotes the cheapest size, which is the honest anchor. */
-function priceFeeds(g: ProductGroup): string {
-  const price = g.hasChoice ? `From ${gbp(g.fromPrice)}` : gbp(g.lead.fixedPrice ?? g.lead.fromPrice ?? 0);
-  const serves = groupServes(g.variants);
-  return serves ? `${price} · feeds ${serves}` : price;
-}
+/** "6–8" — tidy the hyphen in a serves range for display. */
+const range = (s: string) => s.replace(/\s*-\s*/g, "–");
 
 export default function Platters() {
   usePageTitle(
-    "Order a board",
+    "Boards & Platters",
     "Browse Kelly's Deli grazing and charcuterie boards — charcuterie, cheese, savoury and smoked salmon in small, medium and large. Collection from the deli in Solihull, 25% deposit, 48 hours' notice.",
   );
   const navigate = useNavigate();
   const [boards, setBoards] = useState<Platter[] | null>(null);
   const [counts, setCounts] = useState<CategoryCounts | null>(null);
+  const [sort, setSort] = useSort();
 
   useEffect(() => {
     api.boards().then(setBoards).catch(() => setBoards([]));
     api.categories().then(setCounts).catch(() => setCounts(null));
   }, []);
 
-  const startOrder = (p: Platter) => {
-    addBoard(p.id);
-    openCartDrawer();
-  };
-
   // Group first, then split by tier on the leading variant — otherwise a board whose sizes
   // sit in different tiers would appear twice.
-  const groups = groupVariants(boards ?? []);
-  const signature = groups.filter((g) => g.lead.tier === "signature");
-  const gallery = groups.filter((g) => g.lead.tier !== "signature");
+  const groups = useMemo(() => groupVariants(boards ?? []), [boards]);
+  const sorted = useMemo(() => sortGroups(groups, sort), [groups, sort]);
+  const signature = sorted.filter((g) => g.lead.tier === "signature");
+  const gallery = sorted.filter((g) => g.lead.tier !== "signature");
+
+  // Size guide: every size of every board, smallest crowd first — the catering customer's
+  // question is "what feeds 20?", not "what's on the cheese board?".
+  const sizeRows = useMemo(
+    () =>
+      groups
+        .flatMap((g) =>
+          g.variants.map((v) => ({
+            id: v.id,
+            leadId: g.lead.id,
+            name: g.lead.name,
+            size: g.hasChoice ? (v.variantLabel ?? v.name).replace(/\s*[—-]\s*feeds.*$/i, "") : null,
+            serves: v.serves,
+            min: v.feedsMin ?? Number((v.serves ?? "").match(/\d+/)?.[0] ?? 0),
+            max: v.feedsMax ?? maxFeeds({ ...g, variants: [v] }),
+            price: v.fixedPrice ?? v.fromPrice ?? 0,
+          })),
+        )
+        .filter((r) => r.serves)
+        .sort((a, b) => a.min - b.min || a.max - b.max || a.price - b.price),
+    [groups],
+  );
+
+  // ProductCard's photo carries alt text; give it the aria-label the image audit reads too.
+  // (No-op for the engraved art, which is already labelled.)
+  useEffect(() => {
+    document
+      .querySelectorAll<HTMLImageElement>(".platters-page img.board-card-img:not([aria-label])")
+      .forEach((img) => img.setAttribute("aria-label", img.alt));
+  }, [sorted]);
+
+  const planMyEvent = () => navigate("/plan");
 
   return (
-    <div className="app app-wide platters-page">
-            <h1 className="page-h">Order a board</h1>
-      {counts?.reviewRating && <Stars rating={counts.reviewRating} count={counts.reviewCount} />}
-      <DeadlineChip />
+    <div className="collection platters-page">
+      <PageHero
+        crumbs={[{ to: "/", label: "Home" }, { label: "Boards & Platters" }]}
+        eyebrow="The board counter"
+        title="Boards & Platters"
+        intro="Grazing boards for two, platters for twenty — built by hand at the deli on the day you collect. 48 hours' notice, and a 25% deposit holds your date."
+        art="Charcuterie Board"
+      >
+        <a className="btn" href="#signature">Shop the boards</a>
+        <a className="btn btn-secondary" href="#size-guide">How many does it feed?</a>
+      </PageHero>
 
-      <button className="plan-banner" onClick={() => navigate("/plan")}>
-        <span className="pb-title">Catering for a group?</span>
-        <span className="pb-sub">Plan my event — we&apos;ll suggest the right spread →</span>
-      </button>
+      <ul className="cfacts" aria-label="How ordering works">
+        <li><DeadlineChip /></li>
+        <li>25% deposit secures your date</li>
+        {counts?.reviewRating ? <li className="cfacts-stars"><Stars rating={counts.reviewRating} count={counts.reviewCount} /></li> : <li>Balance paid on collection</li>}
+      </ul>
 
-      {boards === null && <p className="muted">Loading boards…</p>}
+      {boards !== null && groups.length > 0 && (
+        <CollectionToolbar count={groups.length} sort={sort} onSort={setSort} />
+      )}
+
+      {boards === null && <div className="collection-loading" role="status">Loading boards…</div>}
 
       {signature.length > 0 && (
-        <section className="board-section">
-          <h2 className="section-h">Signature boards</h2>
-          <div className="board-grid">
-            {signature.map((g, i) => {
-              const p = g.lead;
-              const toDetail = (e: React.MouseEvent<HTMLElement>) =>
-                morphNavigate(
-                  navigate,
-                  `/platter/${p.id}`,
-                  e.currentTarget.closest("article")?.querySelector(".board-card-img") as HTMLElement | null,
-                );
-              return (
-                <article key={p.id} className="board-card card" data-reveal data-reveal-delay={String(i % 2)}>
-                  <div
-                    className="board-card-img"
-                    style={{ backgroundImage: p.imageUrl ? `url(${p.imageUrl})` : undefined }}
-                    role="img"
-                    aria-label={p.name}
-                  />
-                  <div className="board-card-body">
-                    <h3 className="board-card-name">{p.name}</h3>
-                    <p className="board-card-price">{priceFeeds(g)}</p>
-                    <p className="board-card-desc muted">{p.description.replace(/\s*\[CHECK PRICE.*?\]\s*$/i, "")}</p>
-                    <div className="board-card-actions">
-                      {/* One-tap add only makes sense when there is nothing to choose. With sizes,
-                          the primary button opens the page where the choice is made. */}
-                      {g.hasChoice ? (
-                        <button className="btn" onClick={toDetail}>
-                          Choose a size · {g.variants.length} options
-                        </button>
-                      ) : (
-                        <>
-                          <button className="btn" onClick={() => startOrder(p)}>Order · {gbp(p.fixedPrice ?? 0)}</button>
-                          <button className="btn-ghost" onClick={toDetail}>Details</button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
+        <section className="section" id="signature" aria-labelledby="signature-h">
+          <div className="wrap">
+            <SectionHead
+              id="signature-h"
+              eyebrow="Made every day"
+              title="Signature boards"
+              intro="The boards we're known for, in the sizes people ask for most."
+            />
+            <div className="pgrid cgrid" data-n={signature.length}>
+              {signature.map((g) => (
+                <ProductCard key={g.lead.id} group={g} showDescription />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {groups.length > 0 && (
+        <section className="section is-green planner-band" aria-labelledby="planner-band-h">
+          <div className="wrap planner-band-inner">
+            <div>
+              <p className="eyebrow">Feeding a crowd?</p>
+              <h2 id="planner-band-h" className="planner-band-h">Tell us how many. We&apos;ll suggest the spread.</h2>
+              <p className="planner-band-copy">
+                Party, christening or the office do — the event planner starts from your headcount and builds the boards
+                to feed everyone. Swap anything before you order.
+              </p>
+            </div>
+            <div className="planner-band-cta">
+              <button type="button" className="btn" onClick={planMyEvent}>Plan my event</button>
+            </div>
           </div>
         </section>
       )}
 
       {gallery.length > 0 && (
-        <section className="board-section">
-          <h2 className="section-h">More boards</h2>
-          <div className="board-grid">
-            {gallery.map((g) => (
-              <button
-                key={g.lead.id}
-                className="gallery-card card"
-                data-reveal
-                onClick={(e) => morphNavigate(navigate, `/platter/${g.lead.id}`, e.currentTarget.querySelector(".board-card-img") as HTMLElement | null)}
-              >
-                <div
-                  className="board-card-img"
-                  style={{ backgroundImage: g.lead.imageUrl ? `url(${g.lead.imageUrl})` : undefined }}
-                  role="img"
-                  aria-label={g.lead.name}
-                />
-                <div className="board-card-body">
-                  <h3 className="board-card-name">{g.lead.name}</h3>
-                  <p className="board-card-price">{priceFeeds(g)}</p>
-                  <span className="board-card-go">{g.hasChoice ? `${g.variants.length} sizes →` : "View →"}</span>
-                </div>
-              </button>
-            ))}
+        <section className="section" aria-labelledby="more-boards-h">
+          <div className="wrap">
+            <SectionHead id="more-boards-h" eyebrow="From the counter" title="More boards" intro="Something a little different — each one made to order." />
+            <div className="pgrid cgrid gallery-grid" data-n={gallery.length}>
+              {gallery.map((g) => (
+                <button
+                  type="button"
+                  key={g.lead.id}
+                  className="gallery-card"
+                  onClick={(e) => morphNavigate(navigate, `/platter/${g.lead.id}`, e.currentTarget.querySelector(".board-card-img") as HTMLElement | null)}
+                >
+                  <span className="gallery-card-media">
+                    {g.lead.imageUrl ? (
+                      <span
+                        className="board-card-img"
+                        style={{ backgroundImage: `url(${g.lead.imageUrl})` }}
+                        role="img"
+                        aria-label={g.lead.name}
+                      />
+                    ) : (
+                      <ProductArt name={g.lead.name} section={g.lead.section} className="board-card-img" />
+                    )}
+                  </span>
+                  <span className="gallery-card-body">
+                    <span className="gallery-card-name">{g.lead.name}</span>
+                    <span className="gallery-card-price">{priceLine(g)}</span>
+                    <span className="gallery-card-go">{g.hasChoice ? `${g.variants.length} sizes` : "View the board"} <span aria-hidden="true">→</span></span>
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         </section>
       )}
 
       {boards !== null && boards.length === 0 && (
-        <p className="muted">Our boards are being updated — please check back shortly.</p>
+        <section className="section">
+          <div className="wrap-narrow collection-empty">
+            <h2>Our boards are being updated.</h2>
+            <p>Please check back shortly — or tell us about your event and we&apos;ll suggest a spread.</p>
+            <Link className="btn btn-secondary" to="/plan">Open the event planner</Link>
+          </div>
+        </section>
       )}
 
-      <Faq />
+      {sizeRows.length > 0 && (
+        <section className="section is-paper size-guide" id="size-guide" aria-labelledby="size-guide-h">
+          <div className="wrap">
+            <SectionHead
+              id="size-guide-h"
+              eyebrow="Size guide"
+              title="How many does each board feed?"
+              intro="Every board and size, smallest gathering first. For a big number, mix and match — or let the planner do the sums."
+            />
+            <table className="size-table">
+              <caption className="visually-hidden">Every board and size by how many it feeds</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Feeds</th>
+                  <th scope="col">Board</th>
+                  <th scope="col" className="size-price">Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sizeRows.map((r) => (
+                  <tr key={r.id}>
+                    <td className="size-feeds">{range(r.serves!)}</td>
+                    <td className="size-name">
+                      <Link to={`/platter/${r.leadId}`}>
+                        {r.name}
+                        {r.size && <small>{r.size}</small>}
+                      </Link>
+                    </td>
+                    <td className="size-price">{gbp(r.price)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="size-guide-foot">
+              <button type="button" className="btn btn-secondary" onClick={planMyEvent}>Plan my event by headcount</button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <div className="wrap-narrow">
+        <Faq />
+      </div>
 
       <StickyCta label="Plan my event" to="/plan" />
     </div>

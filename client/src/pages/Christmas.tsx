@@ -1,19 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { api, type CategoryCounts, type Platter, type ShopCategory } from "../lib/api";
-import { addBoard } from "../lib/cart";
-import { openCartDrawer } from "../components/CartDrawer";
-import { gbp } from "../lib/format";
 import { usePageTitle } from "../lib/title";
 import { ReminderCapture } from "../components/ReminderCapture";
-import { morphNavigate } from "../lib/motion";
-import { groupVariants, type ProductGroup } from "../lib/variants";
+import { groupVariants } from "../lib/variants";
 import { orderByLabel, orderingClosed } from "../lib/preorder";
 import { loadSiteContent } from "../lib/season";
 import { ProductArt } from "../components/ProductArt";
 import { Crest, Ornament } from "../components/BrandMark";
 import { BasketBar } from "../components/BasketBar";
-import { CART_CHANGED_EVENT } from "../components/CartDrawer";
+import { ProductCard } from "../components/site/ProductCard";
+import { SectionHead } from "../components/site/SectionHead";
 
 const SITE = "https://www.kellysdeli.co.uk";
 
@@ -50,21 +47,11 @@ function daysUntil(iso: string): number {
   return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000));
 }
 
-function priceLine(g: ProductGroup): string {
-  const p = g.lead;
-  const price = g.hasChoice ? `From ${gbp(g.fromPrice)}` : gbp(p.fixedPrice ?? p.fromPrice ?? 0);
-  if (p.kind === "product") return !g.hasChoice && p.unitLabel ? `${price} · ${p.unitLabel}` : price;
-  return p.serves ? `${price} · feeds ${p.serves}` : price;
-}
-
 export default function Christmas() {
-  const navigate = useNavigate();
   const [cat, setCat] = useState<ShopCategory | null>(null);
   const [failed, setFailed] = useState(false);
   const [counts, setCounts] = useState<CategoryCounts | null>(null);
-  // Brief "Added ✓" on the tile that was just added — the drawer opens too, but on a phone
-  // the tile is what the thumb is still on.
-  const [justAdded, setJustAdded] = useState<string | null>(null);
+  const [active, setActive] = useState<string | null>(null);
 
   usePageTitle(
     cat?.seoTitle ?? "Christmas Food Pre-Orders — Hams, Turkey & Hampers | Kelly's Deli",
@@ -78,7 +65,7 @@ export default function Christmas() {
     loadSiteContent().then(setCounts);
   }, []);
 
-  const products = cat?.boards ?? [];
+  const products = useMemo(() => cat?.boards ?? [], [cat]);
   const sections = useMemo(() => {
     const bySection = new Map<string, Platter[]>();
     for (const p of products) {
@@ -89,13 +76,33 @@ export default function Christmas() {
     const rank = (s: string) => (SECTION_ORDER.indexOf(s) === -1 ? 99 : SECTION_ORDER.indexOf(s));
     return [...bySection.entries()]
       .sort(([a], [b]) => rank(a) - rank(b))
-      .map(([name, items]) => ({ name, groups: groupVariants(items) }));
+      .map(([name, items]) => {
+        // The soonest open order-by in the section — shown over its heading.
+        const open = items.filter((p) => p.orderBy && !orderingClosed(p)).map((p) => p.orderBy!).sort();
+        return { name, id: slug(name), groups: groupVariants(items), firstOrderBy: open.length ? open[0] : null };
+      });
   }, [products]);
 
   // The soonest real deadline across the menu — a fact from the data, not invented urgency.
   const lastOrders = useMemo(() => {
     const open = products.filter((p) => p.orderBy && !orderingClosed(p)).map((p) => p.orderBy!);
     return open.length ? open.sort()[0] : null;
+  }, [products]);
+
+  // The Christmas diary: every open order-by date, with what has to be ordered by then.
+  const diary = useMemo(() => {
+    const byDay = new Map<string, { iso: string; names: string[] }>();
+    for (const g of groupVariants(products)) {
+      const p = g.lead;
+      if (!p.orderBy || orderingClosed(p)) continue;
+      const label = orderByLabel(p.orderBy);
+      if (!label) continue;
+      const row = byDay.get(label) ?? { iso: p.orderBy, names: [] };
+      if (!row.names.includes(p.name)) row.names.push(p.name);
+      if (p.orderBy < row.iso) row.iso = p.orderBy;
+      byDay.set(label, row);
+    }
+    return [...byDay.entries()].sort(([, a], [, b]) => (a.iso < b.iso ? -1 : 1)).map(([label, v]) => ({ label, ...v }));
   }, [products]);
 
   // Structured data for the landing page: the Christmas range as an ItemList.
@@ -129,17 +136,37 @@ export default function Christmas() {
     return () => el.remove();
   }, [products]);
 
-  const add = (p: Platter) => {
-    addBoard(p.id);
-    window.dispatchEvent(new CustomEvent(CART_CHANGED_EVENT));
-    setJustAdded(p.id);
-    window.setTimeout(() => setJustAdded((id) => (id === p.id ? null : id)), 1600);
-    openCartDrawer();
-  };
+  // Highlight the section in view in the jump nav (and keep that chip scrolled into view).
+  useEffect(() => {
+    if (sections.length < 2 || !("IntersectionObserver" in window)) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const hit = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (hit) setActive(hit.target.id);
+      },
+      { rootMargin: "-30% 0px -60% 0px" },
+    );
+    sections.forEach((s) => {
+      const el = document.getElementById(`xs-${s.id}`);
+      if (el) io.observe(el);
+    });
+    return () => io.disconnect();
+  }, [sections]);
+
+  useEffect(() => {
+    if (!active) return;
+    const chip = document.querySelector<HTMLElement>(`.xmas-chips a[href="#${active}"]`);
+    const bar = chip?.parentElement;
+    if (chip && bar && bar.scrollWidth > bar.clientWidth) {
+      bar.scrollTo({ left: chip.offsetLeft - bar.clientWidth / 2 + chip.clientWidth / 2, behavior: "smooth" });
+    }
+  }, [active]);
+
+  const empty = failed || (cat && products.length === 0);
+  const daysLeft = lastOrders ? daysUntil(lastOrders) : 0;
 
   return (
-    <div className="app app-wide xmas-page">
-      
+    <div className="collection xmas-page">
       <header className="xmas-hero">
         {cat?.heroImageUrl && <img className="xmas-hero-img" src={cat.heroImageUrl} alt="" aria-hidden="true" onError={(e) => { e.currentTarget.style.display = "none"; }} />}
         <div className="xmas-hero-scrim">
@@ -155,10 +182,10 @@ export default function Christmas() {
             <Link className="btn btn-secondary xmas-cta-alt" to="/plan">Christmas party catering</Link>
           </div>
           {lastOrders && (
-            <p className="xmas-deadline">
-              {orderByLabel(lastOrders)?.replace("Order by", "Last orders")}
-              {daysUntil(lastOrders) > 0 && <> · {daysUntil(lastOrders)} days to go</>}
-            </p>
+            <a className="xmas-deadline" href="#xmas-dates">
+              {orderByLabel(lastOrders)?.replace("Order by", "First order-by date")}
+              {daysLeft > 0 && <> · <strong>{daysLeft} days to go</strong></>}
+            </a>
           )}
         </div>
       </header>
@@ -170,109 +197,118 @@ export default function Christmas() {
         <li>{counts?.paymentsLive ? "Pay securely online" : "Order online in two minutes"}</li>
       </ul>
 
-      <ol className="xmas-steps" aria-label="How Christmas ordering works">
-        <li><span className="xmas-step-n" aria-hidden="true">I</span><strong>Choose your Christmas</strong><span>Hams, turkey, party food, cheese and hampers.</span></li>
-        <li><span className="xmas-step-n" aria-hidden="true">II</span><strong>Pick your day</strong><span>Collect any day in December, up to Christmas Eve.</span></li>
-        <li><span className="xmas-step-n" aria-hidden="true">III</span><strong>Pay, and it&apos;s set aside</strong><span>Waiting with your name on it — no queue.</span></li>
-      </ol>
+      <div className="wrap">
+        <ol className="xmas-steps" aria-label="How Christmas ordering works">
+          <li><span className="xmas-step-n" aria-hidden="true">I</span><strong>Choose your Christmas</strong><span>Hams, turkey, party food, cheese and hampers.</span></li>
+          <li><span className="xmas-step-n" aria-hidden="true">II</span><strong>Pick your day</strong><span>Collect any day in December, up to Christmas Eve.</span></li>
+          <li><span className="xmas-step-n" aria-hidden="true">III</span><strong>Pay, and it&apos;s set aside</strong><span>Waiting with your name on it — no queue.</span></li>
+        </ol>
+      </div>
 
       {sections.length > 1 && (
         <nav className="xmas-chips" aria-label="Jump to a section">
-          {sections.map((sec) => (
-            <a key={sec.name} href={`#xs-${slug(sec.name)}`}>{sec.name}</a>
-          ))}
+          <div className="xmas-chips-track">
+            {sections.map((sec) => (
+              <a key={sec.name} href={`#xs-${sec.id}`} aria-current={active === `xs-${sec.id}` ? "true" : undefined}>
+                {sec.name}
+              </a>
+            ))}
+            {diary.length > 0 && <a href="#xmas-dates" className="xmas-chips-dates">Order-by dates</a>}
+          </div>
         </nav>
       )}
 
       <div id="xmas-menu" className="xmas-menu">
-        {!cat && !failed && <p className="muted center">Loading the Christmas menu…</p>}
+        {!cat && !failed && <div className="collection-loading" role="status">Loading the Christmas menu…</div>}
 
-        {(failed || (cat && products.length === 0)) && (
-          <section className="xmas-empty card">
-            <h2>The Christmas menu is landing very soon.</h2>
-            <p className="muted">
-              Hams, turkey crowns, party food and hampers — leave your details and we&apos;ll tell you the moment
-              ordering opens.
-            </p>
+        {empty && (
+          <section className="section">
+            <div className="wrap-narrow collection-empty xmas-empty">
+              <Crest className="xmas-empty-crest" />
+              <h2>The Christmas menu is landing very soon.</h2>
+              <p>
+                Hams, turkey crowns, party food and hampers — leave your details below and we&apos;ll tell you the moment
+                ordering opens.
+              </p>
+              <a className="btn btn-secondary" href="#xmas-reminder">Remind me when it opens</a>
+            </div>
           </section>
         )}
 
         {sections.map((section) => (
-          <section key={section.name} className="xmas-section" id={`xs-${slug(section.name)}`} aria-labelledby={`xsh-${slug(section.name)}`}>
-            <header className="xmas-section-head">
-              <h2 className="xmas-section-h" id={`xsh-${slug(section.name)}`}>{section.name}</h2>
-              <Ornament />
-            </header>
-            <div className="board-grid">
-              {section.groups.map((g) => {
-                const p = g.lead;
-                const closed = g.variants.every((v) => orderingClosed(v));
-                const deadline = orderByLabel(p.orderBy);
-                const toDetail = (e: React.MouseEvent<HTMLElement>) =>
-                  morphNavigate(navigate, `/platter/${p.id}`, e.currentTarget.closest("article")?.querySelector(".board-card-img") as HTMLElement | null);
-                return (
-                  <article key={p.id} className={`board-card card xmas-card${closed ? " is-closed" : ""}`}>
-                    <button type="button" className="xmas-card-media" onClick={toDetail} aria-label={`More about ${p.name}`}>
-                      {p.imageUrl ? (
-                        <div
-                          className="board-card-img"
-                          style={{ backgroundImage: `url(${p.imageUrl})` }}
-                          role="img"
-                          aria-label={p.imageIllustrative ? `${p.name} (illustrative image)` : p.name}
-                        />
-                      ) : (
-                        <ProductArt name={p.name} section={p.section} className="board-card-img" />
-                      )}
-                      {p.imageIllustrative && p.imageUrl && <span className="illustrative-tag">Illustrative image</span>}
-                    </button>
-                    <div className="board-card-body">
-                      <h3 className="board-card-name"><button type="button" className="xmas-card-title" onClick={toDetail}>{p.name}</button></h3>
-                      <p className="board-card-price">{priceLine(g)}</p>
-                      <p className="board-card-desc muted">{p.description}</p>
-                      {deadline && <p className={`xmas-orderby${closed ? " closed" : ""}`}>{closed ? "Orders closed" : deadline}</p>}
-                      <div className="board-card-actions">
-                        {closed ? (
-                          <button className="btn" disabled>Sold out for Christmas</button>
-                        ) : g.hasChoice ? (
-                          <button className="btn" onClick={toDetail}>Choose a size</button>
-                        ) : (
-                          <>
-                            <button className={`btn${justAdded === p.id ? " is-added" : ""}`} onClick={() => add(p)}>
-                              {justAdded === p.id ? "Added ✓" : "Add to basket"}
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
+          <section key={section.name} className="xmas-section" id={`xs-${section.id}`} aria-labelledby={`xsh-${section.id}`}>
+            <div className="wrap">
+              <SectionHead
+                id={`xsh-${section.id}`}
+                eyebrow={section.firstOrderBy ? orderByLabel(section.firstOrderBy) ?? undefined : `${section.groups.length} to choose from`}
+                title={section.name}
+              />
+              <div className="pgrid cgrid" data-n={section.groups.length}>
+                {section.groups.map((g) => (
+                  <ProductCard key={g.lead.id} group={g} showDescription />
+                ))}
+              </div>
             </div>
           </section>
         ))}
       </div>
 
-      <section className="xmas-bands">
-        <div className="xmas-band">
-          <ProductArt name="Christmas Party Platter" className="xmas-band-art" />
-          <p className="xmas-eyebrow">Entertaining</p>
-          <h2>Christmas party catering</h2>
-          <p>Office do, family get-together or Boxing Day open house — tell us how many and we&apos;ll put the spread together.</p>
-          <Link className="btn btn-secondary" to="/plan">Plan my party food</Link>
-        </div>
-        <div className="xmas-band">
-          <ProductArt name="Hamper" className="xmas-band-art" />
-          <p className="xmas-eyebrow">Corporate gifting</p>
-          <h2>Gifts for clients &amp; staff</h2>
-          <p>Hampers in any quantity, with a printed note in each. Bigger order? We&apos;ll sort it with you.</p>
-          <Link className="btn btn-secondary" to="/shop/office-corporate">Talk to us about gifting</Link>
+      {diary.length > 0 && (
+        <section className="section is-paper xmas-dates" id="xmas-dates" aria-labelledby="xmas-dates-h">
+          <div className="wrap">
+            <SectionHead
+              id="xmas-dates-h"
+              eyebrow="The Christmas diary"
+              title="Order-by dates"
+              intro="Stock is ordered in for you, so each item has its own last day to order. Once a date passes we can't promise it."
+            />
+            <ol className="xmas-diary">
+              {diary.map((d) => {
+                const n = daysUntil(d.iso);
+                return (
+                  <li key={d.label}>
+                    <p className="xmas-diary-date">
+                      {d.label.replace("Order by ", "")}
+                      <span>{n > 0 ? `${n} days to go` : "Today"}</span>
+                    </p>
+                    <p className="xmas-diary-items">{d.names.join(" · ")}</p>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        </section>
+      )}
+
+      <section className="section xmas-bands" aria-label="Catering and gifting">
+        <div className="wrap xmas-bands-grid">
+          <div className="xmas-band">
+            <div className="xmas-band-art"><ProductArt name="Christmas Party Platter" /></div>
+            <div className="xmas-band-copy">
+              <p className="eyebrow">Entertaining</p>
+              <h2>Christmas party catering</h2>
+              <p>Office do, family get-together or Boxing Day open house — tell us how many and we&apos;ll put the spread together.</p>
+              <Link className="btn btn-secondary" to="/plan">Plan my party food</Link>
+            </div>
+          </div>
+          <div className="xmas-band">
+            <div className="xmas-band-art"><ProductArt name="Hamper" /></div>
+            <div className="xmas-band-copy">
+              <p className="eyebrow">Corporate gifting</p>
+              <h2>Gifts for clients &amp; staff</h2>
+              <p>Hampers in any quantity, with a printed note in each. Bigger order? We&apos;ll sort it with you.</p>
+              <Link className="btn btn-secondary" to="/shop/office-corporate">Talk to us about gifting</Link>
+            </div>
+          </div>
         </div>
       </section>
 
-      <ReminderCapture defaultOccasion="Christmas" />
+      <div className="wrap" id="xmas-reminder">
+        <ReminderCapture defaultOccasion="Christmas" />
+      </div>
 
-      <section className="faq">
-        <h2 className="choice-h">Christmas questions</h2>
+      <section className="faq xmas-faq wrap-narrow" aria-labelledby="xmas-faq-h">
+        <SectionHead id="xmas-faq-h" eyebrow="Good to know" title="Christmas questions" />
         {XMAS_FAQ.map((item) => (
           <details className="faq-item" key={item.q}>
             <summary>{item.q}</summary>

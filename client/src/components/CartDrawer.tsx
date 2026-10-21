@@ -7,6 +7,9 @@ import { bestBundleDiscount } from "../lib/bundle-discount";
 import { gbp } from "../lib/format";
 import { DeliVideos } from "./DeliVideos";
 import { trackShoppingEvent } from "../lib/consent";
+import { collectionWindow } from "../lib/preorder";
+import { ProductArt } from "./ProductArt";
+import { Ornament } from "./BrandMark";
 
 /* Smart Cart — the slide-over basket the big DTC stores run as a paid app.
  * Opens on add-to-order, shows the boards with steppers, one-tap add-on upsells
@@ -193,134 +196,194 @@ export function CartDrawer() {
 
   if (!open) return null;
 
+  // Pre-order products set the collection window; boards just need the notice period.
+  const products = lines.filter(({ p }) => p.kind === "product").map(({ p }) => p);
+  const collect = products.length ? collectionWindow(products) : null;
+  const paymentsLive = content?.paymentsLive === true;
+  // Extras sold per person (plates for 20) count once, so the badge reads like the basket looks.
+  const itemCount = lines.reduce((n, l) => n + l.b.quantity, 0) + addOnLines.length;
+
   return (
-    <div className="drawer-root">
-      <button className="drawer-overlay" aria-label="Close basket" onClick={close} />
-      <aside ref={drawerRef} className="drawer" role="dialog" aria-modal="true" aria-label="Your basket">
-        <div className="drawer-head">
-          <h2 className="drawer-h">Your basket</h2>
-          <button ref={closeRef} className="drawer-close" onClick={close} aria-label="Close basket">×</button>
+    <div className="drawer-root bk-root">
+      <button className="bk-overlay" aria-label="Close basket" onClick={close} />
+      <aside ref={drawerRef} className="bk" role="dialog" aria-modal="true" aria-label="Your basket">
+        <div className="bk-head">
+          <div>
+            <h2 className="bk-title">Your basket</h2>
+            {itemCount > 0 && <p className="bk-count">{itemCount} {itemCount === 1 ? "item" : "items"}</p>}
+          </div>
+          <button ref={closeRef} className="bk-close" onClick={close} aria-label="Close basket">
+            <span aria-hidden="true">Close</span>
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.3" /></svg>
+          </button>
         </div>
 
-        <div className="drawer-body">
+        <div className="bk-body">
           {lines.length === 0 && (
-            <div className="drawer-empty">
-              <p className="drawer-empty-lead">Your basket is empty.</p>
+            <div className="bk-empty">
+              <Ornament className="ornament bk-orn" />
+              <p className="bk-empty-lead">Your basket is empty.</p>
+              <p className="bk-empty-sub">Something lovely for the table is only a few taps away.</p>
               {suggestions.length > 0 && (
                 <>
-                  <p className="drawer-upsell-h">Start with one of these</p>
-                  {suggestions.map((s) => (
-                    <Link className="drawer-suggest" key={s.id} to={`/platter/${encodeURIComponent(s.id)}`} onClick={close}>
-                      <span className="drawer-thumb" style={s.imageUrl ? { backgroundImage: `url(${s.imageUrl})` } : undefined} aria-hidden="true" />
-                      <span className="drawer-line-info">
-                        <span className="drawer-line-name">{s.name}</span>
-                        <span className="muted small">
-                          {s.serves ? `Feeds ${s.serves} · ` : ""}
-                          {s.fixedPrice != null ? gbp(s.fixedPrice) : `from ${gbp(s.fromPrice)}`}
-                        </span>
-                      </span>
-                    </Link>
-                  ))}
+                  <p className="bk-label">Start with one of these</p>
+                  <ul className="bk-suggests">
+                    {suggestions.map((s) => (
+                      <li key={s.id}>
+                        <Link className="bk-suggest" to={`/platter/${encodeURIComponent(s.id)}`} onClick={close}>
+                          <Thumb name={s.name} section={s.section ?? "board"} imageUrl={s.imageUrl} />
+                          <span className="bk-line-info">
+                            <span className="bk-name">{s.name}</span>
+                            <span className="bk-meta">
+                              {s.serves ? `Feeds ${s.serves} · ` : ""}
+                              {s.fixedPrice != null ? gbp(s.fixedPrice) : `from ${gbp(s.fromPrice)}`}
+                            </span>
+                          </span>
+                          <span className="bk-chev" aria-hidden="true">→</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
                 </>
               )}
+              <div className="bk-empty-links">
+                <Link to="/platters" onClick={close}>All boards</Link>
+                {content?.season !== "classic" && <Link to="/christmas" onClick={close}>Christmas menu</Link>}
+                <Link to="/bread" onClick={close}>Fresh bread</Link>
+              </div>
             </div>
           )}
 
           {feedsKnown && feedsMax > 0 && (
-            <p className="drawer-feeds" role="status">
+            <p className="bk-feeds" role="status">
               Feeds around <strong>{feedsMin === feedsMax ? feedsMin : `${feedsMin}–${feedsMax}`}</strong> people
             </p>
           )}
 
           {lines.length > 0 && giftOn && (
-            <div className={`gift-bar${giftUnlocked ? " unlocked" : ""}`} role="status">
-              <p className="gift-bar-text">
+            <div className={`bk-gift${giftUnlocked ? " unlocked" : ""}`} role="status">
+              <p className="bk-gift-text">
                 {giftUnlocked
-                  ? <>🎉 Nice one — you&apos;ve earned a free {content!.freeGiftText}!</>
+                  ? <>You&apos;ve earned a free {content!.freeGiftText} — we&apos;ll add it to your order.</>
                   : <>Spend <strong>{gbp(giftRemaining)}</strong> more for a free {content!.freeGiftText}</>}
               </p>
-              <div className="gift-bar-track" aria-hidden="true">
-                <div className="gift-bar-fill" style={{ width: `${giftPct}%` }} />
+              <div className="bk-gift-track" aria-hidden="true">
+                <div className="bk-gift-fill" style={{ width: `${giftPct}%` }} />
               </div>
             </div>
           )}
 
-          {lines.map(({ b, p }) => (
-            <div className="drawer-line" key={b.platterId}>
-              {p.imageUrl && <div className="drawer-thumb" style={{ backgroundImage: `url(${p.imageUrl})` }} aria-hidden="true" />}
-              <div className="drawer-line-info">
-                <span className="drawer-line-name">{p.name}{p.variantLabel ? ` — ${p.variantLabel}` : ""}</span>
-                <span className="muted small">{p.kind === "product" ? (p.variantLabel ? "" : p.unitLabel ?? "") : p.serves ? `Feeds ${p.serves}` : ""}</span>
-                <div className="stepper">
-                  <button onClick={() => setBoardQty(b.platterId, b.quantity - 1)} aria-label={`One fewer ${p.name}`}>−</button>
-                  <span className="stepper-val">{b.quantity}</span>
-                  <button onClick={() => setBoardQty(b.platterId, b.quantity + 1)} aria-label={`One more ${p.name}`}>+</button>
-                </div>
-              </div>
-              <span className="drawer-line-price">{gbp((p.fixedPrice ?? p.fromPrice ?? 0) * b.quantity)}</span>
-            </div>
-          ))}
-
-          {addOnLines.map(({ a, d }) => (
-            <div className="drawer-line" key={a.addOnId}>
-              {d.imageUrl && <div className="drawer-thumb" style={{ backgroundImage: `url(${d.imageUrl})` }} aria-hidden="true" />}
-              <div className="drawer-line-info">
-                <span className="drawer-line-name">{d.name}</span>
-                <div className="stepper">
-                  <button onClick={() => setAddOnQty(a.addOnId, a.quantity - 1)} aria-label={`One fewer ${d.name}`}>−</button>
-                  <span className="stepper-val">{a.quantity}</span>
-                  <button onClick={() => setAddOnQty(a.addOnId, a.quantity + 1)} aria-label={`One more ${d.name}`}>+</button>
-                </div>
-              </div>
-              <span className="drawer-line-price">{gbp(d.price * a.quantity)}</span>
-            </div>
-          ))}
-
-          {lines.length > 0 && completeOffer && <section className="drawer-bundle-offer">
-            <p className="deli-eyebrow">Make it a complete spread</p><h3>{completeOffer.bundle.name}</h3>
-            <p>Add {completeOffer.missing.map((i) => `${i.quantity}× ${i.name}`).join(", ")} to unlock {gbp(completeOffer.bundle.saving)} bundle savings.</p>
-            <button type="button" className="btn" onClick={completeBundle}>Add missing items · {gbp(completeOffer.missing.reduce((sum, i) => sum + i.quantity * i.price, 0))}</button>
-            <p className="muted small">Item price shown before the bundle saving. Your total updates below.</p>
-          </section>}
-          {lines.length > 0 && upsells.length > 0 && (
-            <div className="drawer-upsells">
-              <p className="drawer-upsell-h">Goes well with</p>
-              {upsells.map((u) => (
-                <div className="drawer-upsell" key={u.id}>
-                  {u.imageUrl && <div className="drawer-thumb sm" style={{ backgroundImage: `url(${u.imageUrl})` }} aria-hidden="true" />}
-                  <div className="drawer-line-info">
-                    <span className="drawer-line-name">{u.name}</span>
-                    <span className="muted small">{gbp(u.price)}{u.unitLabel ? ` · ${u.unitLabel}` : ""}</span>
+          {(lines.length > 0 || addOnLines.length > 0) && (
+            <ul className="bk-lines">
+              {lines.map(({ b, p }) => (
+                <li className="bk-line" key={b.platterId}>
+                  <Thumb name={p.name} section={p.section ?? (p.kind === "product" ? null : "board")} imageUrl={p.imageUrl} />
+                  <div className="bk-line-info">
+                    <span className="bk-name">{p.name}</span>
+                    {(p.variantLabel || p.unitLabel || p.serves) && (
+                      <span className="bk-meta">
+                        {p.kind === "product" ? (p.variantLabel ?? p.unitLabel ?? "") : p.variantLabel ?? (p.serves ? `Feeds ${p.serves}` : "")}
+                      </span>
+                    )}
+                    {p.kind === "product" && <span className="bk-tag">{p.payInFull ? "Pre-order · paid in full" : "Pre-order"}</span>}
+                    <div className="bk-row">
+                      <div className="bk-stepper stepper">
+                        <button onClick={() => setBoardQty(b.platterId, b.quantity - 1)} aria-label={`One fewer ${p.name}`}>−</button>
+                        <span className="stepper-val" aria-live="polite">{b.quantity}</span>
+                        <button onClick={() => setBoardQty(b.platterId, b.quantity + 1)} aria-label={`One more ${p.name}`}>+</button>
+                      </div>
+                      <span className="bk-price">{gbp((p.fixedPrice ?? p.fromPrice ?? 0) * b.quantity)}</span>
+                    </div>
                   </div>
-                  <button className="drawer-add" onClick={() => { setAddOnQty(u.id, 1); trackShoppingEvent("basket_extra_added", { item_id: u.id, value: u.price }); }}>Add</button>
-                </div>
+                </li>
               ))}
-            </div>
+
+              {addOnLines.map(({ a, d }) => (
+                <li className="bk-line is-extra" key={a.addOnId}>
+                  <Thumb name={d.name} imageUrl={d.imageUrl} monogram />
+                  <div className="bk-line-info">
+                    <span className="bk-name">{d.name}</span>
+                    {d.unitLabel && <span className="bk-meta">{gbp(d.price)} {d.unitLabel}</span>}
+                    <div className="bk-row">
+                      <div className="bk-stepper stepper">
+                        <button onClick={() => setAddOnQty(a.addOnId, a.quantity - 1)} aria-label={`One fewer ${d.name}`}>−</button>
+                        <span className="stepper-val" aria-live="polite">{a.quantity}</span>
+                        <button onClick={() => setAddOnQty(a.addOnId, a.quantity + 1)} aria-label={`One more ${d.name}`}>+</button>
+                      </div>
+                      <span className="bk-price">{gbp(d.price * a.quantity)}</span>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {lines.length > 0 && completeOffer && <section className="bk-bundle">
+            <p className="eyebrow">Make it a complete spread</p><h3 className="bk-bundle-h">{completeOffer.bundle.name}</h3>
+            <p>Add {completeOffer.missing.map((i) => `${i.quantity}× ${i.name}`).join(", ")} to unlock {gbp(completeOffer.bundle.saving)} bundle savings.</p>
+            <button type="button" className="btn btn-secondary" onClick={completeBundle}>Add missing items · {gbp(completeOffer.missing.reduce((sum, i) => sum + i.quantity * i.price, 0))}</button>
+            <p className="bk-fine">Item price shown before the bundle saving. Your total updates below.</p>
+          </section>}
+
+          {lines.length > 0 && upsells.length > 0 && (
+            <section className="bk-upsells" aria-label="Goes well with">
+              <p className="bk-label">Goes well with</p>
+              <ul>
+                {upsells.map((u) => (
+                  <li className="bk-upsell" key={u.id}>
+                    <div className="bk-line-info">
+                      <span className="bk-upsell-name">{u.name}</span>
+                      <span className="bk-meta">{gbp(u.price)}{u.unitLabel ? ` ${u.unitLabel}` : ""}</span>
+                    </div>
+                    <button className="bk-add" aria-label={`Add ${u.name}`} onClick={() => { setAddOnQty(u.id, 1); trackShoppingEvent("basket_extra_added", { item_id: u.id, value: u.price }); }}>+ Add</button>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
           {lines.length > 0 && <DeliVideos productIds={lines.map((l) => l.p.id)} fill compact onProductNavigate={close} />}
         </div>
 
         {lines.length > 0 && (
-          <div className="drawer-foot">
-            {bundleSaving.amount > 0 && <div className="spread bundle-saving" role="status"><span>{bundleSaving.name} saving</span><span>−{gbp(bundleSaving.amount)}</span></div>}
-            {subscriptionSaving > 0 && <div className="spread"><span>Subscribe &amp; save ({subscriptionPct}%)</span><span>−{gbp(subscriptionSaving)}</span></div>}
-            <div className="spread"><span className="muted">{subscriptionSaving > 0 ? "Total per delivery" : "Total"}</span><strong>{gbp(basketTotal)}</strong></div>
-            {payInFull ? (
-              <div className="spread small"><span>Pay today · in full</span><strong>{gbp(deposit)}</strong></div>
-            ) : (
-              <>
-                <div className="spread small"><span>Pay today · 25% deposit</span><strong>{gbp(deposit)}</strong></div>
-                <div className="spread small muted"><span>Balance on collection</span><span>{gbp(balance)}</span></div>
-              </>
-            )}
-            <button className="btn" onClick={checkout}>Continue — choose collection day</button>
-            <p className="drawer-reassure">
-              {payInFull ? "Paid up front, so your order is set aside and you skip the queue." : "Deposit is fully refundable up to 48 hours before collection."}
+          <div className="drawer-foot bk-foot">
+            <div className="bk-sums">
+              {(bundleSaving.amount > 0 || subscriptionSaving > 0) && <div className="bk-sum muted"><span>Subtotal</span><span>{gbp(totals.total)}</span></div>}
+              {bundleSaving.amount > 0 && <div className="bk-sum is-saving bundle-saving" role="status"><span>{bundleSaving.name} saving</span><span>−{gbp(bundleSaving.amount)}</span></div>}
+              {subscriptionSaving > 0 && <div className="bk-sum is-saving"><span>Subscribe &amp; save ({subscriptionPct}%)</span><span>−{gbp(subscriptionSaving)}</span></div>}
+              <div className="bk-sum is-total"><span>{subscriptionSaving > 0 ? "Total per delivery" : "Total"}</span><strong>{gbp(basketTotal)}</strong></div>
+            </div>
+            <div className="bk-split">
+              <div className="bk-split-col is-now">
+                <span className="bk-split-k">{payInFull ? (paymentsLive ? "Pay today · in full" : "To pay · in full") : (paymentsLive ? "Pay today · 25% deposit" : "To confirm · 25% deposit")}</span>
+                <strong className="bk-split-v">{gbp(deposit)}</strong>
+              </div>
+              <div className="bk-split-col">
+                <span className="bk-split-k">On collection</span>
+                {payInFull
+                  ? <span className="bk-split-v is-none">Nothing to pay</span>
+                  : <strong className="bk-split-v">{gbp(balance)}</strong>}
+              </div>
+            </div>
+            <button className="btn bk-go" onClick={checkout}>Continue — choose collection day</button>
+            <p className="bk-reassure">
+              {payInFull
+                ? paymentsLive ? "Paid up front, so your order is set aside and you skip the queue." : "We'll send a secure payment link to confirm — then it's set aside with your name on it."
+                : "Deposit is fully refundable up to 48 hours before collection."}
+              {" "}{collect?.conflict
+                ? "Some items here have different collection dates — we'll help you sort it at the next step."
+                : collect?.note ?? "Collect from the deli on the day you choose."}
             </p>
-            <button className="btn-ghost drawer-keep" onClick={close}>Keep browsing</button>
+            <button className="bk-keep" onClick={close}>Keep browsing</button>
           </div>
         )}
       </aside>
     </div>
   );
+}
+
+/** Small square thumbnail: the owner's photo, the engraved product art, or a serif monogram. */
+function Thumb({ name, section, imageUrl, monogram = false }: { name: string; section?: string | null; imageUrl: string | null; monogram?: boolean }) {
+  if (imageUrl) return <span className="bk-thumb" style={{ backgroundImage: `url(${imageUrl})` }} aria-hidden="true" />;
+  if (monogram) return <span className="bk-thumb is-mono" aria-hidden="true">{name.charAt(0)}</span>;
+  return <span className="bk-thumb is-art" aria-hidden="true"><ProductArt name={name} section={section} fit="meet" /></span>;
 }

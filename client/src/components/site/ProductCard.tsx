@@ -59,7 +59,7 @@ export function ProductCard({
         {p.imageUrl ? (
           <img className="board-card-img" src={p.imageUrl} alt={p.imageIllustrative ? `${p.name} (illustrative image)` : p.name} width="640" height="480" loading="lazy" />
         ) : (
-          <ProductArt name={p.name} section={p.section} className="board-card-img" />
+          <ProductArt name={p.name} section={p.section ?? (p.kind === "product" ? null : "board")} className="board-card-img" />
         )}
         {p.imageIllustrative && p.imageUrl && <span className="illustrative-tag">Illustrative image</span>}
       </Link>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DeliVideos } from "../components/DeliVideos";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { api, type Platter, type PlatterWithVariants, type CategoryCounts, type SubscriptionFrequency } from "../lib/api";
@@ -9,11 +9,23 @@ import { usePageTitle } from "../lib/title";
 import { DeadlineChip, TrustChips } from "../components/Trust";
 import { SubscribeSave } from "../components/SubscribeSave";
 import { trackViewContent } from "../lib/consent";
-import { pickerHeading } from "../lib/variants";
-import { orderByLabel, orderingClosed } from "../lib/preorder";
+import { pickerHeading, groupVariants, type ProductGroup } from "../lib/variants";
+import { orderByLabel, orderingClosed, shortDate } from "../lib/preorder";
 import { ProductArt } from "../components/ProductArt";
 import { CART_CHANGED_EVENT } from "../components/CartDrawer";
-import { groupVariants } from "../lib/variants";
+import { Breadcrumbs, type Crumb } from "../components/site/PageHero";
+import { ProductCard } from "../components/site/ProductCard";
+import { SectionHead } from "../components/site/SectionHead";
+import { Ornament } from "../components/BrandMark";
+
+/** Which part of the shop a product belongs to — drives the breadcrumb, eyebrow and pairings. */
+function departmentOf(p: Platter): { label: string; to: string; eyebrow: string } {
+  if (p.category === "shop") return { label: "Christmas", to: "/christmas", eyebrow: p.section ?? "Christmas" };
+  if (p.category === "home") return { label: "Boards for a night in", to: "/shop/at-home", eyebrow: "A board for tonight" };
+  return { label: "Boards & platters", to: "/platters", eyebrow: "Boards & platters" };
+}
+
+const priceOf = (p: Platter) => p.fixedPrice ?? p.fromPrice ?? 0;
 
 export default function PlatterDetail() {
   const { id } = useParams();
@@ -24,8 +36,11 @@ export default function PlatterDetail() {
   const [subFreq, setSubFreq] = useState<SubscriptionFrequency | null>(null);
   // Which size/option is chosen. Each one is its own board, so this decides what gets added.
   const [chosenId, setChosenId] = useState<string | null>(null);
-  // "Goes well with": other Christmas lines, only fetched for shop products.
-  const [pairs, setPairs] = useState<Platter[]>([]);
+  // "Goes well with": other Christmas lines for pre-order products, other boards for boards.
+  const [pairs, setPairs] = useState<ProductGroup[]>([]);
+  // Phone-only buy bar, shown once the main button has scrolled up out of view.
+  const [showBar, setShowBar] = useState(false);
+  const addRef = useRef<HTMLButtonElement>(null);
 
   const variants = product?.variants ?? [];
   const platter: Platter | null =
@@ -41,16 +56,42 @@ export default function PlatterDetail() {
   }, [id]);
 
   useEffect(() => {
-    if (product?.category !== "shop") { setPairs([]); return; }
+    if (!product) { setPairs([]); return; }
     let live = true;
-    api.shopCategory("christmas").then((cat) => {
-      if (!live) return;
-      const mine = new Set([product.id, ...product.variants.map((v) => v.id)]);
-      const others = groupVariants((cat.boards ?? []).filter((b) => !mine.has(b.id) && !orderingClosed(b))).map((g) => g.lead);
-      // Prefer other sections (ham → cheese, pies, hampers) over more of the same.
-      const sorted = [...others].sort((a, b) => Number(a.section === product.section) - Number(b.section === product.section));
-      setPairs(sorted.slice(0, 3));
-    }).catch(() => live && setPairs([]));
+    const mine = new Set([product.id, ...(product.variants ?? []).map((v) => v.id)]);
+    if (product.category === "shop") {
+      api.shopCategory("christmas").then((cat) => {
+        if (!live) return;
+        const others = groupVariants((cat?.boards ?? []).filter((b) => !mine.has(b.id) && !orderingClosed(b)));
+        // Prefer other sections (ham → cheese, pies, hampers) over more of the same.
+        // Prefer other sections (ham → cheese, pies, hampers) over more of the same, and take
+        // one from each section in turn so the four picks make a fuller table.
+        const bySection = new Map<string, ProductGroup[]>();
+        for (const g of others) {
+          const key = g.lead.section ?? "";
+          if (key === (product.section ?? "")) continue;
+          bySection.set(key, [...(bySection.get(key) ?? []), g]);
+        }
+        const picks: ProductGroup[] = [];
+        const queues = Array.from(bySection.values());
+        for (let round = 0; picks.length < 4 && queues.some((q) => q.length > round); round++) {
+          for (const q of queues) if (q[round] && picks.length < 4) picks.push(q[round]);
+        }
+        if (picks.length < 4) picks.push(...others.filter((g) => !picks.includes(g)).slice(0, 4 - picks.length));
+        setPairs(picks);
+      }).catch(() => live && setPairs([]));
+    } else {
+      // Boards: the owner's other boards — same shelf first (at-home with at-home), best-loved first.
+      api.platters().then((all) => {
+        if (!live || !Array.isArray(all)) return;
+        const boards = all.filter((b) => b && b.kind !== "product" && b.active !== false && (b.category === "board" || b.category === "home") && !mine.has(b.id) && !orderingClosed(b));
+        const groups = groupVariants(boards).filter((g) => !g.variants.some((v) => mine.has(v.id)));
+        const sorted = [...groups].sort((a, b) =>
+          Number(b.lead.category === product.category) - Number(a.lead.category === product.category)
+          || (b.lead.recommendPriority ?? 0) - (a.lead.recommendPriority ?? 0));
+        setPairs(sorted.slice(0, 4));
+      }).catch(() => live && setPairs([]));
+    }
     return () => { live = false; };
   }, [product]);
 
@@ -91,6 +132,23 @@ export default function PlatterDetail() {
     return () => { el.remove(); };
   }, [platter]);
 
+  // Watch the main button: once it has scrolled up and away, offer the phone buy bar.
+  const loaded = !!platter;
+  useEffect(() => {
+    if (!loaded) return;
+    const check = () => {
+      const el = addRef.current;
+      setShowBar(!!el && el.getBoundingClientRect().bottom < 0);
+    };
+    check();
+    window.addEventListener("scroll", check, { passive: true });
+    window.addEventListener("resize", check);
+    return () => {
+      window.removeEventListener("scroll", check);
+      window.removeEventListener("resize", check);
+    };
+  }, [loaded]);
+
   const order = () => {
     if (!platter) return;
     // Persist the Subscribe & Save choice onto the cart so it carries into checkout.
@@ -119,157 +177,255 @@ export default function PlatterDetail() {
 
   if (error) {
     return (
-      <div className="app">
-                <div className="notice danger">{error}</div>
-        <Link className="btn btn-secondary" to="/platters">Back to boards</Link>
+      <div className="pdp">
+        <div className="wrap pdp-state">
+          <p className="eyebrow">Sorry</p>
+          <h1 className="pdp-state-h">We couldn&apos;t find that one.</h1>
+          <p className="pdp-state-p">{error}</p>
+          <Link className="btn btn-secondary" to="/platters">Back to boards</Link>
+        </div>
       </div>
     );
   }
   if (!platter) {
-    return <div className="app"><p className="muted center">Loading…</p></div>;
+    return <div className="pdp"><div className="wrap pdp-state"><p className="muted" role="status">Loading…</p></div></div>;
   }
 
+  const dept = departmentOf(platter);
   const cleanDesc = platter.description.replace(/\s*\[CHECK PRICE.*?\]\s*$/i, "");
+  // Sizes often share one photo — fall back to any sibling's rather than showing a hole.
   const heroImage = platter.imageUrl ?? variants.find((v) => v.imageUrl)?.imageUrl ?? null;
+  const illustrative = heroImage ? (platter.imageUrl ? platter.imageIllustrative : variants.find((v) => v.imageUrl)?.imageIllustrative) : false;
+  const hasSizes = variants.length > 1;
+  const fromPrice = hasSizes ? Math.min(...variants.map(priceOf)) : price;
+  const unitLine = isProduct
+    ? [platter.unitLabel, platter.serves ? `serves ${platter.serves}` : null].filter(Boolean).join(" · ")
+    : platter.serves ? `Feeds ${platter.serves}` : "";
+  const deadline = platter.orderBy ? orderByLabel(platter.orderBy) : null;
+  const nice = (d: string) => shortDate(new Date(`${d}T12:00:00Z`));
+  const collectSpan = !isProduct ? null
+    : platter.collectFrom && platter.collectTo ? `Collect ${nice(platter.collectFrom)} – ${nice(platter.collectTo)}`
+    : platter.collectFrom ? `Collect from ${nice(platter.collectFrom)}`
+    : platter.collectTo ? `Collect by ${nice(platter.collectTo)}` : null;
+  const leadHours = platter.leadTimeHours ?? 48;
+  const crumbs: Crumb[] = [{ to: "/", label: "Home" }, { to: dept.to, label: dept.label }, { label: platter.name }];
+  const buyLabel = closed ? "Orders closed" : effSub
+    ? `Start a subscription — ${gbp(subPrice)} / board`
+    : `Add & continue — ${gbp(platter.fixedPrice ?? platter.fromPrice)}`;
 
   return (
-    <div className="app app-wide">
-            {platter.category === "shop"
-        ? <Link to="/christmas" className="btn-ghost back">← Christmas menu</Link>
-        : <Link to="/platters" className="btn-ghost back">← Back to boards</Link>}
+    <div className={`pdp${isProduct ? " is-preorder" : " is-board"}${showBar ? " has-bar" : ""}`}>
+      <div className="wrap">
+        <div className="pdp-crumbrow">
+          <Breadcrumbs items={crumbs} />
+          {platter.category === "shop"
+            ? <Link to="/christmas" className="pdp-back">← Christmas menu</Link>
+            : <Link to="/platters" className="pdp-back">← Back to boards</Link>}
+        </div>
 
-      <div className="detail-grid">
-        {/* Sizes often share one photo — fall back to any sibling's rather than showing a hole. */}
-        {!heroImage && isProduct && (
-          <div className="detail-photo-wrap"><ProductArt name={platter.name} section={platter.section} className="detail-art" /></div>
-        )}
-        {heroImage && (
-          <div className="detail-photo-wrap">
-            <div className="detail-photo arch vt-hero" style={{ backgroundImage: `url(${heroImage})` }} role="img" aria-label={platter.imageIllustrative ? `${platter.name} (illustrative image)` : platter.name} />
-            {platter.imageIllustrative && <span className="illustrative-tag">Illustrative image — real photo coming soon</span>}
+        <div className="pdp-main">
+          <div className="pdp-media">
+            <figure className="pdp-frame">
+              {heroImage ? (
+                <img className="pdp-photo vt-hero" src={heroImage} alt={illustrative ? `${platter.name} (illustrative image)` : platter.name} width="1000" height="1000" />
+              ) : (
+                <ProductArt name={platter.name} section={platter.section ?? (isProduct ? null : "board")} className="pdp-art" fit="meet" />
+              )}
+              {heroImage && illustrative && <figcaption className="pdp-illus">Illustrative image — real photo coming soon</figcaption>}
+            </figure>
           </div>
-        )}
 
-        <div className="detail-buy">
-          <div className="spread" style={{ marginTop: 18, alignItems: "flex-start" }}>
-            <h1 style={{ margin: 0 }}>{platter.name}</h1>
-            <div className="price">
-              <strong>{gbp(platter.fixedPrice ?? platter.fromPrice)}</strong>
+          <div className="pdp-buy">
+            <p className="eyebrow pdp-eyebrow">{dept.eyebrow}</p>
+            <h1 className="pdp-title">{platter.name}</h1>
+            <Ornament className="ornament pdp-orn" />
+
+            <div className="pdp-pricebar">
+              <p className="pdp-price">
+                <span className="pdp-price-now">{gbp(price)}</span>
+                {hasSizes && <span className="pdp-price-from">From {gbp(fromPrice)} · {variants.length} {pickerHeading(variants) === "Choose your size" ? "sizes" : "options"}</span>}
+              </p>
+              {unitLine && <p className="pdp-unit">{unitLine}</p>}
+            </div>
+
+            {deadline && (
+              <p className={`pdp-orderby${closed ? " is-closed" : ""}`}>
+                {closed ? "Orders for this have closed" : <strong>{deadline}</strong>}
+              </p>
+            )}
+
+            <p className="pdp-desc">{cleanDesc}</p>
+
+            {hasSizes && (
+              <fieldset className="pdp-sizes size-picker">
+                <legend className="pdp-sizes-legend">{pickerHeading(variants)}</legend>
+                <div className="pdp-size-list">
+                  {variants.map((v) => (
+                    <label key={v.id} className={`pdp-size${v.id === platter.id ? " is-selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="board-size"
+                        value={v.id}
+                        checked={v.id === platter.id}
+                        onChange={() => choose(v)}
+                      />
+                      <span className="pdp-size-dot" aria-hidden="true" />
+                      <span className="pdp-size-text">
+                        <span className="pdp-size-label">{v.variantLabel ?? v.name}</span>
+                        {/* Owners naturally write "Large — feeds 12-15", so only add the feeds line
+                            when the label hasn't already said it. */}
+                        {!isProduct && v.serves && !(v.variantLabel ?? "").includes(v.serves) && (
+                          <span className="pdp-size-sub">Feeds {v.serves}</span>
+                        )}
+                        {isProduct && v.serves && <span className="pdp-size-sub">Serves {v.serves}</span>}
+                      </span>
+                      <span className="pdp-size-price">{gbp(v.fixedPrice ?? v.fromPrice)}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+
+            {subOn && (
+              <SubscribeSave value={subFreq} onChange={setSubFreq} discountPct={subPct} />
+            )}
+
+            <button ref={addRef} className="btn pdp-add" onClick={order} disabled={closed}>
+              {buyLabel}
+            </button>
+            <p className="pdp-reassure">
+              {effSub
+                ? paymentsLive
+                  ? "25% deposit for your first board today — we'll set your schedule up with you and confirm each board."
+                  : "No card taken now — we'll set your schedule up with you and confirm each board."
+                : platter.payInFull
+                  ? "Paid at checkout · set aside with your name on it · pick your collection day"
+                  : "Only 25% today · balance on collection · fully refundable up to 48 hrs before"}
+            </p>
+
+            {isProduct && !closed && (
+              <ul className="pdp-assure pdp-assure-list" aria-label="Pre-order details">
+                {collectSpan && <li>{collectSpan}</li>}
+                <li>{platter.payInFull ? "Paid in full up front" : "25% deposit · balance on collection"}</li>
+                <li>Set aside with your name on it</li>
+              </ul>
+            )}
+
+            {!isProduct && (
+              <div className="pdp-assure">
+                <DeadlineChip />
+                {/* The deposit/refund chips describe catering boards, not paid-in-full pre-orders. */}
+                <TrustChips />
+                <p className="pdp-prebook">
+                  <strong>Planning ahead?</strong> Pick a future date at checkout to book this for a birthday or celebration —
+                  25% locks it in, and you can add a gift note.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <section className="pdp-details" aria-labelledby="pdp-details-h">
+          <div className="pdp-details-head">
+            <p className="eyebrow">Good to know</p>
+            <h2 id="pdp-details-h" className="pdp-details-title">The particulars</h2>
+          </div>
+          <div className="pdp-acc">
+            <details className="pdp-acc-item" open>
+              <summary>What&apos;s inside</summary>
+              <div className="pdp-acc-body">
+                {platter.items.length > 0 ? (
+                  <ul className="pdp-items">
+                    {platter.items.map((it) => <li key={it.label}>{it.label}</li>)}
+                  </ul>
+                ) : (
+                  <p>{cleanDesc}</p>
+                )}
+                {unitLine && <p className="pdp-acc-note"><span className="pdp-k">{isProduct ? "Each" : "Size"}</span>{unitLine}</p>}
+                {platter.items.length === 0 && !isProduct && <p className="muted">Want to know exactly what goes on this board? Ask us — we&apos;re happy to talk you through it.</p>}
+              </div>
+            </details>
+
+            <details className="pdp-acc-item">
+              <summary>Collection &amp; payment</summary>
+              <div className="pdp-acc-body">
+                {isProduct ? (
+                  <section className="preorder-how" aria-label="How pre-ordering works">
+                    <ol className="pdp-steps">
+                      <li>Add it to your basket and pick any collection day{platter.collectTo ? " up to " + new Date(`${platter.collectTo}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long" }) : ""}.</li>
+                      <li>{platter.payInFull ? "Pay securely online — it's then set aside with your name on it." : "Pay the 25% deposit to lock it in."}</li>
+                      <li>Pop in on the day, give your name, and it&apos;s ready.</li>
+                    </ol>
+                    <dl className="pdp-facts">
+                      {deadline && <div><dt>Order by</dt><dd>{closed ? "Orders have closed" : deadline.replace(/^Order by /, "")}</dd></div>}
+                      {collectSpan && <div><dt>Collection</dt><dd>{collectSpan.replace(/^Collect /, "")}</dd></div>}
+                      <div><dt>Payment</dt><dd>{platter.payInFull ? "Paid in full when you order" : "25% deposit today, balance on collection"}</dd></div>
+                    </dl>
+                  </section>
+                ) : (
+                  <>
+                    <ol className="pdp-steps">
+                      <li>Add it to your basket, then choose your collection day — any day from {leadHours} hours&apos; time, or months ahead for a birthday or celebration.</li>
+                      <li>{platter.payInFull ? "Pay in full at checkout — it's then set aside with your name on it." : "Pay a 25% deposit to confirm. The balance is paid when you collect."}</li>
+                      <li>Collect it from the deli on the day, ready for the table.</li>
+                    </ol>
+                    <dl className="pdp-facts">
+                      <div><dt>Notice</dt><dd>{leadHours} hours</dd></div>
+                      <div><dt>Payment</dt><dd>{platter.payInFull ? "Paid in full when you order" : "25% deposit · balance on collection"}</dd></div>
+                      {!platter.payInFull && <div><dt>Changes</dt><dd>Deposit fully refundable up to 48 hours before collection</dd></div>}
+                      <div><dt>Extras</dt><dd>Plates, cutlery and napkins are offered at the next step, sized to your numbers</dd></div>
+                    </dl>
+                  </>
+                )}
+              </div>
+            </details>
+
+            <details className="pdp-acc-item">
+              <summary>Allergens &amp; dietary</summary>
+              <div className="pdp-acc-body">
+                {isProduct ? (
+                  <p>Allergies or a question about this? Add a note when you order or ring the shop — we&apos;ll sort it.</p>
+                ) : (
+                  <p>Allergies or dietary needs? Every board can be adapted — tell us in the notes when you order and
+                    we&apos;ll confirm with you directly.</p>
+                )}
+                <p className="muted">We don&apos;t list full allergen information online, so please ask us before you order if anyone at the table has an allergy — we&apos;ll tell you exactly what&apos;s in it.</p>
+              </div>
+            </details>
+          </div>
+        </section>
+
+        <DeliVideos productId={platter.id} />
+      </div>
+
+      {pairs.length > 0 && (
+        <section className="section is-paper pdp-pairs" aria-labelledby="pdp-pairs-h">
+          <div className="wrap">
+            <SectionHead
+              id="pdp-pairs-h"
+              eyebrow={isProduct ? "From the Christmas menu" : "From the deli"}
+              title="Goes well with"
+              action={isProduct ? { to: "/christmas", label: "The full Christmas menu" } : { to: "/platters", label: "See every board" }}
+              align="left"
+            />
+            <div className="pgrid is-4">
+              {pairs.map((g) => <ProductCard key={g.lead.id} group={g} />)}
             </div>
           </div>
-          {isProduct
-            ? platter.unitLabel && <p className="serves">{platter.unitLabel}{platter.serves ? ` · serves ${platter.serves}` : ""}</p>
-            : platter.serves && <p className="serves">Feeds {platter.serves}</p>}
-          {platter.orderBy && <p className={`xmas-orderby${closed ? " closed" : ""}`}>{closed ? "Orders for this have closed" : orderByLabel(platter.orderBy)}</p>}
+        </section>
+      )}
 
-          <p className="detail-desc">{cleanDesc}</p>
-
-          {variants.length > 1 && (
-            <fieldset className="size-picker">
-              <legend className="size-picker-legend">{pickerHeading(variants)}</legend>
-              <div className="size-options">
-                {variants.map((v) => (
-                  <label key={v.id} className={`size-option${v.id === platter.id ? " is-selected" : ""}`}>
-                    <input
-                      type="radio"
-                      name="board-size"
-                      value={v.id}
-                      checked={v.id === platter.id}
-                      onChange={() => choose(v)}
-                    />
-                    <span className="size-option-label">{v.variantLabel ?? v.name}</span>
-                    {/* Owners naturally write "Large — feeds 12-15", so only add the feeds line
-                        when the label hasn't already said it. */}
-                    {!isProduct && v.serves && !(v.variantLabel ?? "").includes(v.serves) && (
-                      <span className="size-option-serves">Feeds {v.serves}</span>
-                    )}
-                    <span className="size-option-price">{gbp(v.fixedPrice ?? v.fromPrice)}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          )}
-
-          {subOn && (
-            <SubscribeSave value={subFreq} onChange={setSubFreq} discountPct={subPct} />
-          )}
-
-          <button className="btn" onClick={order} disabled={closed}>
-            {closed ? "Orders closed" : effSub
-              ? `Start a subscription — ${gbp(subPrice)} / board`
-              : `Add & continue — ${gbp(platter.fixedPrice ?? platter.fromPrice)}`}
+      {showBar && (
+        <div className="pdp-bar" role="region" aria-label="Add to basket">
+          <div className="pdp-bar-info">
+            <span className="pdp-bar-name">{platter.name}</span>
+            <span className="pdp-bar-sub">{platter.variantLabel ?? unitLine}</span>
+          </div>
+          <button type="button" className="btn pdp-bar-btn" onClick={order} disabled={closed}>
+            {closed ? "Closed" : effSub ? `Subscribe · ${gbp(subPrice)}` : `Add to basket · ${gbp(price)}`}
           </button>
-          <p className="buy-reassure">
-            {effSub
-              ? paymentsLive
-                ? "25% deposit for your first board today — we'll set your schedule up with you and confirm each board."
-                : "No card taken now — we'll set your schedule up with you and confirm each board."
-              : platter.payInFull
-                ? "Paid at checkout · set aside with your name on it · pick your collection day"
-                : "Only 25% today · balance on collection · fully refundable up to 48 hrs before"}
-          </p>
-
-          {!isProduct && (
-            <>
-              <p className="prebook-hint muted">
-                🎂 <strong>Planning ahead?</strong> Pick a future date at checkout to book this for a birthday or celebration —
-                25% locks it in, and you can add a gift note.
-              </p>
-              <DeadlineChip />
-            </>
-          )}
-
-          {platter.items.length > 0 && (
-            <>
-              <h2 className="detail-h2">What&apos;s inside</h2>
-              <ul className="detail-items">
-                {platter.items.map((it) => <li key={it.label}>{it.label}</li>)}
-              </ul>
-            </>
-          )}
-
-          {/* The deposit/refund chips describe catering boards, not paid-in-full pre-orders. */}
-          {!isProduct && <TrustChips />}
-          <DeliVideos productId={platter.id} />
-          {isProduct && (
-            <section className="preorder-how" aria-label="How pre-ordering works">
-              <h2>How it works</h2>
-              <ol>
-                <li>Add it to your basket and pick any collection day{platter.collectTo ? " up to " + new Date(`${platter.collectTo}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long" }) : ""}.</li>
-                <li>{platter.payInFull ? "Pay securely online — it's then set aside with your name on it." : "Pay the 25% deposit to lock it in."}</li>
-                <li>Pop in on the day, give your name, and it&apos;s ready.</li>
-              </ol>
-            </section>
-          )}
-
-          {pairs.length > 0 && (
-            <section className="pairs">
-              <h2 className="detail-h2">Goes well with</h2>
-              <div className="pairs-grid">
-                {pairs.map((p) => (
-                  <Link key={p.id} to={`/platter/${p.id}`} className="pairs-card">
-                    {p.imageUrl
-                      ? <div className="pairs-img" style={{ backgroundImage: `url(${p.imageUrl})` }} role="img" aria-label={p.name} />
-                      : <ProductArt name={p.name} section={p.section} />}
-                    <span>{p.name}</span>
-                    <span className="muted">{gbp(p.fixedPrice ?? p.fromPrice ?? 0)}</span>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {isProduct ? (
-            <p className="muted footnote">
-              Allergies or a question about this? Add a note when you order or ring the shop — we&apos;ll sort it.
-            </p>
-          ) : <p className="muted footnote">
-            Allergies or dietary needs? Every board can be adapted — tell us in the notes when you order and
-            we&apos;ll confirm with you directly. Extras like plates, cutlery and napkins are offered at the
-            next step, sized to your numbers.
-          </p>}
         </div>
-      </div>
+      )}
     </div>
   );
 }
