@@ -141,9 +141,16 @@
   .home-door:hover { border-color: var(--gold); box-shadow: 0 14px 30px rgb(22 53 44 / 8%); }
   .home-door:hover .home-door-title { text-decoration: none; }
 }
+/* Stacked cards (art on top): three doors from tablet width, four from laptop width. */
+@media (min-width: 760px) {
+  .home-door-list.is-3 { grid-template-columns: repeat(3, 1fr); }
+  .home-door-list.is-3 .home-door { grid-template-columns: 1fr; align-content: start; padding: 0 0 18px; }
+  .home-door-list.is-3 .home-door-art { outline: 0; border-bottom: 1px solid var(--hairline); }
+  .home-door-list.is-3 .door-art { aspect-ratio: 16/7; }
+  .home-door-list.is-3 .home-door-body { padding: 14px 18px 0; }
+}
 @media (min-width: 1100px) {
   .home-door-list.is-4 { grid-template-columns: repeat(4, 1fr); }
-  .home-door-list.is-3 { grid-template-columns: repeat(3, 1fr); }
   .home-door { grid-template-columns: 1fr; align-content: start; padding: 0 0 18px; }
   .home-door-art { outline: 0; border-bottom: 1px solid var(--hairline); }
   .home-door-art .door-art { aspect-ratio: 16/6; }

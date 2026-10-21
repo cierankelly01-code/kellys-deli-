@@ -676,3 +676,30 @@ button.co-step-btn:hover .co-step-l { color: var(--green); }
 .co-sum-toggle-t { display: inline-flex; align-items: center; gap: 10px; }
 .co-caret { display: inline-block; width: 7px; height: 7px; border-right: 1.3px solid currentColor; border-bottom: 1.3px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform var(--dur-std) ease; }
 .co-summary.is-open .co-caret { transform: translateY(1px) rotate(225deg); }
+.legal-page .legal-head .eyebrow { color: var(--gold-text); }
+.nf-page .nf-actions { flex-direction: row; align-items: center; }
+@media (max-width: 699px) {
+  .plan-event .pl-chips { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .plan-event .pl-chip { grid-column: span 2; min-height: 80px; }
+  .plan-event .pl-chip:nth-child(n + 4) { grid-column: span 3; }
+  .plan-event .pl-aside-photo { aspect-ratio: 16/9; }
+  .plan-event .pl-aside-cap { margin-top: 16px; }
+  .plan-event .pl-aside-cap strong { font-size: 1.3rem; }
+}
+@media (min-width: 700px) { .plan-event .pl-chips { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+@media (max-width: 480px) {
+  .co-steps { flex-wrap: nowrap; }
+  .co-step + .co-step::before { width: 12px; margin: 0 6px; flex: 0 0 auto; }
+  .co-step-btn { gap: 6px; font-size: .55rem; letter-spacing: .12em; white-space: nowrap; }
+  .co-step-n { width: 24px; height: 24px; font-size: .66rem; }
+}
+@media (max-width: 380px) {
+  .co-step:not(.is-active) .co-step-l { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+.co-sum-toggle-r small { white-space: nowrap; }
+.co .ss-badge { border-radius: 0; background: var(--green); color: var(--ivory); font-size: .62rem; letter-spacing: .1em; }
+.co .ss-head { font-family: var(--serif); font-size: 1.2rem; }
+.co .ss-head input { accent-color: var(--green); width: 18px; height: 18px; }
+.co .ss-badge { font-weight: 500; }
+.co .ss-freq { border-radius: 0; border-color: var(--hairline); background: var(--ivory); font-weight: 500; font-size: .66rem; letter-spacing: .16em; text-transform: uppercase; }
+.co .ss-freq.active { background: var(--green); border-color: var(--green); color: var(--ivory); }

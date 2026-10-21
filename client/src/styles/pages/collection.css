@@ -453,7 +453,7 @@ td.size-price { font-size: .95rem; color: var(--ink); }
   flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 52px; padding: 0 18px; scroll-snap-align: start;
   border-bottom: 2px solid transparent; margin-bottom: -1px; color: var(--ink);
 }
-.xmas-page .xmas-chips a[aria-current="true"] { color: var(--green); border-bottom-color: var(--gold); }
+.xmas-page .xmas-chips a[aria-current="true"] { color: var(--green); border-bottom-color: transparent; box-shadow: inset 0 -2px 0 var(--gold); }
 .xmas-page .xmas-chips a.xmas-chips-dates { color: var(--berry, var(--gold-text)); }
 @media (max-width: 600px) { .xmas-page .xmas-chips a { padding: 0 14px; font-size: .58rem; letter-spacing: .18em; } }
 
@@ -526,7 +526,7 @@ td.size-price { font-size: .95rem; color: var(--ink); }
 .collection .section.is-green + .section,
 .collection .gift-section + .section { padding-top: clamp(48px, 7vw, 96px); }
 @media (max-width: 760px) {
-  .planner-band-inner { padding: 16px 18px; }
+  .planner-band-inner { padding: 16px 30px; }
   .planner-band::before { inset: 10px; }
 }
 /* Phone: two cards side by side keep their buttons on one line whether or not a card
@@ -538,3 +538,10 @@ td.size-price { font-size: .95rem; color: var(--ink); }
 .collection .deli-reminder-fields label { font-size: .6rem; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-soft); }
 .collection .deli-reminder-fields .input { margin-top: 6px; border-radius: 0; border-color: var(--hairline); background-color: var(--ivory); }
 .collection .deli-reminder .deli-eyebrow { margin: 0 0 12px; }
+
+/* theme.css sets overflow-x: hidden on html AND body, which turns body into a scroll
+   container that never scrolls — so position: sticky silently does nothing. `clip`
+   still stops sideways scroll without creating a scroll container. Scoped to these
+   pages here; the same one-word change in theme.css would fix it site-wide. */
+html:has(.collection), html:has(.collection) body { overflow-x: clip; }
+.collection .section + .wrap-narrow > .faq { margin-top: 0; }
