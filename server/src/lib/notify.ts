@@ -106,7 +106,7 @@ export async function notifyOrderReceived(t: NotifyTarget, o: OrderNotifyInput):
       (balance > 0 ? `Balance (£${balance.toFixed(2)}) payable on collection.` : `Nothing more to pay.`)
     : `Thanks ${t.name} — your Kelly's Deli order request ${o.ref} is in. ` +
       `Collection ${o.collectionDate} at ${o.locationName}. Total £${o.total.toFixed(2)}. ` +
-      `We'll contact you shortly with a secure payment link for a 25% deposit (£${o.deposit.toFixed(2)}) to confirm your order. ` +
+      `We'll contact you shortly with a secure payment link for ${o.deposit >= o.total ? "the full amount" : "a 25% deposit"} (£${o.deposit.toFixed(2)}) to confirm your order. ` +
       `The balance (£${balance.toFixed(2)}) is payable on collection.`;
 
   const data = {

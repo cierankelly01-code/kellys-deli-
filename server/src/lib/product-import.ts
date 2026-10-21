@@ -4,9 +4,14 @@
 // Open Graph tags every page has for social sharing.
 //
 // The server fetches a URL the admin typed, so it's guarded against being pointed at
-// internal addresses (SSRF): http(s) only, every hop's address must be public, redirects
-// are followed by hand so each one is re-checked, and size/time are capped.
+// internal addresses (SSRF): http(s) only, and the address check runs INSIDE the
+// connection's DNS lookup — so the address that was checked is the one connected to (no
+// DNS-rebinding gap). Redirects are followed by hand so every hop is checked; size and
+// time are capped. Uses node:http(s) rather than fetch, which has no lookup hook.
 import dns from "node:dns/promises";
+import type { LookupAddress, LookupOptions } from "node:dns";
+import http from "node:http";
+import https from "node:https";
 import net from "node:net";
 
 const MAX_HTML_BYTES = 3 * 1024 * 1024;
@@ -16,6 +21,16 @@ const MAX_REDIRECTS = 4;
 const UA = "Mozilla/5.0 (compatible; KellysDeliProductImport/1.0; +https://www.kellysdeli.co.uk)";
 
 export class ImportError extends Error {}
+
+/** The IPv4 address hidden inside an IPv4-mapped/compatible/NAT64 IPv6 address, if any. */
+function embeddedV4(v6: string): string | null {
+  const m = v6.match(/^(?:::(?:ffff:)?|64:ff9b::)(?:(\d+\.\d+\.\d+\.\d+)|([0-9a-f]{1,4}):([0-9a-f]{1,4}))$/);
+  if (!m) return null;
+  if (m[1]) return m[1];
+  const hi = parseInt(m[2], 16);
+  const lo = parseInt(m[3], 16);
+  return `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
+}
 
 /** True for loopback, private, link-local, CGNAT, multicast and other non-public addresses. */
 export function isPrivateAddress(ip: string): boolean {
@@ -31,11 +46,13 @@ export function isPrivateAddress(ip: string): boolean {
     );
   }
   const v6 = ip.toLowerCase();
-  if (v6.startsWith("::ffff:")) return isPrivateAddress(v6.slice(7));
-  return v6 === "::" || v6 === "::1" || v6.startsWith("fc") || v6.startsWith("fd") || v6.startsWith("fe80") || v6.startsWith("ff");
+  const v4 = embeddedV4(v6);
+  if (v4) return isPrivateAddress(v4);
+  // ::, ::1, and fc00::/7 (unique local), fe80::/10 (link-local), fec0::/10, ff00::/8 (multicast).
+  return v6 === "::" || v6 === "::1" || /^f[c-f]/.test(v6);
 }
 
-async function assertPublicUrl(raw: string): Promise<URL> {
+function checkUrl(raw: string): URL {
   let url: URL;
   try {
     url = new URL(raw);
@@ -44,50 +61,87 @@ async function assertPublicUrl(raw: string): Promise<URL> {
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") throw new ImportError("Only http(s) links can be imported");
   if (url.username || url.password) throw new ImportError("Links with logins in them can't be imported");
+  // An IP written straight into the link skips DNS (and so the lookup guard): check it here.
   const host = url.hostname.replace(/^\[|\]$/g, "");
-  const addrs = net.isIP(host) ? [host] : (await dns.lookup(host, { all: true }).catch(() => [])).map((a) => a.address);
-  if (addrs.length === 0) throw new ImportError("Couldn't find that website");
-  if (addrs.some(isPrivateAddress)) throw new ImportError("That address isn't a public website");
+  if (net.isIP(host) && isPrivateAddress(host)) throw new ImportError("That address isn't a public website");
   return url;
 }
 
-/** GET a public URL, re-validating every redirect hop. Returns the final response body. */
+type LookupCallback = (err: Error | null, address?: string | LookupAddress[], family?: number) => void;
+
+/** dns.lookup that refuses to hand the socket any non-public address. */
+function guardedLookup(hostname: string, options: LookupOptions, callback: LookupCallback): void {
+  dns.lookup(hostname, { all: true }).then(
+    (addrs) => {
+      if (addrs.length === 0) return callback(new ImportError("Couldn't find that website"));
+      if (addrs.some((a) => isPrivateAddress(a.address))) return callback(new ImportError("That address isn't a public website"));
+      if (options?.all) callback(null, addrs);
+      else callback(null, addrs[0].address, addrs[0].family);
+    },
+    () => callback(new ImportError("Couldn't find that website")),
+  );
+}
+
+interface RawResponse {
+  status: number;
+  location?: string;
+  contentType: string;
+  body: Buffer;
+}
+
+function getOnce(url: URL, accept: string, maxBytes: number): Promise<RawResponse> {
+  return new Promise((resolve, reject) => {
+    const mod = url.protocol === "https:" ? https : http;
+    const req = mod.get(
+      url,
+      {
+        headers: { "User-Agent": UA, Accept: accept, "Accept-Language": "en-GB,en;q=0.9" },
+        lookup: guardedLookup as unknown as net.LookupFunction,
+        timeout: TIMEOUT_MS,
+      },
+      (res) => {
+        const status = res.statusCode ?? 0;
+        if (status >= 300 && status < 400) {
+          res.resume();
+          return resolve({ status, location: res.headers.location, contentType: "", body: Buffer.alloc(0) });
+        }
+        if (Number(res.headers["content-length"] ?? 0) > maxBytes) {
+          res.destroy();
+          return reject(new ImportError("That page is too large to import"));
+        }
+        const chunks: Buffer[] = [];
+        let total = 0;
+        res.on("data", (chunk: Buffer) => {
+          total += chunk.length;
+          if (total > maxBytes) {
+            res.destroy();
+            reject(new ImportError("That page is too large to import"));
+            return;
+          }
+          chunks.push(chunk);
+        });
+        res.on("end", () => resolve({ status, contentType: String(res.headers["content-type"] ?? ""), body: Buffer.concat(chunks) }));
+        res.on("error", () => reject(new ImportError("The connection dropped — try again")));
+      },
+    );
+    req.on("timeout", () => req.destroy(new ImportError("That website took too long to answer")));
+    req.on("error", (e) => reject(e instanceof ImportError ? e : new ImportError("Couldn't reach that website — check the link")));
+  });
+}
+
+/** GET a public URL, re-checking every redirect hop. Returns the final response body. */
 async function safeFetch(raw: string, maxBytes: number, accept: string): Promise<{ body: Buffer; contentType: string; finalUrl: string }> {
   let current = raw;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    const url = await assertPublicUrl(current);
-    const res = await fetch(url, {
-      redirect: "manual",
-      headers: { "User-Agent": UA, Accept: accept, "Accept-Language": "en-GB,en;q=0.9" },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    }).catch(() => {
-      throw new ImportError("Couldn't reach that website — check the link");
-    });
+    const url = checkUrl(current);
+    const res = await getOnce(url, accept, maxBytes);
     if (res.status >= 300 && res.status < 400) {
-      const loc = res.headers.get("location");
-      if (!loc) throw new ImportError("That link redirects nowhere");
-      current = new URL(loc, url).toString();
+      if (!res.location) throw new ImportError("That link redirects nowhere");
+      current = new URL(res.location, url).toString();
       continue;
     }
-    if (!res.ok) throw new ImportError(`The supplier's site answered ${res.status} — is the product page public?`);
-    const len = Number(res.headers.get("content-length") ?? 0);
-    if (len > maxBytes) throw new ImportError("That page is too large to import");
-    const reader = res.body?.getReader();
-    const chunks: Uint8Array[] = [];
-    let total = 0;
-    if (reader) {
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        total += value.byteLength;
-        if (total > maxBytes) {
-          await reader.cancel();
-          throw new ImportError("That page is too large to import");
-        }
-        chunks.push(value);
-      }
-    }
-    return { body: Buffer.concat(chunks), contentType: res.headers.get("content-type") ?? "", finalUrl: url.toString() };
+    if (res.status < 200 || res.status >= 300) throw new ImportError(`The supplier's site answered ${res.status} — is the product page public?`);
+    return { body: res.body, contentType: res.contentType, finalUrl: url.toString() };
   }
   throw new ImportError("Too many redirects");
 }

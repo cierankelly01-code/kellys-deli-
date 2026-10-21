@@ -70,23 +70,31 @@ export async function markOrderPaid(ref: string, info: { intentId?: string | nul
   });
   if (flipped.count !== 1) return false;
   const order = await prisma.order.findUnique({ where: { ref } });
-  if (order) await sendOrderNotifications(order.id, Number(order.deposit));
+  // Money that lands on an order the shop already cancelled is recorded (it shows as paid
+  // in admin, ready to refund) but never triggers an "order confirmed" message.
+  if (order && order.status !== "cancelled") await sendOrderNotifications(order.id, Number(order.deposit));
+  else if (order) console.warn(`[payments] payment received for CANCELLED order ${ref} — refund it in Stripe`);
   return true;
 }
 
 /**
  * The webhook-free confirmation path: look the order's Checkout Session up on Stripe and
  * mark it paid if the money's in. Returns the order's current deposit status.
+ *
+ * `sessionId` is the session Stripe sent the customer back from (?session_id=…). It's
+ * checked in preference to the stored one, because a customer can open a fresh payment
+ * link and then pay in an older tab — the money must be found whichever one they used.
  */
-export async function reconcileOrderPayment(ref: string): Promise<string | null> {
+export async function reconcileOrderPayment(ref: string, sessionId?: string): Promise<string | null> {
   const order = await prisma.order.findUnique({ where: { ref } });
   if (!order) return null;
-  if (order.depositStatus !== "pending" || !order.checkoutSessionId) return order.depositStatus;
+  const id = sessionId || order.checkoutSessionId;
+  if (order.depositStatus !== "pending" || !id) return order.depositStatus;
   try {
-    const session = await retrieveCheckoutSession(order.checkoutSessionId);
+    const session = await retrieveCheckoutSession(id);
     // Only trust a session that belongs to this order.
     if (session?.paid && session.orderRef === ref) {
-      await markOrderPaid(ref, { intentId: session.paymentIntentId });
+      await markOrderPaid(ref, { intentId: session.paymentIntentId, sessionId: id });
       return "paid";
     }
   } catch (err) {

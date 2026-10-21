@@ -80,7 +80,7 @@ export interface CheckoutInput {
   orderRef: string;
   amount: number; // pounds, what's due now (deposit or full total)
   description: string; // shown on Stripe's page, e.g. "Deposit for order KD-ABC123"
-  customerEmail: string;
+  customerEmail?: string; // pre-fills Stripe's page; omit on link-shareable retries
   successUrl: string; // may contain {CHECKOUT_SESSION_ID}
   cancelUrl: string;
 }
@@ -117,6 +117,8 @@ export async function createCheckoutSession(input: CheckoutInput): Promise<Check
 
 export interface SessionStatus {
   paid: boolean;
+  status: string | null; // "open" | "complete" | "expired"
+  url: string | null; // still payable at this URL while status is "open"
   orderRef: string | null;
   paymentIntentId: string | null;
   amountTotal: number | null; // pounds
@@ -127,6 +129,8 @@ export async function retrieveCheckoutSession(sessionId: string): Promise<Sessio
   if (!stripeEnabled()) return null;
   const s = await stripeRequest<{
     payment_status: string;
+    status?: string | null;
+    url?: string | null;
     metadata?: { orderRef?: string };
     client_reference_id?: string | null;
     payment_intent?: string | null;
@@ -134,6 +138,8 @@ export async function retrieveCheckoutSession(sessionId: string): Promise<Sessio
   }>("GET", `/checkout/sessions/${encodeURIComponent(sessionId)}`);
   return {
     paid: s.payment_status === "paid",
+    status: s.status ?? null,
+    url: s.url ?? null,
     orderRef: s.metadata?.orderRef ?? s.client_reference_id ?? null,
     paymentIntentId: s.payment_intent ?? null,
     amountTotal: s.amount_total != null ? s.amount_total / 100 : null,

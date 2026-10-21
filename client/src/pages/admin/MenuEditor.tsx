@@ -182,7 +182,7 @@ export default function MenuEditor() {
       payInFull: draft.payInFull,
       imageIllustrative: draft.imageIllustrative,
       // End of the chosen day, UK time (GMT in winter, when this is used most).
-      orderBy: draft.orderBy ? `${draft.orderBy}T23:59:00.000Z` : null,
+      orderBy: draft.orderBy ? `${draft.orderBy}T23:59:59.999Z` : null,
       collectFrom: draft.collectFrom || null,
       collectTo: draft.collectTo || null,
       leadTimeHours: draft.leadTimeHours.trim() ? Math.max(0, parseInt(draft.leadTimeHours, 10) || 0) : null,

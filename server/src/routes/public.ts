@@ -14,14 +14,14 @@ import {
   createBreadOrderSchema,
   breadAvailabilityQuerySchema,
 } from "../lib/validation";
-import { priceOrder, priceLineItemOrder, REFERRAL_DISCOUNT } from "../lib/money";
+import { priceOrder, priceLineItemOrder, REFERRAL_DISCOUNT, toMoney } from "../lib/money";
 import { buildAvailability, canBook, getDayAvailability, meetsNotice, meetsLeadTime, parseDate, formatDate } from "../lib/capacity";
 import { buildBreadAvailability, canBookBread, getBreadDayAvailability, type BreadOrderingSettings } from "../lib/bread-capacity";
 import { recommendBoards, capacity as boardCapacity, type RecBoard } from "../lib/recommender";
 import { genRef, genBreadRef, randomReferralCode } from "../lib/ref";
-import { captureDepositIntent, createCheckoutSession } from "../lib/payments";
+import { captureDepositIntent, createCheckoutSession, retrieveCheckoutSession } from "../lib/payments";
 import { orderWindowError } from "../lib/preorder";
-import { sendOrderNotifications, reconcileOrderPayment } from "../lib/order-payment";
+import { sendOrderNotifications, reconcileOrderPayment, markOrderPaid } from "../lib/order-payment";
 import { env, stripeEnabled } from "../lib/env";
 import { notifyOrderReceived, notifyShopOfOrder, notifyBreadOrderReceived, notifyShopOfBreadOrder, type OrderNotifyInput } from "../lib/notify";
 import type { BreadEmailItem } from "../lib/emailTemplate";
@@ -484,7 +484,9 @@ publicRouter.get("/categories/browse", async (_req, res) => {
     // Count live products only — a category of hidden drafts shouldn't advertise "18 boards".
     include: { _count: { select: { platters: { where: { platter: { active: true } } } } } },
   });
-  res.json(cats.map((c) => categoryDTO(c, { boardCount: c._count.platters })));
+  // Christmas only appears once something in it is on sale (its products ship as drafts);
+  // other categories keep showing while the owner fills them, as before.
+  res.json(cats.filter((c) => c.slug !== "christmas" || c._count.platters > 0).map((c) => categoryDTO(c, { boardCount: c._count.platters })));
 });
 
 // One category + its assigned, active boards (in assignment order) for the landing page.
@@ -644,7 +646,10 @@ publicRouter.get("/experiences/availability", async (req, res) => {
 // --- Order lookup ---
 publicRouter.get("/orders/:ref", async (req, res) => {
   // Back from Stripe: confirm the payment straight from Stripe, no webhook required.
-  if (req.query.paid === "1") await reconcileOrderPayment(req.params.ref);
+  if (req.query.paid === "1") {
+    const sessionId = typeof req.query.session_id === "string" && /^cs_[A-Za-z0-9_]+$/.test(req.query.session_id) ? req.query.session_id : undefined;
+    await reconcileOrderPayment(req.params.ref, sessionId);
+  }
   const order = await prisma.order.findUnique({
     where: { ref: req.params.ref },
     include: { platter: true, experience: true, location: true, customer: true },
@@ -662,12 +667,31 @@ publicRouter.post("/orders/:ref/pay", async (req, res) => {
   if (!order) return res.status(404).json({ error: "Order not found" });
   if (order.status === "cancelled") return res.status(409).json({ error: "This order was cancelled — please place a new one." });
   if (order.depositStatus !== "pending") return res.status(409).json({ error: "This order is already paid." });
+  // Settled with the shop another way (e.g. paid over the phone): never take money twice.
+  if (["confirmed", "collected"].includes(order.status)) return res.status(409).json({ error: "This order is already confirmed — no payment needed." });
+  if (Number(order.deposit) < 0.3) return res.status(409).json({ error: "This order can't be paid online — please ring the shop." });
+  // Pre-orders whose ordering window has since closed can't be paid late.
+  const lines = await prisma.orderItem.findMany({ where: { orderId: order.id }, include: { platter: true } });
+  if (lines.some((l) => l.platter.orderBy && Date.now() > l.platter.orderBy.getTime())) {
+    return res.status(409).json({ error: "Ordering for this has closed — please ring the shop." });
+  }
+  // One live payment page per order: if the last one was paid, record it; if it's still
+  // open, send them back to it rather than opening a second page they could also pay.
+  if (order.checkoutSessionId) {
+    const prev = await retrieveCheckoutSession(order.checkoutSessionId).catch(() => null);
+    if (prev?.paid && prev.orderRef === order.ref) {
+      await markOrderPaid(order.ref, { intentId: prev.paymentIntentId });
+      return res.status(409).json({ error: "This order is already paid." });
+    }
+    if (prev?.status === "open" && prev.url) return res.json({ checkoutUrl: prev.url });
+  }
   const session = await createCheckoutSession({
     orderRef: order.ref,
     amount: Number(order.deposit),
     description: order.paymentType === "full" ? `Kelly's Deli order ${order.ref}` : `25% deposit — Kelly's Deli order ${order.ref}`,
-    customerEmail: order.email,
-    successUrl: `${env.publicUrl}/confirm/${encodeURIComponent(order.ref)}?paid=1`,
+    // No customerEmail here: this endpoint is keyed on the (shareable) ref alone, and the
+    // confirmation page masks the email — Stripe's page mustn't show it in full.
+    successUrl: `${env.publicUrl}/confirm/${encodeURIComponent(order.ref)}?paid=1&session_id={CHECKOUT_SESSION_ID}`,
     cancelUrl: `${env.publicUrl}/confirm/${encodeURIComponent(order.ref)}?cancelled=1`,
   });
   if (!session) return res.status(409).json({ error: "Online payment isn't available right now." });
@@ -935,12 +959,14 @@ publicRouter.post("/orders", async (req, res) => {
           amount: dueNow,
           description: payInFull ? `Kelly's Deli order ${order.ref}` : `25% deposit — Kelly's Deli order ${order.ref}`,
           customerEmail: order.email,
-          successUrl: `${env.publicUrl}/confirm/${encodeURIComponent(order.ref)}?paid=1`,
+          successUrl: `${env.publicUrl}/confirm/${encodeURIComponent(order.ref)}?paid=1&session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: `${env.publicUrl}/confirm/${encodeURIComponent(order.ref)}?cancelled=1`,
         });
         if (session) {
-          checkoutUrl = session.url;
+          // Record the session before handing out its URL — a payment we can't trace back
+          // to the order could only ever be found by the webhook.
           await prisma.order.update({ where: { id: order.id }, data: { checkoutSessionId: session.id } });
+          checkoutUrl = session.url;
         }
       } catch (err) {
         // Stripe down or misconfigured: keep the order (it's committed) and fall back to
@@ -949,7 +975,7 @@ publicRouter.post("/orders", async (req, res) => {
       }
     }
     if (!checkoutUrl) await sendOrderNotifications(order.id);
-    res.status(201).json({ order: { ...orderDTO(order), deposit: dueNow, paymentType: payInFull ? "full" : "deposit" }, pricing: { ...pricing, deposit: dueNow }, freebie, checkoutUrl });
+    res.status(201).json({ order: { ...orderDTO(order), deposit: dueNow, paymentType: payInFull ? "full" : "deposit" }, pricing: { ...pricing, deposit: dueNow, balance: toMoney(pricing.total - dueNow) }, freebie, checkoutUrl });
   } catch (err) {
     if (err instanceof CapacityError) return res.status(409).json({ error: "That date is fully booked at this location" });
     console.error("[orders] create failed", err);

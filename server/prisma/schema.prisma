@@ -383,6 +383,7 @@ model Order {
   @@index([src])
   @@index([type])
   @@index([isSubscription])
+  @@index([checkoutSessionId])
 }
 
 // A board line on a v2 order (signature/gallery board × quantity). unitPrice is a

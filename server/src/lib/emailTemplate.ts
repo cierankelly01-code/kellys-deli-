@@ -183,7 +183,9 @@ export function orderReceivedHtml(d: OrderEmailData): string {
         ${totalsRow("Order total", money(d.total), { strong: true })}
         ${d.paidOnline
           ? totalsRow("Paid online", money(d.paidOnline), { note: "thank you — payment received" })
-          : totalsRow("Deposit to confirm", money(d.deposit), { note: "25% — we'll send a secure payment link" })}
+          : d.deposit >= d.total
+            ? totalsRow("Payment to confirm", money(d.deposit), { note: "paid in full — we'll send a secure payment link" })
+            : totalsRow("Deposit to confirm", money(d.deposit), { note: "25% — we'll send a secure payment link" })}
         ${totalsRow("Balance on collection", d.balance > 0 ? money(d.balance) : "Nothing to pay")}
       </table>
     </td></tr>
@@ -202,7 +204,7 @@ export function orderReceivedHtml(d: OrderEmailData): string {
       <p style="margin:0 0 6px;font-family:${SANS};font-size:15px;line-height:1.7;color:${C.inkSoft};">
         ${d.paidOnline
           ? "Your payment has gone through and your order is confirmed. Just give your name or reference at the counter when you collect."
-          : `We&#39;ll be in touch shortly with a secure link for the ${money(d.deposit)} deposit. Once that&#39;s paid your date is confirmed and locked in.`}
+          : `We&#39;ll be in touch shortly with a secure link for the ${money(d.deposit)} ${d.deposit >= d.total ? "payment" : "deposit"}. Once that&#39;s paid your date is confirmed and locked in.`}
       </p>
       <p style="margin:0 0 22px;font-family:${SANS};font-size:15px;line-height:1.7;color:${C.inkSoft};">
         Anything to change — more people, fewer, a dietary need — just reply to this email or ring us. We&#39;d rather sort it now than on the day.
@@ -234,14 +236,14 @@ export function orderReceivedText(d: OrderEmailData): string {
     lines,
     ``,
     `Order total: ${money(d.total)}`,
-    d.paidOnline ? `Paid online: ${money(d.paidOnline)}` : `Deposit to confirm (25%): ${money(d.deposit)}`,
+    d.paidOnline ? `Paid online: ${money(d.paidOnline)}` : d.deposit >= d.total ? `Payment to confirm (in full): ${money(d.deposit)}` : `Deposit to confirm (25%): ${money(d.deposit)}`,
     `Balance on collection: ${d.balance > 0 ? money(d.balance) : "nothing to pay"}`,
     ``,
     `Collection: ${d.collectionDate} — ${d.locationName}`,
     ``,
     ...(d.paidOnline
       ? [`Your payment has gone through and your order is confirmed. Give your`, `name or reference at the counter when you collect.`]
-      : [`What happens next: we'll be in touch shortly with a secure link for the`, `${money(d.deposit)} deposit. Once that's paid your date is confirmed.`]),
+      : [`What happens next: we'll be in touch shortly with a secure link for the`, `${money(d.deposit)} ${d.deposit >= d.total ? "payment" : "deposit"}. Once that's paid your date is confirmed.`]),
     ``,
     `Anything to change — more people, fewer, a dietary need — just reply to`,
     `this email or ring us.`,
@@ -438,7 +440,7 @@ export function orderShopAlertText(d: OrderEmailData): string {
     lines,
     ``,
     `Total: ${money(d.total)}`,
-    d.paidOnline ? `PAID ONLINE: ${money(d.paidOnline)}` : `Deposit to collect (25%): ${money(d.deposit)}`,
+    d.paidOnline ? `PAID ONLINE: ${money(d.paidOnline)}` : d.deposit >= d.total ? `Payment to collect (in full): ${money(d.deposit)}` : `Deposit to collect (25%): ${money(d.deposit)}`,
     `Balance on collection: ${money(d.balance)}`,
     ``,
     `Manage this order: ${SITE}/admin/orders`,
@@ -470,7 +472,7 @@ export function orderShopAlertHtml(d: OrderEmailData): string {
         ${totalsRow("Total", money(d.total))}
         ${d.paidOnline
           ? totalsRow("Paid online", money(d.paidOnline), { strong: true })
-          : totalsRow("Deposit to collect", money(d.deposit), { strong: true })}
+          : totalsRow(d.deposit >= d.total ? "Payment to collect (full)" : "Deposit to collect", money(d.deposit), { strong: true })}
         ${totalsRow("Balance on collection", money(d.balance))}
       </table>
       <p style="margin:18px 0 0;font-family:${SANS};font-size:14px;color:${C.inkSoft};">

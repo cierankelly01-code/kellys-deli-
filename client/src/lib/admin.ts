@@ -379,6 +379,8 @@ export const adminApi = {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
+  setPaid: (id: string, paid: boolean) =>
+    authedReq<AdminOrder>(`/api/admin/orders/${id}/paid`, { method: "PATCH", body: JSON.stringify({ paid }) }),
   setCollected: (id: string, collected: boolean) =>
     authedReq<AdminOrder>(`/api/admin/orders/${id}/collected`, { method: "PATCH", body: JSON.stringify({ collected }) }),
   supplierSheet: (from: string, to: string) =>

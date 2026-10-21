@@ -75,6 +75,7 @@ export default function Confirm() {
   const [params] = useSearchParams();
   const backFromPayment = params.get("paid") === "1";
   const cancelled = params.get("cancelled") === "1";
+  const sessionId = params.get("session_id");
   const [order, setOrder] = useState<OrderDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
@@ -92,7 +93,7 @@ export default function Confirm() {
     // Back from Stripe: the server checks the payment with Stripe. Card payments clear in
     // a second or two, so if it's still pending, look again a few times before giving up.
     const load = () =>
-      api.getOrder(ref, backFromPayment).then((o) => {
+      api.getOrder(ref, backFromPayment, sessionId).then((o) => {
         if (!live) return;
         setOrder(o);
         if (backFromPayment && o.depositStatus === "pending") {
@@ -102,7 +103,7 @@ export default function Confirm() {
       }).catch((e) => live && setError(e.message));
     load();
     return () => { live = false; window.clearTimeout(timer); };
-  }, [ref, backFromPayment]);
+  }, [ref, backFromPayment, sessionId]);
 
   async function payNow() {
     if (!ref) return;

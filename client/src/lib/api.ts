@@ -551,7 +551,14 @@ export const api = {
       body: JSON.stringify(body),
     }),
   // paid=true when returning from Stripe: the server confirms the payment with Stripe first.
-  getOrder: (ref: string, paid = false) => req<OrderDTO>(`/api/orders/${encodeURIComponent(ref)}${paid ? "?paid=1" : ""}`),
+  // sessionId = the Stripe session they came back from, so the right payment is checked.
+  getOrder: (ref: string, paid = false, sessionId?: string | null) => {
+    const q = new URLSearchParams();
+    if (paid) q.set("paid", "1");
+    if (paid && sessionId) q.set("session_id", sessionId);
+    const qs = q.toString();
+    return req<OrderDTO>(`/api/orders/${encodeURIComponent(ref)}${qs ? `?${qs}` : ""}`);
+  },
   retryPayment: (ref: string) =>
     req<{ checkoutUrl: string }>(`/api/orders/${encodeURIComponent(ref)}/pay`, { method: "POST" }),
   reorder: (contact: string) => req<ReorderResult>(`/api/reorder?contact=${encodeURIComponent(contact)}`),

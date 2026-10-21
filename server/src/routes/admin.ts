@@ -160,7 +160,8 @@ adminRouter.patch("/orders/:id/collected", async (req, res) => {
       : { collectedAt: null, status: existing.status === "collected" ? "confirmed" : existing.status },
     include: { ...ORDER_INCLUDE, customer: true },
   });
-  if (parsed.data.collected) {
+  // Review/referral messages only for a genuine collection — never for a cancelled order.
+  if (parsed.data.collected && order.status === "collected") {
     const flip = await prisma.order.updateMany({ where: { id: order.id, completedNotifiedAt: null }, data: { completedNotifiedAt: new Date() } });
     if (flip.count === 1) {
       const target = { name: order.customerName, phone: order.phone, email: order.email };
@@ -169,6 +170,22 @@ adminRouter.patch("/orders/:id/collected", async (req, res) => {
       if (code) await notifyReferralOffer(target, code, `${env.publicUrl}/order?referral=${code}`);
     }
   }
+  res.json({ ...orderDTO(order), cost: orderCost(order), profit: profitOf(toStatInput(order)) });
+});
+
+// --- Record a payment taken outside the website (phone, card machine, bank transfer) ---
+adminRouter.patch("/orders/:id/paid", async (req, res) => {
+  const parsed = z.object({ paid: z.boolean() }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid request" });
+  const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: "Order not found" });
+  const order = await prisma.order.update({
+    where: { id: req.params.id },
+    data: parsed.data.paid
+      ? { depositStatus: "paid", depositPaidAt: existing.depositPaidAt ?? new Date() }
+      : { depositStatus: "pending", depositPaidAt: null },
+    include: ORDER_INCLUDE,
+  });
   res.json({ ...orderDTO(order), cost: orderCost(order), profit: profitOf(toStatInput(order)) });
 });
 
@@ -190,8 +207,12 @@ adminRouter.get("/supplier-sheet", async (req, res) => {
     },
     include: { items: { include: { platter: true } } },
   });
-  const unpaid = orders.filter((o) => o.checkoutSessionId && o.depositStatus === "pending");
-  const counted = orders.filter((o) => !(o.checkoutSessionId && o.depositStatus === "pending"));
+  // "Awaiting payment" = sent to Stripe, not paid, and not confirmed by the shop either
+  // (an order the owner confirmed after taking payment by phone is real demand).
+  const awaiting = (o: { checkoutSessionId: string | null; depositStatus: string; status: string }) =>
+    !!o.checkoutSessionId && o.depositStatus === "pending" && !["confirmed", "collected"].includes(o.status);
+  const unpaid = orders.filter(awaiting);
+  const counted = orders.filter((o) => !awaiting(o));
   const lines: SupplierSheetInputLine[] = counted.flatMap((o) =>
     o.items.map((i) => ({
       orderRef: o.ref,

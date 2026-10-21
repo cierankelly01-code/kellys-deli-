@@ -42,6 +42,17 @@ export default function Orders() {
 
   useEffect(() => { load(); }, [load]);
 
+  async function togglePaid(o: AdminOrder) {
+    const paid = o.depositStatus !== "paid";
+    if (paid && !window.confirm(`Mark ${o.ref} as paid (${gbp(o.deposit)} taken by phone, card machine or transfer)?`)) return;
+    try {
+      const updated = await adminApi.setPaid(o.id, paid);
+      setOrders((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }
+
   async function changeStatus(id: string, next: string) {
     try {
       const updated = await adminApi.setStatus(id, next);
@@ -125,6 +136,9 @@ export default function Orders() {
                   onClick={() => changeStatus(o.id, "cancelled")}
                 >
                   Cancelled
+                </button>
+                <button className={`status-btn${o.depositStatus === "paid" ? " active" : ""}`} onClick={() => togglePaid(o)}>
+                  {o.depositStatus === "paid" ? "Paid ✓" : "Mark paid"}
                 </button>
               </div>
             </div>
