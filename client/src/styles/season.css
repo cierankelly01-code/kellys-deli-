@@ -1,0 +1,82 @@
+/* Seasonal skin. Everything on the storefront reads colour from tokens, so a season is a
+   token override on <html data-season="…"> (set from Site Settings → "season"), plus a
+   few seasonal components. Switch back to the classic look in January with no deploy. */
+
+html[data-season="christmas"] {
+  --navy: #1b3a2d;        /* evergreen — brand bar, announcement */
+  --brick: #1b3a2d;       /* primary buttons */
+  --brick-dark: #11271e;
+  --ink: #1d2721;
+  --ink-soft: #56615a;
+  --cream: #fbf7ef;
+  --card: #fffdf8;
+  --line: #e5dccb;
+  --mustard: #b8913f;     /* gold — decoration only */
+  --gold-text: #7a5c20;   /* AA gold for text */
+  --olive: #5b7264;
+  --berry: #9b2232;       /* cranberry — seasonal accents */
+  --berry-dark: #7c1a27;
+}
+
+/* Announcement bar becomes the Christmas call-to-action. */
+.season-banner { display: block; background: var(--berry, #9b2232); color: #fff; text-decoration: none; letter-spacing: .04em; }
+.season-banner:hover, .season-banner:focus-visible { background: var(--berry-dark, #7c1a27); }
+.season-banner-cta { font-weight: 700; white-space: nowrap; text-decoration: underline; text-underline-offset: 3px; }
+.deli-header .hdr-nav a.nav-season, .deli-mobile-menu a.nav-season { color: var(--berry, #9b2232); font-weight: 700; }
+
+/* Placeholder-photo honesty label, on tiles and the product page. */
+.xmas-card-media, .detail-photo-wrap { position: relative; }
+.illustrative-tag {
+  position: absolute; left: 10px; bottom: 10px; max-width: calc(100% - 20px);
+  background: rgb(255 255 255 / 90%); color: var(--ink); font-size: .68rem; font-weight: 600;
+  letter-spacing: .02em; padding: 4px 8px; border-radius: 999px; pointer-events: none;
+}
+@media (min-width: 900px) {
+  .detail-grid .detail-photo-wrap { position: sticky; top: 24px; align-self: start; }
+  .detail-grid .detail-photo-wrap .detail-photo { position: static; }
+}
+
+/* ---------- /christmas landing page ---------- */
+.xmas-hero { position: relative; overflow: hidden; border-radius: var(--radius); margin: 12px 0 0; min-height: 360px; background: var(--navy); }
+.xmas-hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.xmas-hero-scrim {
+  position: relative; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px;
+  min-height: 360px; padding: clamp(22px, 5vw, 56px);
+  background: linear-gradient(180deg, rgb(17 39 30 / 10%) 0%, rgb(17 39 30 / 55%) 45%, rgb(17 39 30 / 88%) 100%);
+  color: #fff;
+}
+.xmas-eyebrow { margin: 0; text-transform: uppercase; letter-spacing: .14em; font-size: .72rem; font-weight: 700; color: #f1dca6; }
+.xmas-hero-h { color: #fff; font-size: clamp(2.1rem, 6vw, 4.2rem); margin: 0; max-width: 14ch; }
+.xmas-hero-sub { margin: 0; max-width: 46ch; font-size: clamp(1rem, 2vw, 1.15rem); color: rgb(255 255 255 / 92%); }
+.xmas-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 8px; }
+.xmas-cta { background: var(--berry, #9b2232); border-color: var(--berry, #9b2232); }
+.xmas-cta:hover { background: var(--berry-dark, #7c1a27); }
+.xmas-deadline { background: rgb(255 255 255 / 14%); border: 1px solid rgb(255 255 255 / 35%); border-radius: 999px; padding: 6px 12px; font-size: .85rem; font-weight: 600; }
+
+.xmas-steps { list-style: none; padding: 0; margin: 22px 0; display: grid; gap: 10px; grid-template-columns: 1fr; counter-reset: xs; }
+.xmas-steps li { counter-increment: xs; display: grid; grid-template-columns: 34px 1fr; column-gap: 12px; align-items: start; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px; }
+.xmas-steps li::before { content: counter(xs); grid-row: span 2; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--navy); color: #fff; font-weight: 700; }
+.xmas-steps strong { font-family: var(--serif); font-weight: 500; font-size: 1.05rem; }
+.xmas-steps span { color: var(--ink-soft); font-size: .92rem; }
+@media (min-width: 760px) { .xmas-steps { grid-template-columns: repeat(3, 1fr); } }
+
+.xmas-menu { scroll-margin-top: 16px; }
+.xmas-section { margin: 34px 0 10px; }
+.xmas-section-h { display: flex; align-items: center; gap: 14px; font-size: clamp(1.4rem, 3vw, 2rem); }
+.xmas-section-h::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.xmas-card.is-closed { opacity: .6; }
+.xmas-orderby { display: inline-block; margin: 6px 0 2px; font-size: .78rem; font-weight: 700; color: var(--berry, #9b2232); letter-spacing: .02em; }
+.xmas-orderby.closed { color: var(--ink-soft); }
+.xmas-empty { text-align: center; padding: 30px 20px; margin: 20px 0; }
+
+.xmas-bands { display: grid; gap: 14px; margin: 40px 0; }
+.xmas-band { background: var(--navy); color: #fff; border-radius: var(--radius); padding: 26px; }
+.xmas-band h2 { color: #fff; }
+.xmas-band p { color: rgb(255 255 255 / 85%); margin: 0 0 16px; }
+.xmas-band .btn-secondary { color: #fff; border-color: rgb(255 255 255 / 70%); }
+@media (min-width: 760px) { .xmas-bands { grid-template-columns: 1fr 1fr; } }
+
+@media (max-width: 560px) {
+  .xmas-hero, .xmas-hero-scrim { min-height: 420px; }
+  .season-banner { font-size: .66rem; line-height: 1.5; }
+}

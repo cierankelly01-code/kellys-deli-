@@ -58,6 +58,24 @@ model Platter {
   variantGroup      String? // null = sold on its own
   variantLabel      String? // what the customer picks, e.g. "Large — feeds 10-15"
   variantOrder      Int         @default(0) // lowest leads the shop tile
+  // Pre-order shop products (hams, Christmas lines, supplier-sourced goods) vs catering.
+  // "product" lines don't use catering capacity or headcount; they're ordered for
+  // collection and (when Stripe is live) paid in full up front.
+  kind              String      @default("catering") // catering | product
+  section           String? // shop grouping heading, e.g. "Hams & Joints"
+  unitLabel         String? // what one unit is, e.g. "approx 1kg", "box of 12"
+  payInFull         Boolean     @default(false) // charge the full total online, not the 25% deposit
+  imageIllustrative Boolean     @default(false) // placeholder photo: tile says "Illustrative image"
+  // Ordering window. orderBy = last moment to order; collectFrom/collectTo bound the
+  // collection dates (e.g. 1-24 Dec). All null = normal year-round rules.
+  orderBy           DateTime?
+  collectFrom       DateTime?   @db.Date
+  collectTo         DateTime?   @db.Date
+  leadTimeHours     Int? // overrides the site-wide notice for this product (supplier lead time)
+  // Supplier sourcing — never shown to customers. Drives the admin Supplier Order Sheet.
+  supplierName      String?
+  supplierUrl       String?
+  supplierSku       String?
   orders            Order[]
   orderItems        OrderItem[]
   categories        PlatterCategory[]
@@ -68,6 +86,7 @@ model Platter {
   @@index([boardType])
   @@index([tier])
   @@index([variantGroup])
+  @@index([kind])
 }
 
 // Occasion-based storefront categories (Hosting, At Home, Office & Corporate, …).
@@ -319,6 +338,12 @@ model Order {
   // stamps depositPaidAt. depositIntentId stores the provider's payment-intent id.
   depositIntentId          String?
   depositPaidAt            DateTime?
+  // "deposit" = 25% now, balance on collection. "full" = whole total paid online.
+  paymentType              String       @default("deposit")
+  // Stripe Checkout Session id while a payment is in flight / once paid.
+  checkoutSessionId        String?
+  // Ticked off on the admin Collections list when the customer picks up.
+  collectedAt              DateTime?
   // Subscribe & Save recurring intent (payment-ready, not payment-live). The first order
   // carries a snapshot of the recurring terms; subscription links the ongoing plan.
   isSubscription           Boolean      @default(false)

@@ -5,6 +5,7 @@ import { ImageUpload } from "../../components/ImageUpload";
 import { isValidTrackingId } from "../../lib/consent";
 import { VideoSettings } from "../../components/VideoSettings";
 import { ReminderSettings } from "../../components/ReminderSettings";
+import { SeasonSettings } from "../../components/SeasonSettings";
 
 const DAYS: Array<{ key: keyof OpeningHours; label: string }> = [
   { key: "mon", label: "Monday" }, { key: "tue", label: "Tuesday" }, { key: "wed", label: "Wednesday" },
@@ -113,6 +114,7 @@ export default function SiteSettings() {
   return (
     <div>
       <h1>Site Settings</h1>
+      <SeasonSettings />
       <VideoSettings />
       <ReminderSettings />
       {msg && <div className="notice good">{msg}</div>}

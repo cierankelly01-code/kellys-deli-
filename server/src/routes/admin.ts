@@ -42,14 +42,18 @@ import {
   breadSettingsUpdateSchema,
   breadShopSettingUpdateSchema,
   breadClosureUpsertSchema,
+  importProductSchema,
+  collectedSchema,
 } from "../lib/validation";
+import { buildSupplierSheet, type SupplierSheetInputLine } from "../lib/supplier-sheet";
+import { importProductFromUrl, fetchImage, ImportError } from "../lib/product-import";
 import { calcMargin } from "../lib/money";
 import { parseDate, formatDate } from "../lib/capacity";
 import { buildPrepSheet, type PrepInputOrder } from "../lib/prep-sheet";
 import { buildBakeSheet, type BakeSheetInputOrder } from "../lib/bread-bake-sheet";
 import { summarizeOrders, rankPlattersByMargin, profitOf, type StatOrderInput } from "../lib/stats";
 import { notifyReviewRequest, notifyReferralOffer, notifyBlast } from "../lib/notify";
-import { imageUpload, persistUpload, MAX_UPLOAD_LABEL } from "../lib/uploads";
+import { imageUpload, persistUpload, persistImageBuffer, MAX_UPLOAD_LABEL } from "../lib/uploads";
 import { ImageRejected } from "../lib/image";
 
 export const adminRouter = asyncRouter();
@@ -141,6 +145,97 @@ adminRouter.patch("/orders/:id/status", async (req, res) => {
   res.json({ ...orderDTO(order), cost: orderCost(order), profit: profitOf(toStatInput(order)) });
 });
 
+// --- Tick an order off as collected at the counter (Collections list) ---
+// Separate from status so a counter tick can't fire the review/referral messages twice;
+// ticking also moves the order to "collected", which fires them once (guarded below).
+adminRouter.patch("/orders/:id/collected", async (req, res) => {
+  const parsed = collectedSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid request" });
+  const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: "Order not found" });
+  const order = await prisma.order.update({
+    where: { id: req.params.id },
+    data: parsed.data.collected
+      ? { collectedAt: new Date(), status: existing.status === "cancelled" ? existing.status : "collected" }
+      : { collectedAt: null, status: existing.status === "collected" ? "confirmed" : existing.status },
+    include: { ...ORDER_INCLUDE, customer: true },
+  });
+  if (parsed.data.collected) {
+    const flip = await prisma.order.updateMany({ where: { id: order.id, completedNotifiedAt: null }, data: { completedNotifiedAt: new Date() } });
+    if (flip.count === 1) {
+      const target = { name: order.customerName, phone: order.phone, email: order.email };
+      await notifyReviewRequest(target, GOOGLE_REVIEW_URL);
+      const code = order.customer?.referralCode;
+      if (code) await notifyReferralOffer(target, code, `${env.publicUrl}/order?referral=${code}`);
+    }
+  }
+  res.json({ ...orderDTO(order), cost: orderCost(order), profit: profitOf(toStatInput(order)) });
+});
+
+// --- Supplier Order Sheet: what to buy from each supplier for orders in a date range ---
+// Counts every live order's lines, except orders sent to Stripe that haven't paid (an
+// abandoned payment page must never make the owner buy stock).
+adminRouter.get("/supplier-sheet", async (req, res) => {
+  const q = z
+    .object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() })
+    .safeParse(req.query);
+  if (!q.success) return res.status(400).json({ error: "Invalid dates" });
+  const from = q.data.from ?? formatDate(new Date());
+  const to = q.data.to ?? formatDate(new Date(Date.now() + 60 * 86_400_000));
+  const orders = await prisma.order.findMany({
+    where: {
+      status: { not: "cancelled" },
+      collectionOrDeliveryDate: { gte: parseDate(from), lte: parseDate(to) },
+      type: { in: ["platter", "gift", "preorder"] },
+    },
+    include: { items: { include: { platter: true } } },
+  });
+  const unpaid = orders.filter((o) => o.checkoutSessionId && o.depositStatus === "pending");
+  const counted = orders.filter((o) => !(o.checkoutSessionId && o.depositStatus === "pending"));
+  const lines: SupplierSheetInputLine[] = counted.flatMap((o) =>
+    o.items.map((i) => ({
+      orderRef: o.ref,
+      collectionDate: formatDate(o.collectionOrDeliveryDate),
+      quantity: i.quantity,
+      platterId: i.platterId,
+      name: i.platter.name,
+      variantLabel: i.platter.variantLabel,
+      unitLabel: i.platter.unitLabel,
+      supplierName: i.platter.supplierName,
+      supplierSku: i.platter.supplierSku,
+      supplierUrl: i.platter.supplierUrl,
+      unitCost: Number(i.platter.cost),
+      leadTimeHours: i.platter.leadTimeHours,
+    })),
+  );
+  res.json({ from, to, orderCount: counted.length, awaitingPayment: unpaid.length, groups: buildSupplierSheet(lines) });
+});
+
+// --- Paste a supplier product link -> pre-filled product details ---
+adminRouter.post("/import-product", async (req, res) => {
+  const parsed = importProductSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Paste a full link, starting https://" });
+  try {
+    res.json(await importProductFromUrl(parsed.data.url));
+  } catch (err) {
+    if (err instanceof ImportError) return res.status(422).json({ error: err.message });
+    throw err;
+  }
+});
+
+// --- Save a photo from a link into our own storage (resized like any upload) ---
+adminRouter.post("/import-image", async (req, res) => {
+  const parsed = importProductSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Paste a full image link" });
+  try {
+    const url = await persistImageBuffer(await fetchImage(parsed.data.url));
+    res.status(201).json({ url });
+  } catch (err) {
+    if (err instanceof ImportError || err instanceof ImageRejected) return res.status(422).json({ error: (err as Error).message });
+    throw err;
+  }
+});
+
 // --- Kitchen prep sheet (platter + gift orders only; experiences aren't kitchen-prepped) ---
 adminRouter.get("/prep-sheet", async (req, res) => {
   const { locationId, date } = req.query as Record<string, string | undefined>;
@@ -150,7 +245,7 @@ adminRouter.get("/prep-sheet", async (req, res) => {
   if (!location) return res.status(404).json({ error: "Location not found" });
 
   const orders = await prisma.order.findMany({
-    where: { locationId, collectionOrDeliveryDate: parseDate(date), status: { not: "cancelled" }, type: { in: ["platter", "gift"] } },
+    where: { locationId, collectionOrDeliveryDate: parseDate(date), status: { not: "cancelled" }, type: { in: ["platter", "gift", "preorder"] } },
     include: { platter: true, items: { include: { platter: true } } },
     orderBy: { createdAt: "asc" },
   });
@@ -257,6 +352,32 @@ interface PlatterFallback {
   variantGroup?: string | null;
   variantLabel?: string | null;
   variantOrder?: number;
+  product?: Partial<Record<(typeof PRODUCT_FIELDS)[number], unknown>>;
+}
+
+// Pre-order/supplier fields: an omitted key keeps the stored value, an explicit null clears it.
+const PRODUCT_FIELDS = [
+  "kind", "section", "unitLabel", "payInFull", "imageIllustrative", "orderBy", "collectFrom",
+  "collectTo", "leadTimeHours", "supplierName", "supplierUrl", "supplierSku",
+] as const;
+
+function productData(d: import("../lib/validation").PlatterUpsertInput, fallback?: PlatterFallback["product"]) {
+  const pick = <K extends (typeof PRODUCT_FIELDS)[number]>(k: K) => (k in d ? d[k] : fallback?.[k]);
+  const date = (v: unknown) => (typeof v === "string" ? parseDate(v) : v instanceof Date ? v : null);
+  return {
+    kind: (pick("kind") as string | undefined) ?? "catering",
+    section: (pick("section") as string | null | undefined) ?? null,
+    unitLabel: (pick("unitLabel") as string | null | undefined) ?? null,
+    payInFull: (pick("payInFull") as boolean | undefined) ?? false,
+    imageIllustrative: (pick("imageIllustrative") as boolean | undefined) ?? false,
+    orderBy: (() => { const v = pick("orderBy"); return typeof v === "string" ? new Date(v) : v instanceof Date ? v : null; })(),
+    collectFrom: date(pick("collectFrom")),
+    collectTo: date(pick("collectTo")),
+    leadTimeHours: (pick("leadTimeHours") as number | null | undefined) ?? null,
+    supplierName: (pick("supplierName") as string | null | undefined) || null,
+    supplierUrl: (pick("supplierUrl") as string | null | undefined) || null,
+    supplierSku: (pick("supplierSku") as string | null | undefined) || null,
+  };
 }
 
 function platterData(d: import("../lib/validation").PlatterUpsertInput, fallback?: PlatterFallback) {
@@ -288,6 +409,7 @@ function platterData(d: import("../lib/validation").PlatterUpsertInput, fallback
     variantGroup: "variantGroup" in d ? (d.variantGroup ?? null) : (fallback?.variantGroup ?? null),
     variantLabel: "variantLabel" in d ? (d.variantLabel ?? null) : (fallback?.variantLabel ?? null),
     variantOrder: d.variantOrder ?? fallback?.variantOrder ?? 0,
+    ...productData(d, fallback?.product),
   };
 }
 
@@ -317,6 +439,7 @@ adminRouter.patch("/platters/:id", async (req, res) => {
       variantGroup: exists.variantGroup,
       variantLabel: exists.variantLabel,
       variantOrder: exists.variantOrder,
+      product: Object.fromEntries(PRODUCT_FIELDS.map((k) => [k, exists[k]])),
     }),
   });
   res.json(platterDTO(updated, { includeCost: true }));

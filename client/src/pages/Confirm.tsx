@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, type OrderDTO } from "../lib/api";
 import { gbp, formatDateLong } from "../lib/format";
 import { Header } from "../components/Header";
@@ -72,14 +72,43 @@ function downloadIcs(order: OrderDTO): void {
 
 export default function Confirm() {
   const { ref } = useParams();
+  const [params] = useSearchParams();
+  const backFromPayment = params.get("paid") === "1";
+  const cancelled = params.get("cancelled") === "1";
   const [order, setOrder] = useState<OrderDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
   usePageTitle("Order confirmed");
 
   useEffect(() => {
     if (!ref) return;
-    api.getOrder(ref).then(setOrder).catch((e) => setError(e.message));
-  }, [ref]);
+    let live = true;
+    let tries = 0;
+    // Back from Stripe: the server checks the payment with Stripe. Card payments clear in
+    // a second or two, so if it's still pending, look again a few times before giving up.
+    const load = () =>
+      api.getOrder(ref, backFromPayment).then((o) => {
+        if (!live) return;
+        setOrder(o);
+        if (backFromPayment && o.depositStatus === "pending" && ++tries < 6) setTimeout(load, 2000);
+      }).catch((e) => live && setError(e.message));
+    load();
+    return () => { live = false; };
+  }, [ref, backFromPayment]);
+
+  async function payNow() {
+    if (!ref) return;
+    setPaying(true);
+    setPayError(null);
+    try {
+      const { checkoutUrl } = await api.retryPayment(ref);
+      window.location.assign(checkoutUrl);
+    } catch (e) {
+      setPayError(e instanceof Error ? e.message : "Couldn't open the payment page.");
+      setPaying(false);
+    }
+  }
 
   if (error) {
     return (
@@ -101,16 +130,36 @@ export default function Confirm() {
       ? [{ id: "primary", platterId: order.platterId ?? "", platterName: order.platterName, quantity: order.quantity ?? 1, unitPrice: 0, lineTotal: 0 }]
       : [];
 
+  const paid = order.depositStatus === "paid";
+  const full = order.paymentType === "full";
+  // Sent to Stripe but not paid: backed out, or the card hasn't cleared yet.
+  const awaitingPayment = !paid && (cancelled || backFromPayment);
+
   return (
     <div className="app">
       <Header />
       <div className="confirm-hero center">
-        <div className="tick">✓</div>
-        <h1>Your order request is in!</h1>
+        <div className="tick">{awaitingPayment ? "!" : "✓"}</div>
+        <h1>{paid ? "You're all sorted!" : awaitingPayment ? "Your order isn't paid yet" : "Your order request is in!"}</h1>
         <p className="confirm-copy">
-          Thanks — your order request is in. We&apos;ll contact you shortly with a secure payment link for a 25% deposit
-          to confirm your order. The balance is payable on collection.
+          {paid
+            ? full
+              ? "Payment received — your order is confirmed and will be set aside with your name on it. Just give your name or reference at the counter."
+              : "Deposit received — your order is confirmed. The balance is payable on collection."
+            : awaitingPayment
+              ? cancelled
+                ? "The payment wasn't finished, so we haven't confirmed this order. Pay below to lock it in."
+                : "We're just checking your payment with the bank — this page will update in a moment."
+              : full
+                ? "Thanks — your order is in. We'll send you a secure payment link to confirm it."
+                : "Thanks — your order request is in. We'll contact you shortly with a secure payment link for a 25% deposit to confirm your order. The balance is payable on collection."}
         </p>
+        {!paid && cancelled && (
+          <>
+            <button className="btn" onClick={payNow} disabled={paying}>{paying ? "Opening payment…" : `Pay ${gbp(order.deposit)} securely`}</button>
+            {payError && <p className="form-error" role="alert">{payError}</p>}
+          </>
+        )}
         <div className="ref-badge">Order reference<strong>{order.ref}</strong></div>
         <p className="muted save-hint">Screenshot or bookmark this page — your order lives at this link.</p>
         <button className="btn btn-secondary cal-btn" onClick={() => downloadIcs(order)}>
@@ -129,23 +178,23 @@ export default function Confirm() {
         {order.addOns.map((a) => (
           <div key={a.id} className="review-row muted"><span>{a.quantity}× {a.name}</span><span>{gbp(a.lineTotal)}</span></div>
         ))}
-        <div className="review-row"><span className="muted">For</span><span>{order.headcount} people</span></div>
+        {order.type !== "preorder" && <div className="review-row"><span className="muted">For</span><span>{order.headcount} people</span></div>}
         {order.occasion && <div className="review-row"><span className="muted">Occasion</span><span>{order.occasion}</span></div>}
         <div className="review-row"><span className="muted">Collection</span><span>{formatDateLong(order.collectionOrDeliveryDate)}</span></div>
         <div className="review-row"><span className="muted">From</span><span>{order.locationName}</span></div>
         <hr />
         <div className="review-row"><span className="muted">Total</span><span style={{ fontWeight: 700 }}>{gbp(order.total)}</span></div>
         <div className="review-row accent">
-          <span className="muted">Deposit due (25%)</span>
-          <span style={{ fontWeight: 700 }}>{gbp(order.deposit)} <span className="pill warn">{order.depositStatus}</span></span>
+          <span className="muted">{full ? (paid ? "Paid" : "To pay") : paid ? "Deposit paid (25%)" : "Deposit due (25%)"}</span>
+          <span style={{ fontWeight: 700 }}>{gbp(order.deposit)} <span className={`pill ${paid ? "good" : "warn"}`}>{paid ? "paid" : "pending"}</span></span>
         </div>
-        <div className="review-row"><span className="muted">Balance on collection</span><span>{gbp(order.balance)}</span></div>
+        {order.balance > 0 && <div className="review-row"><span className="muted">Balance on collection</span><span>{gbp(order.balance)}</span></div>}
       </div>
 
       {order.customerReferralCode && <ReferralShare code={order.customerReferralCode} />}
 
       <p className="muted center footnote">
-        Deposits are fully refundable up to 48 hours before collection. Need to change something? Quote your reference {order.ref}.
+        {full ? "" : "Deposits are fully refundable up to 48 hours before collection. "}Need to change something? Quote your reference {order.ref}.
       </p>
       <Link className="btn btn-secondary" to="/">Back to menu</Link>
     </div>

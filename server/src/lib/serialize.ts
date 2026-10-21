@@ -69,8 +69,27 @@ export function platterDTO(p: Platter, opts: { includeCost?: boolean } = {}) {
     variantGroup: p.variantGroup,
     variantLabel: p.variantLabel,
     variantOrder: p.variantOrder,
+    // Pre-order shop products (kind "product") + their ordering window.
+    kind: p.kind,
+    section: p.section,
+    unitLabel: p.unitLabel,
+    payInFull: p.payInFull,
+    imageIllustrative: p.imageIllustrative,
+    orderBy: p.orderBy ? p.orderBy.toISOString() : null,
+    collectFrom: p.collectFrom ? formatDate(p.collectFrom) : null,
+    collectTo: p.collectTo ? formatDate(p.collectTo) : null,
+    leadTimeHours: p.leadTimeHours,
   };
-  if (opts.includeCost) return { ...dto, cost: Number(p.cost) };
+  if (opts.includeCost) {
+    // Admin only — supplier sourcing never reaches the storefront.
+    return {
+      ...dto,
+      cost: Number(p.cost),
+      supplierName: p.supplierName,
+      supplierUrl: p.supplierUrl,
+      supplierSku: p.supplierSku,
+    };
+  }
   return dto;
 }
 
@@ -316,6 +335,8 @@ export function orderDTO(
     balance: toMoney(total - deposit), // payable on collection
     depositStatus: o.depositStatus,
     depositPaidAt: o.depositPaidAt ? o.depositPaidAt.toISOString() : null,
+    paymentType: o.paymentType,
+    collectedAt: o.collectedAt ? o.collectedAt.toISOString() : null,
     // Subscribe & Save recurring intent (payment-ready, not payment-live).
     isSubscription: o.isSubscription,
     subscriptionFrequency: o.subscriptionFrequency,

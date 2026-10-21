@@ -69,7 +69,12 @@ export const imageUpload = multer({
 
 /** Resize an uploaded file, persist it, and return a public URL. */
 export async function persistUpload(file: Express.Multer.File): Promise<string> {
-  const image = await processImage(file.buffer);
+  return persistImageBuffer(file.buffer);
+}
+
+/** Resize raw image bytes (e.g. a supplier photo fetched by URL), persist, return its URL. */
+export async function persistImageBuffer(buffer: Buffer): Promise<string> {
+  const image = await processImage(buffer);
   const key = newName(image.ext);
 
   if (useSupabaseStorage) {

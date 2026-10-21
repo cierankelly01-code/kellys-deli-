@@ -13,6 +13,7 @@ import { groupVariants, groupServes, type ProductGroup } from "../lib/variants";
 import { Bundles } from "../components/Bundles";
 import { ReminderCapture } from "../components/ReminderCapture";
 import { DeliVideos } from "../components/DeliVideos";
+import { useSeason } from "../lib/season";
 
 const DAY_LABELS: Array<{ key: keyof OpeningHours; label: string }> = [
   { key: "mon", label: "Mon" }, { key: "tue", label: "Tue" }, { key: "wed", label: "Wed" },
@@ -86,6 +87,8 @@ export default function Choice() {
     openCartDrawer();
   };
 
+  const { season } = useSeason();
+  const xmas = season === "christmas";
   const hours = parseHours(counts?.openingHours ?? null);
   const today = DAY_LABELS[(new Date().getDay() + 6) % 7];
   // One tile per board, not one per size (see lib/variants).
@@ -96,16 +99,28 @@ export default function Choice() {
       <Header />
       <header className="deli-hero">
         <div className="deli-hero-copy">
-          <p className="deli-eyebrow">A little something worth sharing</p>
-          <h1>The deli counter.<br /><em>At your table.</em></h1>
-          <p className="deli-hero-intro">Hand-prepared boards, generous platters and deli favourites. For a table full of friends, or simply something lovely for the weekend.</p>
-          <Link className="btn deli-primary" to={`/platters${suffix}`}>Explore our boards <span aria-hidden="true">↗</span></Link>
-          <p className="deli-hero-note">Made to order. Collected from your local deli.</p>
+          {xmas ? (
+            <>
+              <p className="deli-eyebrow">Christmas at Kelly&apos;s Deli</p>
+              <h1>Christmas,<br /><em>sorted from the deli.</em></h1>
+              <p className="deli-hero-intro">Honey roast and Wiltshire hams, turkey crowns, party food, cheese and hampers. Order now, pay online, collect any day in December.</p>
+              <Link className="btn deli-primary xmas-cta" to={`/christmas${suffix}`}>Order your Christmas <span aria-hidden="true">↗</span></Link>
+              <p className="deli-hero-note">Hosting a do? <Link to={`/plan${suffix}`}>Plan your party food →</Link></p>
+            </>
+          ) : (
+            <>
+              <p className="deli-eyebrow">A little something worth sharing</p>
+              <h1>The deli counter.<br /><em>At your table.</em></h1>
+              <p className="deli-hero-intro">Hand-prepared boards, generous platters and deli favourites. For a table full of friends, or simply something lovely for the weekend.</p>
+              <Link className="btn deli-primary" to={`/platters${suffix}`}>Explore our boards <span aria-hidden="true">↗</span></Link>
+              <p className="deli-hero-note">Made to order. Collected from your local deli.</p>
+            </>
+          )}
           {counts?.reviewRating && <Stars rating={counts.reviewRating} count={counts.reviewCount} />}
         </div>
         <figure className="deli-hero-photo">
-          <img src={counts?.heroImageUrl || DEFAULT_HERO_IMG} alt="A generous spread of cheese, charcuterie and accompaniments" width="1000" height="1100" {...{ fetchpriority: "high" }} />
-          <figcaption><span>THE KELLY’S TABLE</span><span>Something for everyone.</span></figcaption>
+          <img src={xmas ? "/img/christmas/hero.webp" : counts?.heroImageUrl || DEFAULT_HERO_IMG} onError={(e) => { if (!e.currentTarget.src.endsWith(DEFAULT_HERO_IMG)) e.currentTarget.src = counts?.heroImageUrl || DEFAULT_HERO_IMG; }} alt={xmas ? "A Christmas table with a glazed ham, cheese and festive deli food" : "A generous spread of cheese, charcuterie and accompaniments"} width="1000" height="1100" {...{ fetchpriority: "high" }} />
+          <figcaption><span>{xmas ? "CHRISTMAS AT KELLY’S" : "THE KELLY’S TABLE"}</span><span>{xmas ? "Illustrative image" : "Something for everyone."}</span></figcaption>
         </figure>
       </header>
 
@@ -191,7 +206,7 @@ export default function Choice() {
                   <div className="occasion-body">
                     <h3 className="occasion-name">{c.name}</h3>
                     {c.tagline && <p className="occasion-tag">{c.tagline}</p>}
-                    <span className="occasion-go">{c.boardCount} board{c.boardCount === 1 ? "" : "s"} →</span>
+                    <span className="occasion-go">{c.boardCount} {c.slug === "christmas" ? "to choose from" : `board${c.boardCount === 1 ? "" : "s"}`} →</span>
                   </div>
                 </button>
               ))}

@@ -133,6 +133,50 @@ export interface PlatterUpsertInput {
   variantGroup?: string | null;
   variantLabel?: string | null;
   variantOrder?: number;
+  // Pre-order shop products + supplier sourcing. Omit to leave unchanged; null clears.
+  kind?: "catering" | "product";
+  section?: string | null;
+  unitLabel?: string | null;
+  payInFull?: boolean;
+  imageIllustrative?: boolean;
+  orderBy?: string | null; // ISO timestamp
+  collectFrom?: string | null; // YYYY-MM-DD
+  collectTo?: string | null;
+  leadTimeHours?: number | null;
+  supplierName?: string | null;
+  supplierUrl?: string | null;
+  supplierSku?: string | null;
+}
+
+export interface ImportedProduct {
+  name: string | null;
+  description: string | null;
+  imageUrl: string | null;
+  price: number | null;
+  sku: string | null;
+  brand: string | null;
+  supplierName: string | null;
+  sourceUrl: string;
+}
+
+export interface SupplierSheetProduct {
+  platterId: string;
+  name: string;
+  unitLabel: string | null;
+  sku: string | null;
+  url: string | null;
+  quantity: number;
+  firstCollection: string;
+  orderFromSupplierBy: string;
+  estCost: number;
+  orderRefs: string[];
+}
+export interface SupplierSheetResponse {
+  from: string;
+  to: string;
+  orderCount: number;
+  awaitingPayment: number;
+  groups: Array<{ supplier: string; inHouse: boolean; orderFromSupplierBy: string; estCost: number; products: SupplierSheetProduct[] }>;
 }
 
 export type AdminAddOn = AddOn;
@@ -335,6 +379,14 @@ export const adminApi = {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
+  setCollected: (id: string, collected: boolean) =>
+    authedReq<AdminOrder>(`/api/admin/orders/${id}/collected`, { method: "PATCH", body: JSON.stringify({ collected }) }),
+  supplierSheet: (from: string, to: string) =>
+    authedReq<SupplierSheetResponse>(`/api/admin/supplier-sheet?from=${from}&to=${to}`),
+  importProduct: (url: string) =>
+    authedReq<ImportedProduct>(`/api/admin/import-product`, { method: "POST", body: JSON.stringify({ url }) }),
+  importImage: (url: string) =>
+    authedReq<{ url: string }>(`/api/admin/import-image`, { method: "POST", body: JSON.stringify({ url }) }),
   prepSheet: (locationId: string, date: string) =>
     authedReq<PrepSheetResponse>(`/api/admin/prep-sheet?locationId=${locationId}&date=${date}`),
   stats: () => authedReq<StatsResponse>(`/api/admin/stats`),

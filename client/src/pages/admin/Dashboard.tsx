@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { adminApi, type StatsResponse, type OrdersSummary } from "../../lib/admin";
 import { gbp } from "../../lib/format";
+import { TodayPanel } from "./TodayPanel";
 
 type Period = "week" | "month" | "all";
 const SRC_LABELS: Record<string, string> = {
@@ -36,6 +37,8 @@ export default function Dashboard() {
           ))}
         </div>
       </div>
+
+      <TodayPanel />
 
       <div className="stat-cards">
         <div className="stat-card">

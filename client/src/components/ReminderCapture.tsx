@@ -3,11 +3,11 @@ import { Link } from "react-router-dom";
 import { trackShoppingEvent } from "../lib/consent";
 const OCCASIONS = ["A birthday", "Mother's Day", "Father's Day", "Christmas", "An anniversary", "Something else"];
 
-export function ReminderCapture() {
+export function ReminderCapture({ defaultOccasion }: { defaultOccasion?: string } = {}) {
   const [channels, setChannels] = useState({ email: false, sms: false });
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [occasion, setOccasion] = useState(OCCASIONS[0]);
+  const [occasion, setOccasion] = useState(defaultOccasion && OCCASIONS.includes(defaultOccasion) ? defaultOccasion : OCCASIONS[0]);
   const [date, setDate] = useState("");
   const [daysBefore, setDaysBefore] = useState(14);
   const [emailConsent, setEmailConsent] = useState(false);

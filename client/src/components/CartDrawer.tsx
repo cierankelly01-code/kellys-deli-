@@ -52,7 +52,8 @@ export function CartDrawer() {
   // Catalogue for names/prices/upsells — fetched once, on first open.
   useEffect(() => {
     if (!open || boards.length > 0) return;
-    api.boards().then(setBoards).catch(() => setBoards([]));
+    // All products, not only catering boards — hams and Christmas lines live in the basket too.
+    api.platters().then(setBoards).catch(() => setBoards([]));
     api.addOns().then((a) => setAddOns(a.filter((x) => x.active))).catch(() => setAddOns([]));
     api.categories().then(setContent).catch(() => setContent(null));
     api.bundles().then(setBundles).catch(() => setBundles([]));
@@ -133,7 +134,9 @@ export function CartDrawer() {
   const subscriptionSaving = Math.round((totals.total - bundleSaving.amount) * subscriptionPct) / 100;
   const basketTotal = Math.round((totals.total - bundleSaving.amount - subscriptionSaving) * 100) / 100;
   // Split the money into the two moments the customer cares about: today, and on the day.
-  const deposit = roundTo5p(basketTotal * .25);
+  // Pay-in-full lines (supplier-sourced/Christmas stock) take the whole total today.
+  const payInFull = lines.some(({ p }) => p.payInFull);
+  const deposit = payInFull ? basketTotal : roundTo5p(basketTotal * .25);
   const balance = Math.round((basketTotal - deposit) * 100) / 100;
   const completeOffer = bundles.filter((b) => b.saving > bundleSaving.amount).map((b) => {
     const missing = b.items.map((it) => {
@@ -241,8 +244,8 @@ export function CartDrawer() {
             <div className="drawer-line" key={b.platterId}>
               {p.imageUrl && <div className="drawer-thumb" style={{ backgroundImage: `url(${p.imageUrl})` }} aria-hidden="true" />}
               <div className="drawer-line-info">
-                <span className="drawer-line-name">{p.name}</span>
-                <span className="muted small">{p.serves ? `Feeds ${p.serves}` : ""}</span>
+                <span className="drawer-line-name">{p.name}{p.variantLabel ? ` — ${p.variantLabel}` : ""}</span>
+                <span className="muted small">{p.kind === "product" ? (p.variantLabel ? "" : p.unitLabel ?? "") : p.serves ? `Feeds ${p.serves}` : ""}</span>
                 <div className="stepper">
                   <button onClick={() => setBoardQty(b.platterId, b.quantity - 1)} aria-label={`One fewer ${p.name}`}>−</button>
                   <span className="stepper-val">{b.quantity}</span>
@@ -297,10 +300,18 @@ export function CartDrawer() {
             {bundleSaving.amount > 0 && <div className="spread bundle-saving" role="status"><span>{bundleSaving.name} saving</span><span>−{gbp(bundleSaving.amount)}</span></div>}
             {subscriptionSaving > 0 && <div className="spread"><span>Subscribe &amp; save ({subscriptionPct}%)</span><span>−{gbp(subscriptionSaving)}</span></div>}
             <div className="spread"><span className="muted">{subscriptionSaving > 0 ? "Total per delivery" : "Total"}</span><strong>{gbp(basketTotal)}</strong></div>
-            <div className="spread small"><span>Pay today · 25% deposit</span><strong>{gbp(deposit)}</strong></div>
-            <div className="spread small muted"><span>Balance on collection</span><span>{gbp(balance)}</span></div>
+            {payInFull ? (
+              <div className="spread small"><span>Pay today · in full</span><strong>{gbp(deposit)}</strong></div>
+            ) : (
+              <>
+                <div className="spread small"><span>Pay today · 25% deposit</span><strong>{gbp(deposit)}</strong></div>
+                <div className="spread small muted"><span>Balance on collection</span><span>{gbp(balance)}</span></div>
+              </>
+            )}
             <button className="btn" onClick={checkout}>Continue — choose collection day</button>
-            <p className="drawer-reassure">Deposit is fully refundable up to 48 hours before collection.</p>
+            <p className="drawer-reassure">
+              {payInFull ? "Paid up front, so your order is set aside and you skip the queue." : "Deposit is fully refundable up to 48 hours before collection."}
+            </p>
             <button className="btn-ghost drawer-keep" onClick={close}>Keep browsing</button>
           </div>
         )}

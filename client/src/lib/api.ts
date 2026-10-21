@@ -7,7 +7,7 @@ export interface PlatterItem {
   qtyPerUnit: number;
 }
 
-export type Category = "home" | "events" | "seasonal" | "platters" | "board";
+export type Category = "home" | "events" | "seasonal" | "platters" | "board" | "shop";
 export type BoardType = "charcuterie" | "savoury" | "cheese" | "salmon";
 export type BoardSize = "small" | "medium" | "large";
 export type BoardTier = "signature" | "gallery";
@@ -40,7 +40,20 @@ export interface Platter {
   variantGroup: string | null;
   variantLabel: string | null;
   variantOrder: number;
+  // Pre-order shop products (hams, Christmas lines) vs catering boards.
+  kind: "catering" | "product";
+  section: string | null;
+  unitLabel: string | null;
+  payInFull: boolean;
+  imageIllustrative: boolean;
+  orderBy: string | null; // ISO timestamp — last moment to order
+  collectFrom: string | null; // YYYY-MM-DD
+  collectTo: string | null;
+  leadTimeHours: number | null;
   cost?: number; // admin only
+  supplierName?: string | null; // admin only
+  supplierUrl?: string | null; // admin only
+  supplierSku?: string | null; // admin only
 }
 
 /** A board plus its sizes — what GET /api/platters/:id returns. Empty when sold on its own. */
@@ -191,6 +204,9 @@ export interface CategoryCounts {
   freeGift: boolean;
   freeGiftThreshold: number;
   freeGiftText: string | null;
+  season: "christmas" | "classic";
+  seasonBanner: string | null;
+  paymentsLive: boolean;
 }
 
 export interface BundleItem {
@@ -319,6 +335,8 @@ export interface OrderDTO {
   balance: number;
   depositStatus: string;
   depositPaidAt: string | null;
+  paymentType: "deposit" | "full";
+  collectedAt: string | null;
   isSubscription: boolean;
   subscriptionFrequency: SubscriptionFrequency | null;
   subscriptionDiscount: number | null;
@@ -510,9 +528,11 @@ export const api = {
   locations: () => req<LocationT[]>("/api/locations"),
   boardComponents: () => req<BoardComponent[]>("/api/board-components"),
   boardConfig: () => req<{ groups: BoardGroup[] }>("/api/board-config"),
-  availability: (locationId: string, from?: string, days = 21) => {
+  availability: (locationId: string, from?: string, days = 21, opts: { preorder?: boolean; leadHours?: number } = {}) => {
     const q = new URLSearchParams({ locationId, days: String(days) });
     if (from) q.set("from", from);
+    if (opts.preorder) q.set("preorder", "1");
+    if (opts.leadHours) q.set("leadHours", String(opts.leadHours));
     return req<AvailabilityResponse>(`/api/availability?${q.toString()}`);
   },
   experienceAvailability: (experienceId: string, locationId: string, from?: string, days = 21) => {
@@ -521,7 +541,7 @@ export const api = {
     return req<AvailabilityResponse>(`/api/experiences/availability?${q.toString()}`);
   },
   createOrder: (body: CreateOrderInput) =>
-    req<{ order: OrderDTO; pricing: Pricing; freebie: string | null }>("/api/orders", {
+    req<{ order: OrderDTO; pricing: Pricing; freebie: string | null; checkoutUrl: string | null }>("/api/orders", {
       method: "POST",
       body: JSON.stringify(body),
     }),
@@ -530,7 +550,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  getOrder: (ref: string) => req<OrderDTO>(`/api/orders/${ref}`),
+  // paid=true when returning from Stripe: the server confirms the payment with Stripe first.
+  getOrder: (ref: string, paid = false) => req<OrderDTO>(`/api/orders/${encodeURIComponent(ref)}${paid ? "?paid=1" : ""}`),
+  retryPayment: (ref: string) =>
+    req<{ checkoutUrl: string }>(`/api/orders/${encodeURIComponent(ref)}/pay`, { method: "POST" }),
   reorder: (contact: string) => req<ReorderResult>(`/api/reorder?contact=${encodeURIComponent(contact)}`),
   // Validate a referral code against the buyer's contact before promising the discount.
   checkReferral: (code: string, phone: string, email: string) => {

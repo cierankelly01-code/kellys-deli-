@@ -96,7 +96,7 @@ const platterItemSchema = z.object({
 export const platterUpsertSchema = z
   .object({
     // "board" is the v2 catalogue category (signature + gallery boards).
-    category: z.enum(["home", "events", "seasonal", "platters", "board"]).default("board"),
+    category: z.enum(["home", "events", "seasonal", "platters", "board", "shop"]).default("board"),
     name: z.string().min(1).max(120),
     description: z.string().max(2000),
     pricePerHead: z.number().positive().nullable().optional(),
@@ -122,6 +122,19 @@ export const platterUpsertSchema = z
     variantGroup: z.string().max(60).nullable().optional(),
     variantLabel: z.string().max(60).nullable().optional(),
     variantOrder: z.number().int().min(0).max(100).optional(),
+    // Pre-order shop products + supplier sourcing (all optional; omitted = unchanged on edit).
+    kind: z.enum(["catering", "product"]).optional(),
+    section: z.string().max(60).nullable().optional(),
+    unitLabel: z.string().max(60).nullable().optional(),
+    payInFull: z.boolean().optional(),
+    imageIllustrative: z.boolean().optional(),
+    orderBy: z.string().datetime({ offset: true }).nullable().optional(),
+    collectFrom: dateString.nullable().optional(),
+    collectTo: dateString.nullable().optional(),
+    leadTimeHours: z.number().int().min(0).max(24 * 60).nullable().optional(),
+    supplierName: z.string().max(80).nullable().optional(),
+    supplierUrl: z.string().url().max(1000).nullable().optional().or(z.literal("").transform(() => null)),
+    supplierSku: z.string().max(80).nullable().optional(),
   })
   // A group of one is a tile with a pointless picker, and an unlabelled option is a
   // button with nothing written on it — so a grouped board must say what it is.
@@ -409,3 +422,11 @@ export const breadAvailabilityQuerySchema = z.object({
   from: dateString.optional(),
   days: z.coerce.number().int().min(1).max(120).optional(),
 });
+
+// Admin: paste a supplier product page link to pre-fill a new product.
+export const importProductSchema = z.object({
+  url: z.string().url().max(1000),
+});
+
+// Admin: tick an order off as collected (or untick it).
+export const collectedSchema = z.object({ collected: z.boolean() });

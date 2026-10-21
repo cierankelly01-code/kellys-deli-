@@ -19,7 +19,10 @@ import { buildAvailability, canBook, getDayAvailability, meetsNotice, meetsLeadT
 import { buildBreadAvailability, canBookBread, getBreadDayAvailability, type BreadOrderingSettings } from "../lib/bread-capacity";
 import { recommendBoards, capacity as boardCapacity, type RecBoard } from "../lib/recommender";
 import { genRef, genBreadRef, randomReferralCode } from "../lib/ref";
-import { captureDepositIntent } from "../lib/payments";
+import { captureDepositIntent, createCheckoutSession } from "../lib/payments";
+import { orderWindowError } from "../lib/preorder";
+import { sendOrderNotifications, reconcileOrderPayment } from "../lib/order-payment";
+import { env, stripeEnabled } from "../lib/env";
 import { notifyOrderReceived, notifyShopOfOrder, notifyBreadOrderReceived, notifyShopOfBreadOrder, type OrderNotifyInput } from "../lib/notify";
 import type { BreadEmailItem } from "../lib/emailTemplate";
 import { platterDTO, experienceDTO, locationDTO, orderDTO, publicOrderDTO, boardComponentDTO, boardGroupDTO, addOnDTO, categoryDTO, bundleDTO, breadProductDTO, breadOrderDTO } from "../lib/serialize";
@@ -59,6 +62,12 @@ async function getLeadHours(): Promise<number> {
   const raw = await getSetting("orderLeadTimeHours");
   const n = raw != null ? parseInt(raw, 10) : NaN;
   return Number.isFinite(n) && n >= 0 ? n : 48;
+}
+
+/** Optional per-shop daily cap on pre-order collections (Setting "preorderDailyCap"). 0 = off. */
+async function getPreorderDailyCap(): Promise<number> {
+  const n = parseInt((await getSetting("preorderDailyCap")) ?? "0", 10);
+  return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 // Generate a unique order ref within a transaction. Always returns a value that
@@ -437,6 +446,12 @@ publicRouter.get("/categories", async (_req, res) => {
     freeGift: (await getSetting("freeGift")) === "on",
     freeGiftThreshold: parseFloat((await getSetting("freeGiftThreshold")) ?? "0") || 0,
     freeGiftText: (await getSetting("freeGiftText")) ?? null,
+    // Seasonal storefront skin. Unset = Christmas (it's the season); the owner sets
+    // "classic" in Site Settings to switch back in January — no deploy needed.
+    season: ((await getSetting("season")) ?? "christmas") === "classic" ? "classic" : "christmas",
+    seasonBanner: (await getSetting("seasonBanner")) ?? null,
+    // Whether customers pay online (Stripe live). Drives "Pay now" vs "we'll send a link".
+    paymentsLive: stripeEnabled(),
   });
 });
 
@@ -466,7 +481,8 @@ publicRouter.get("/categories/browse", async (_req, res) => {
   const cats = await prisma.category.findMany({
     where: { active: true },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-    include: { _count: { select: { platters: true } } },
+    // Count live products only — a category of hidden drafts shouldn't advertise "18 boards".
+    include: { _count: { select: { platters: { where: { platter: { active: true } } } } } },
   });
   res.json(cats.map((c) => categoryDTO(c, { boardCount: c._count.platters })));
 });
@@ -579,8 +595,16 @@ publicRouter.get("/availability", async (req, res) => {
   const start = parseDate(fromDate);
   const end = new Date(start.getTime() + span * 86_400_000);
 
+  // ?preorder=1: a basket of shop products only. Those don't use catering slots — just the
+  // optional pre-order daily cap (unlimited unless the owner sets one) — and they honour
+  // the longest lead time among the basket's products (?leadHours, clamped server-side).
+  const preorder = req.query.preorder === "1";
+  const preorderCap = preorder ? await getPreorderDailyCap() : 0;
+  const capacity = preorder ? preorderCap || 999 : location.weeklyCapacity;
+  const extraLead = Math.min(Math.max(parseInt(String(req.query.leadHours ?? "0"), 10) || 0, 0), 24 * 60);
+  const leadHours = Math.max(await getLeadHours(), extraLead);
   const orders = await prisma.order.findMany({
-    where: { locationId, status: { not: "cancelled" }, type: { in: ["platter", "gift"] }, collectionOrDeliveryDate: { gte: start, lt: end } },
+    where: { locationId, status: { not: "cancelled" }, type: preorder ? "preorder" : { in: ["platter", "gift"] }, collectionOrDeliveryDate: { gte: start, lt: end } },
     select: { collectionOrDeliveryDate: true },
   });
   const bookedByDate: Record<string, number> = {};
@@ -588,7 +612,7 @@ publicRouter.get("/availability", async (req, res) => {
     const key = formatDate(o.collectionOrDeliveryDate);
     bookedByDate[key] = (bookedByDate[key] ?? 0) + 1;
   }
-  res.json({ locationId, capacity: location.weeklyCapacity, days: buildAvailability(fromDate, span, location.weeklyCapacity, bookedByDate, now) });
+  res.json({ locationId, capacity, days: buildAvailability(fromDate, span, capacity, bookedByDate, now, leadHours) });
 });
 
 // --- Availability (experiences: Σ party size per (experience,location,date) vs session capacity) ---
@@ -619,6 +643,8 @@ publicRouter.get("/experiences/availability", async (req, res) => {
 
 // --- Order lookup ---
 publicRouter.get("/orders/:ref", async (req, res) => {
+  // Back from Stripe: confirm the payment straight from Stripe, no webhook required.
+  if (req.query.paid === "1") await reconcileOrderPayment(req.params.ref);
   const order = await prisma.order.findUnique({
     where: { ref: req.params.ref },
     include: { platter: true, experience: true, location: true, customer: true },
@@ -627,12 +653,34 @@ publicRouter.get("/orders/:ref", async (req, res) => {
   res.json(publicOrderDTO(order));
 });
 
+// --- Retry payment: a fresh Stripe Checkout link for an unpaid order (e.g. the customer
+// backed out of the payment page). Harmless to expose by ref — it can only take money for
+// this order, at the amount the server already priced.
+publicRouter.post("/orders/:ref/pay", async (req, res) => {
+  if (!stripeEnabled()) return res.status(409).json({ error: "Online payment isn't available — we'll send you a payment link." });
+  const order = await prisma.order.findUnique({ where: { ref: req.params.ref } });
+  if (!order) return res.status(404).json({ error: "Order not found" });
+  if (order.status === "cancelled") return res.status(409).json({ error: "This order was cancelled — please place a new one." });
+  if (order.depositStatus !== "pending") return res.status(409).json({ error: "This order is already paid." });
+  const session = await createCheckoutSession({
+    orderRef: order.ref,
+    amount: Number(order.deposit),
+    description: order.paymentType === "full" ? `Kelly's Deli order ${order.ref}` : `25% deposit — Kelly's Deli order ${order.ref}`,
+    customerEmail: order.email,
+    successUrl: `${env.publicUrl}/confirm/${encodeURIComponent(order.ref)}?paid=1`,
+    cancelUrl: `${env.publicUrl}/confirm/${encodeURIComponent(order.ref)}?cancelled=1`,
+  });
+  if (!session) return res.status(409).json({ error: "Online payment isn't available right now." });
+  await prisma.order.update({ where: { id: order.id }, data: { checkoutSessionId: session.id } });
+  res.json({ checkoutUrl: session.url });
+});
+
 // --- Re-order ---
 publicRouter.get("/reorder", async (req, res) => {
   const contact = String(req.query.contact ?? "").trim();
   if (!contact) return res.status(400).json({ error: "Enter your phone or email" });
   const order = await prisma.order.findFirst({
-    where: { OR: [{ phone: contact }, { email: contact }], type: { in: ["platter", "gift"] }, platter: { active: true } },
+    where: { OR: [{ phone: contact }, { email: contact }], type: { in: ["platter", "gift", "preorder"] }, platter: { active: true } },
     orderBy: { createdAt: "desc" },
     include: { platter: true, location: true },
   });
@@ -694,15 +742,24 @@ publicRouter.post("/orders", async (req, res) => {
     const b = boardById.get(it.platterId);
     if (!b) return res.status(404).json({ error: "A selected board is no longer available" });
     if (b.fixedPrice == null) return res.status(400).json({ error: `${b.name} can't be ordered directly` });
-    if (input.headcount < b.minHeadcount) {
+    if (b.kind !== "product" && input.headcount < b.minHeadcount) {
       return res.status(400).json({ error: `Minimum headcount for ${b.name} is ${b.minHeadcount}` });
     }
+    const windowError = orderWindowError(b, input.collectionOrDeliveryDate, now);
+    if (windowError) return res.status(400).json({ error: windowError });
   }
+  // A basket of only shop products (hams, Christmas lines) is a pre-order: it doesn't take
+  // one of the day's catering slots. Anything with a catering board in it still does.
+  const isPreorder = boards.every((b) => b.kind === "product");
+  // Pay in full online when any line asks for it (supplier-sourced stock is bought on the
+  // customer's money, so no deposits on those). Otherwise the usual 25% deposit.
+  const payInFull = boards.some((b) => b.payInFull);
 
   const location = await prisma.location.findUnique({ where: { id: input.locationId } });
   if (!location || !location.active) return res.status(404).json({ error: "Location not available" });
 
-  const leadHours = await getLeadHours();
+  // The longest notice any line needs wins (a supplier product can need more than 48h).
+  const leadHours = Math.max(await getLeadHours(), ...boards.map((b) => b.leadTimeHours ?? 0));
   if (!meetsLeadTime(input.collectionOrDeliveryDate, now, leadHours)) {
     return res.status(400).json({ error: `Orders need at least ${leadHours} hours notice` });
   }
@@ -761,7 +818,7 @@ publicRouter.post("/orders", async (req, res) => {
   // Two independent hooks: a first-order treat, and a "spend £X, get a free gift" threshold that
   // compares against the boards+add-ons subtotal (pricing.base — same number the cart shows).
   const freebies: string[] = [];
-  const priorOrders = await prisma.order.count({ where: { phone: input.phone, type: { in: ["platter", "gift"] } } });
+  const priorOrders = await prisma.order.count({ where: { phone: input.phone, type: { in: ["platter", "gift", "preorder"] } } });
   if (priorOrders === 0 && (await getSetting("firstOrderHook")) === "on") {
     freebies.push((await getSetting("firstOrderHookText")) || "FREE first-order treat");
   }
@@ -776,10 +833,22 @@ publicRouter.post("/orders", async (req, res) => {
     const order = await prisma.$transaction(async (tx) => {
       // Lock the location row so racing orders can't both take the last slot.
       await tx.$queryRaw`SELECT 1 FROM "Location" WHERE id = ${input.locationId} FOR UPDATE`;
-      const booked = await tx.order.count({
-        where: { locationId: input.locationId, collectionOrDeliveryDate: parseDate(input.collectionOrDeliveryDate), type: { in: ["platter", "gift"] }, status: { not: "cancelled" } },
-      });
-      if (!canBook(input.collectionOrDeliveryDate, location.weeklyCapacity, booked, now, leadHours)) throw new CapacityError();
+      if (isPreorder) {
+        // Optional daily cap on pre-order collections per shop (Setting "preorderDailyCap",
+        // 0/unset = unlimited) — the owner's lever if one December day gets mobbed.
+        const cap = await getPreorderDailyCap();
+        if (cap > 0) {
+          const preBooked = await tx.order.count({
+            where: { locationId: input.locationId, collectionOrDeliveryDate: parseDate(input.collectionOrDeliveryDate), type: "preorder", status: { not: "cancelled" } },
+          });
+          if (preBooked >= cap) throw new CapacityError();
+        }
+      } else {
+        const booked = await tx.order.count({
+          where: { locationId: input.locationId, collectionOrDeliveryDate: parseDate(input.collectionOrDeliveryDate), type: { in: ["platter", "gift"] }, status: { not: "cancelled" } },
+        });
+        if (!canBook(input.collectionOrDeliveryDate, location.weeklyCapacity, booked, now, leadHours)) throw new CapacityError();
+      }
 
       const ref = await uniqueRef(tx);
       const referralCode = await uniqueReferralCode(tx);
@@ -815,12 +884,13 @@ publicRouter.post("/orders", async (req, res) => {
       const created = await tx.order.create({
         data: {
           ref,
-          type: "platter",
+          type: isPreorder ? "preorder" : "platter",
           platterId: boardLines[0].platterId, // primary/first board (back-compat)
           headcount: input.headcount,
           occasion: input.occasion ?? null,
           total: pricing.total,
-          deposit: pricing.deposit,
+          deposit: payInFull ? pricing.total : pricing.deposit,
+          paymentType: payInFull ? "full" : "deposit",
           depositStatus: "pending",
           collectionOrDeliveryDate: parseDate(input.collectionOrDeliveryDate),
           locationId: input.locationId,
@@ -851,46 +921,33 @@ publicRouter.post("/orders", async (req, res) => {
       return created;
     });
 
-    // Record the (stub) deposit-intent id so a future Stripe webhook can reconcile it to
-    // this order and flip depositStatus -> paid.
-    const intent = await captureDepositIntent(pricing.deposit, order.ref);
-    await prisma.order.update({ where: { id: order.id }, data: { depositIntentId: intent.intentId } });
-    await notifyOrderReceived(
-      { name: order.customerName, phone: order.phone, email: order.email },
-      {
-        ref: order.ref,
-        total: pricing.total,
-        deposit: pricing.deposit,
-        collectionDate: formatDate(order.collectionOrDeliveryDate),
-        locationName: order.location.name,
-        // The confirmation shows what they actually ordered, photos and all.
-        boards: order.items.map((i) => ({
-          name: i.platter.name,
-          qty: i.quantity,
-          lineTotal: Number(i.unitPrice) * i.quantity,
-          imageUrl: i.platter.imageUrl,
-          meta: i.platter.serves ? `Feeds ${i.platter.serves}` : null,
-        })),
-        addOns: order.addOns.map((a) => ({
-          name: a.name,
-          qty: a.quantity,
-          lineTotal: Number(a.unitPrice) * a.quantity,
-        })),
-      },
-    );
-    await alertShopOfOrder(
-      { name: order.customerName, phone: order.phone, email: order.email },
-      {
-        ref: order.ref,
-        total: pricing.total,
-        deposit: pricing.deposit,
-        collectionDate: formatDate(order.collectionOrDeliveryDate),
-        locationName: order.location.name,
-        boards: order.items.map((i) => ({ name: i.platter.name, qty: i.quantity, lineTotal: Number(i.unitPrice) * i.quantity })),
-        addOns: order.addOns.map((a) => ({ name: a.name, qty: a.quantity, lineTotal: Number(a.unitPrice) * a.quantity })),
-      },
-    );
-    res.status(201).json({ order: orderDTO(order), pricing, freebie });
+    const dueNow = payInFull ? pricing.total : pricing.deposit;
+    // Live payments: send the customer to Stripe Checkout for what's due now. The
+    // confirmation emails wait until the money clears (markOrderPaid), so nobody gets a
+    // "confirmed" email for a basket they abandoned on the payment page.
+    let checkoutUrl: string | null = null;
+    if (stripeEnabled() && dueNow > 0) {
+      try {
+        const session = await createCheckoutSession({
+          orderRef: order.ref,
+          amount: dueNow,
+          description: payInFull ? `Kelly's Deli order ${order.ref}` : `25% deposit — Kelly's Deli order ${order.ref}`,
+          customerEmail: order.email,
+          successUrl: `${env.publicUrl}/confirm/${encodeURIComponent(order.ref)}?paid=1`,
+          cancelUrl: `${env.publicUrl}/confirm/${encodeURIComponent(order.ref)}?cancelled=1`,
+        });
+        if (session) {
+          checkoutUrl = session.url;
+          await prisma.order.update({ where: { id: order.id }, data: { checkoutSessionId: session.id } });
+        }
+      } catch (err) {
+        // Stripe down or misconfigured: keep the order (it's committed) and fall back to
+        // the manual payment-link flow, so the sale isn't lost.
+        console.error("[payments] checkout session failed", err);
+      }
+    }
+    if (!checkoutUrl) await sendOrderNotifications(order.id);
+    res.status(201).json({ order: { ...orderDTO(order), deposit: dueNow, paymentType: payInFull ? "full" : "deposit" }, pricing: { ...pricing, deposit: dueNow }, freebie, checkoutUrl });
   } catch (err) {
     if (err instanceof CapacityError) return res.status(409).json({ error: "That date is fully booked at this location" });
     console.error("[orders] create failed", err);

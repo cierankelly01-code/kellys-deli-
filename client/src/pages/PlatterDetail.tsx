@@ -11,6 +11,7 @@ import { DeadlineChip, TrustChips } from "../components/Trust";
 import { SubscribeSave } from "../components/SubscribeSave";
 import { trackViewContent } from "../lib/consent";
 import { pickerHeading } from "../lib/variants";
+import { orderByLabel, orderingClosed } from "../lib/preorder";
 
 export default function PlatterDetail() {
   const { id } = useParams();
@@ -59,7 +60,7 @@ export default function PlatterDetail() {
         "@type": "Offer",
         priceCurrency: "GBP",
         price: String(price),
-        availability: "https://schema.org/InStock",
+        availability: platter.kind === "product" ? "https://schema.org/PreOrder" : "https://schema.org/InStock",
         url: window.location.href,
         seller: { "@type": "Organization", name: "Kelly's Deli" },
       },
@@ -83,7 +84,9 @@ export default function PlatterDetail() {
     openCartDrawer();
   };
 
-  const subOn = counts?.subscribeSave !== false;
+  const isProduct = platter?.kind === "product";
+  const closed = !!platter && orderingClosed(platter);
+  const subOn = counts?.subscribeSave !== false && !isProduct;
   const subPct = counts?.subscribeSaveDiscountPct ?? 10;
   const price = platter?.fixedPrice ?? platter?.fromPrice ?? 0;
   const subPrice = Math.round(price * (1 - subPct / 100) * 100) / 100;
@@ -107,11 +110,18 @@ export default function PlatterDetail() {
   return (
     <div className="app app-wide">
       <Header />
-      <Link to="/platters" className="btn-ghost back">← Back to boards</Link>
+      {platter.category === "shop"
+        ? <Link to="/christmas" className="btn-ghost back">← Christmas menu</Link>
+        : <Link to="/platters" className="btn-ghost back">← Back to boards</Link>}
 
       <div className="detail-grid">
         {/* Sizes often share one photo — fall back to any sibling's rather than showing a hole. */}
-        {heroImage && <div className="detail-photo arch vt-hero" style={{ backgroundImage: `url(${heroImage})` }} role="img" aria-label={platter.name} />}
+        {heroImage && (
+          <div className="detail-photo-wrap">
+            <div className="detail-photo arch vt-hero" style={{ backgroundImage: `url(${heroImage})` }} role="img" aria-label={platter.imageIllustrative ? `${platter.name} (illustrative image)` : platter.name} />
+            {platter.imageIllustrative && <span className="illustrative-tag">Illustrative image — real photo coming soon</span>}
+          </div>
+        )}
 
         <div className="detail-buy">
           <div className="spread" style={{ marginTop: 18, alignItems: "flex-start" }}>
@@ -120,7 +130,10 @@ export default function PlatterDetail() {
               <strong>{gbp(platter.fixedPrice ?? platter.fromPrice)}</strong>
             </div>
           </div>
-          {platter.serves && <p className="serves">Feeds {platter.serves}</p>}
+          {isProduct
+            ? platter.unitLabel && <p className="serves">{platter.unitLabel}{platter.serves ? ` · serves ${platter.serves}` : ""}</p>
+            : platter.serves && <p className="serves">Feeds {platter.serves}</p>}
+          {platter.orderBy && <p className={`xmas-orderby${closed ? " closed" : ""}`}>{closed ? "Orders for this have closed" : orderByLabel(platter.orderBy)}</p>}
 
           <p className="detail-desc">{cleanDesc}</p>
 
@@ -140,7 +153,7 @@ export default function PlatterDetail() {
                     <span className="size-option-label">{v.variantLabel ?? v.name}</span>
                     {/* Owners naturally write "Large — feeds 12-15", so only add the feeds line
                         when the label hasn't already said it. */}
-                    {v.serves && !(v.variantLabel ?? "").includes(v.serves) && (
+                    {!isProduct && v.serves && !(v.variantLabel ?? "").includes(v.serves) && (
                       <span className="size-option-serves">Feeds {v.serves}</span>
                     )}
                     <span className="size-option-price">{gbp(v.fixedPrice ?? v.fromPrice)}</span>
@@ -154,22 +167,28 @@ export default function PlatterDetail() {
             <SubscribeSave value={subFreq} onChange={setSubFreq} discountPct={subPct} />
           )}
 
-          <button className="btn" onClick={order}>
-            {subFreq
+          <button className="btn" onClick={order} disabled={closed}>
+            {closed ? "Orders closed" : subFreq
               ? `Start a subscription — ${gbp(subPrice)} / board`
               : `Add & continue — ${gbp(platter.fixedPrice ?? platter.fromPrice)}`}
           </button>
           <p className="buy-reassure">
             {subFreq
               ? "No card taken now — we'll set your schedule up with you and confirm each board."
-              : "Only 25% today · balance on collection · fully refundable up to 48 hrs before"}
+              : platter.payInFull
+                ? "Paid at checkout · set aside with your name on it · pick your collection day"
+                : "Only 25% today · balance on collection · fully refundable up to 48 hrs before"}
           </p>
 
-          <p className="prebook-hint muted">
-            🎂 <strong>Planning ahead?</strong> Pick a future date at checkout to book this for a birthday or celebration —
-            25% locks it in, and you can add a gift note.
-          </p>
-          <DeadlineChip />
+          {!isProduct && (
+            <>
+              <p className="prebook-hint muted">
+                🎂 <strong>Planning ahead?</strong> Pick a future date at checkout to book this for a birthday or celebration —
+                25% locks it in, and you can add a gift note.
+              </p>
+              <DeadlineChip />
+            </>
+          )}
 
           {platter.items.length > 0 && (
             <>
@@ -182,11 +201,15 @@ export default function PlatterDetail() {
 
           <TrustChips />
           <DeliVideos productId={platter.id} />
-          <p className="muted footnote">
+          {isProduct ? (
+            <p className="muted footnote">
+              Allergies or a question about this? Add a note when you order or ring the shop — we&apos;ll sort it.
+            </p>
+          ) : <p className="muted footnote">
             Allergies or dietary needs? Every board can be adapted — tell us in the notes when you order and
             we&apos;ll confirm with you directly. Extras like plates, cutlery and napkins are offered at the
             next step, sized to your numbers.
-          </p>
+          </p>}
         </div>
       </div>
     </div>

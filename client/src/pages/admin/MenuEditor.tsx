@@ -11,7 +11,7 @@ import { MarginMeter } from "../../components/MarginMeter";
 import { ImageUpload } from "../../components/ImageUpload";
 
 type PricingType = "perHead" | "fixed";
-const CATEGORY_LABEL: Record<Category, string> = { board: "Boards", home: "At Home", events: "Events & Office", seasonal: "Seasonal", platters: "Platters (legacy)" };
+const CATEGORY_LABEL: Record<Category, string> = { shop: "Shop & Christmas (pre-order)", board: "Boards", home: "At Home", events: "Events & Office", seasonal: "Seasonal", platters: "Platters (legacy)" };
 const BOARD_TYPE_LABEL: Record<BoardType, string> = { charcuterie: "Charcuterie", savoury: "Savoury", cheese: "Cheese", salmon: "Smoked Salmon" };
 const BOARD_SIZE_LABEL: Record<BoardSize, string> = { small: "Small", medium: "Medium", large: "Large" };
 const TIER_LABEL: Record<BoardTier, string> = { signature: "Signature", gallery: "More Boards" };
@@ -39,7 +39,35 @@ interface Draft {
   variantGroup: string;
   variantLabel: string;
   variantOrder: string;
+  // Pre-order shop product + supplier sourcing.
+  kind: "catering" | "product";
+  section: string;
+  unitLabel: string;
+  payInFull: boolean;
+  imageIllustrative: boolean;
+  orderBy: string; // YYYY-MM-DD — orders close at the end of this day
+  collectFrom: string;
+  collectTo: string;
+  leadTimeHours: string;
+  supplierName: string;
+  supplierUrl: string;
+  supplierSku: string;
 }
+
+const productDraft = (p?: AdminPlatter) => ({
+  kind: p?.kind ?? "catering",
+  section: p?.section ?? "",
+  unitLabel: p?.unitLabel ?? "",
+  payInFull: p?.payInFull ?? false,
+  imageIllustrative: p?.imageIllustrative ?? false,
+  orderBy: p?.orderBy ? p.orderBy.slice(0, 10) : "",
+  collectFrom: p?.collectFrom ?? "",
+  collectTo: p?.collectTo ?? "",
+  leadTimeHours: p?.leadTimeHours != null ? String(p.leadTimeHours) : "",
+  supplierName: p?.supplierName ?? "",
+  supplierUrl: p?.supplierUrl ?? "",
+  supplierSku: p?.supplierSku ?? "",
+});
 
 function toDraft(p: AdminPlatter): Draft {
   const pricingType: PricingType = p.fixedPrice != null ? "fixed" : "perHead";
@@ -53,6 +81,7 @@ function toDraft(p: AdminPlatter): Draft {
     feedsMax: p.feedsMax != null ? String(p.feedsMax) : "",
     recommendEligible: p.recommendEligible, recommendPriority: String(p.recommendPriority),
     variantGroup: p.variantGroup ?? "", variantLabel: p.variantLabel ?? "", variantOrder: String(p.variantOrder),
+    ...productDraft(p),
   };
 }
 // The API takes the whole platter on every save, so quick edits send the full
@@ -78,6 +107,9 @@ function blankDraft(category: Category = "board"): Draft {
     tier: category === "board" ? "signature" : "", feedsMin: "", feedsMax: "",
     recommendEligible: category === "board", recommendPriority: "0",
     variantGroup: "", variantLabel: "", variantOrder: "0",
+    ...productDraft(),
+    // A new shop item is a pre-order product, paid in full (stock is bought on the customer's money).
+    ...(category === "shop" ? { kind: "product" as const, payInFull: true } : {}),
   };
 }
 
@@ -144,7 +176,22 @@ export default function MenuEditor() {
       variantGroup: draft.variantGroup.trim() || null,
       variantLabel: draft.variantGroup.trim() ? draft.variantLabel.trim() : null,
       variantOrder: Math.max(0, parseInt(draft.variantOrder, 10) || 0),
+      kind: draft.kind,
+      section: draft.section.trim() || null,
+      unitLabel: draft.unitLabel.trim() || null,
+      payInFull: draft.payInFull,
+      imageIllustrative: draft.imageIllustrative,
+      // End of the chosen day, UK time (GMT in winter, when this is used most).
+      orderBy: draft.orderBy ? `${draft.orderBy}T23:59:00.000Z` : null,
+      collectFrom: draft.collectFrom || null,
+      collectTo: draft.collectTo || null,
+      leadTimeHours: draft.leadTimeHours.trim() ? Math.max(0, parseInt(draft.leadTimeHours, 10) || 0) : null,
+      supplierName: draft.supplierName.trim() || null,
+      supplierUrl: draft.supplierUrl.trim() || null,
+      supplierSku: draft.supplierSku.trim() || null,
     };
+    if (input.collectFrom && input.collectTo && input.collectFrom > input.collectTo)
+      return setError("The first collection day is after the last one");
     setSaving(true); setError(null); setMsg(null);
     try {
       if (draft.id) await adminApi.updatePlatter(draft.id, input);
@@ -165,7 +212,7 @@ export default function MenuEditor() {
     set("items", items);
   }
 
-  const grouped: Record<Category, AdminPlatter[]> = { board: [], home: [], events: [], seasonal: [], platters: [] };
+  const grouped: Record<Category, AdminPlatter[]> = { shop: [], board: [], home: [], events: [], seasonal: [], platters: [] };
   for (const p of platters) grouped[p.category]?.push(p);
 
   return (
@@ -176,9 +223,14 @@ export default function MenuEditor() {
 
       <FirstOrderHook settings={settings} onSaved={refresh} />
 
-      {(["board", "home", "events", "seasonal", "platters"] as Category[]).map((cat) => (
+      {(["shop", "board", "home", "events", "seasonal", "platters"] as Category[]).map((cat) => (
         <div key={cat}>
           <h2>{CATEGORY_LABEL[cat]}{cat === "seasonal" ? " (switch on by season)" : ""}</h2>
+          {cat === "shop" && grouped.shop.some((p) => !p.active) && (
+            <p className="muted hint">
+              Hidden items are drafts — check the price, photo and wording, then tick <strong>Active</strong> to put them on sale.
+            </p>
+          )}
           <div className="bc-rows">
             {grouped[cat].map((p) => (
               <PlatterQuickRow
@@ -201,7 +253,7 @@ export default function MenuEditor() {
           <div className="field">
             <label>Category</label>
             <div className="seg wide">
-              {(["board", "home", "events", "seasonal", "platters"] as Category[]).map((c) => (
+              {(["shop", "board", "home", "events", "seasonal", "platters"] as Category[]).map((c) => (
                 <button key={c} className={draft.category === c ? "active" : ""} onClick={() => set("category", c)}>{CATEGORY_LABEL[c]}</button>
               ))}
             </div>
@@ -246,6 +298,7 @@ export default function MenuEditor() {
               </div>
             </div>
           )}
+          {(draft.category === "shop" || draft.kind === "product") && <ProductFields draft={draft} set={set} />}
           <div className="field"><label>Name</label><input className="input" value={draft.name} onChange={(e) => set("name", e.target.value)} /></div>
           <div className="field"><label>Description</label><textarea className="input" value={draft.description} onChange={(e) => set("description", e.target.value)} /></div>
           <div className="field">
@@ -280,6 +333,7 @@ export default function MenuEditor() {
           </div>
           <VariantFields draft={draft} set={set} platters={platters} />
           <ImageUpload value={draft.imageUrl} onChange={(url) => set("imageUrl", url)} />
+          <label className="toggle"><input type="checkbox" checked={draft.imageIllustrative} onChange={(e) => set("imageIllustrative", e.target.checked)} /><span>This photo is a placeholder — show &ldquo;Illustrative image&rdquo; on it</span></label>
           <label className="toggle"><input type="checkbox" checked={draft.active} onChange={(e) => set("active", e.target.checked)} /><span>Active (shown to customers). Turn off to hide without deleting — past orders are kept.</span></label>
           <div className="nav-row">
             <button className="btn btn-secondary" onClick={() => setDraft(null)} disabled={saving}>Cancel</button>
@@ -578,5 +632,101 @@ function LocationRow({ location, onSaved }: { location: LocationT; onSaved: () =
         <button className="btn" style={{ width: "auto" }} onClick={save} disabled={!dirty || saving}>{saving ? "…" : "Save"}</button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Pre-order product settings + "paste a supplier link" import. Lives at the top of the
+ * editor for shop items so the owner can start from the supplier's page.
+ */
+function ProductFields({ draft, set }: { draft: Draft; set: <K extends keyof Draft>(key: K, value: Draft[K]) => void }) {
+  const [link, setLink] = useState(draft.supplierUrl);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [foundImage, setFoundImage] = useState<string | null>(null);
+
+  async function importFromLink() {
+    if (!link.trim()) return;
+    setBusy(true); setErr(null); setNote(null); setFoundImage(null);
+    try {
+      const p = await adminApi.importProduct(link.trim());
+      // Only fill what's empty — never overwrite the owner's own wording or price.
+      if (!draft.name.trim() && p.name) set("name", p.name);
+      if (!draft.description.trim() && p.description) set("description", p.description);
+      if (!draft.cost.trim() && p.price) set("cost", String(p.price));
+      if (!draft.supplierName.trim() && p.supplierName) set("supplierName", p.supplierName);
+      if (!draft.supplierSku.trim() && p.sku) set("supplierSku", p.sku);
+      set("supplierUrl", p.sourceUrl);
+      setFoundImage(p.imageUrl);
+      setNote(
+        `Filled in what we found${p.price ? ` — their listed price £${p.price.toFixed(2)} went into "Cost"` : ""}. Check it, set your selling price, and save.`,
+      );
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't read that page");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function useFoundImage() {
+    if (!foundImage) return;
+    setBusy(true); setErr(null);
+    try {
+      const { url } = await adminApi.importImage(foundImage);
+      set("imageUrl", url);
+      setFoundImage(null);
+      setNote("Photo saved to your site.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't save that photo");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <fieldset className="product-fields">
+      <legend>Pre-order product</legend>
+      <div className="field">
+        <label>Supplier product link (optional)</label>
+        <div className="import-row">
+          <input className="input" type="url" inputMode="url" placeholder="https://supplier.co.uk/product/…" value={link} onChange={(e) => setLink(e.target.value)} />
+          <button className="btn" type="button" onClick={importFromLink} disabled={busy || !link.trim()}>{busy ? "Reading…" : "Fill from link"}</button>
+        </div>
+        <p className="muted hint">Paste the product page from your supplier&apos;s website and we&apos;ll fill in the name, description, photo and their price.</p>
+      </div>
+      {note && <div className="notice good">{note}</div>}
+      {err && <div className="notice danger">{err}</div>}
+      {foundImage && (
+        <div className="import-photo">
+          <img src={foundImage} alt="Photo found on the supplier's page" />
+          <div>
+            <p className="muted hint">Only use a supplier&apos;s photo if they&apos;ve said you can (most wholesalers are happy for stockists to).</p>
+            <button className="btn" type="button" onClick={useFoundImage} disabled={busy}>Use this photo</button>
+          </div>
+        </div>
+      )}
+      <div className="price-row">
+        <div className="field"><label>Section on the Christmas page</label><input className="input" list="product-sections" value={draft.section} onChange={(e) => set("section", e.target.value)} placeholder="e.g. Hams & Joints" /></div>
+        <div className="field"><label>Size / unit (shown to customers)</label><input className="input" value={draft.unitLabel} onChange={(e) => set("unitLabel", e.target.value)} placeholder="e.g. approx 2kg, box of 12" /></div>
+      </div>
+      <datalist id="product-sections">
+        {["Hams & Joints", "Turkey & Trimmings", "Party Food", "Cheese", "Hampers & Gifts", "Party Platters"].map((s) => <option key={s} value={s} />)}
+      </datalist>
+      <div className="price-row">
+        <div className="field"><label>Last day to order</label><input className="input" type="date" value={draft.orderBy} onChange={(e) => set("orderBy", e.target.value)} /></div>
+        <div className="field"><label>Notice needed (hours)</label><input className="input" inputMode="numeric" value={draft.leadTimeHours} onChange={(e) => set("leadTimeHours", e.target.value)} placeholder="48 (default)" /></div>
+      </div>
+      <div className="price-row">
+        <div className="field"><label>First collection day</label><input className="input" type="date" value={draft.collectFrom} onChange={(e) => set("collectFrom", e.target.value)} /></div>
+        <div className="field"><label>Last collection day</label><input className="input" type="date" value={draft.collectTo} onChange={(e) => set("collectTo", e.target.value)} /></div>
+      </div>
+      <div className="price-row">
+        <div className="field"><label>Supplier (only you see this)</label><input className="input" value={draft.supplierName} onChange={(e) => set("supplierName", e.target.value)} placeholder="Leave blank if you make it" /></div>
+        <div className="field"><label>Supplier product code</label><input className="input" value={draft.supplierSku} onChange={(e) => set("supplierSku", e.target.value)} /></div>
+      </div>
+      <label className="toggle inline"><input type="checkbox" checked={draft.kind === "product"} onChange={(e) => set("kind", e.target.checked ? "product" : "catering")} /><span>Pre-order product (no headcount, doesn&apos;t use a catering slot)</span></label>
+      <label className="toggle inline"><input type="checkbox" checked={draft.payInFull} onChange={(e) => set("payInFull", e.target.checked)} /><span>Customer pays in full when ordering (not a 25% deposit)</span></label>
+    </fieldset>
   );
 }

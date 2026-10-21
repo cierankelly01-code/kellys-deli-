@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from "react";
-import { Routes, Route, Outlet, useLocation } from "react-router-dom";
+import { Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
 import { ConsentBanner } from "./components/ConsentBanner";
 import { trackPageView } from "./lib/consent";
 import Choice from "./pages/Choice";
@@ -11,6 +11,7 @@ import PlatterDetail from "./pages/PlatterDetail";
 import Order from "./pages/Order";
 import Confirm from "./pages/Confirm";
 import Bread from "./pages/Bread";
+import Christmas from "./pages/Christmas";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import { Footer } from "./components/Footer";
@@ -33,6 +34,8 @@ const FillSlots = lazy(() => import("./pages/admin/FillSlots"));
 const BreadOrders = lazy(() => import("./pages/admin/BreadOrders"));
 const BreadBakeSheet = lazy(() => import("./pages/admin/BreadBakeSheet"));
 const BreadSettings = lazy(() => import("./pages/admin/BreadSettings"));
+const Collections = lazy(() => import("./pages/admin/Collections"));
+const SupplierSheet = lazy(() => import("./pages/admin/SupplierSheet"));
 
 /** Wraps customer-facing pages so every one ends with the site footer + legal links. */
 function CustomerLayout() {
@@ -69,6 +72,8 @@ export default function App() {
         <Route path="/" element={<Choice />} />
         <Route path="/platters" element={<Platters />} />
         <Route path="/shop" element={<Shop />} />
+        <Route path="/christmas" element={<Christmas />} />
+        <Route path="/shop/christmas" element={<Navigate to="/christmas" replace />} />
         <Route path="/shop/:slug" element={<ShopCategory />} />
         <Route path="/plan" element={<PlanEvent />} />
         <Route path="/platter/:id" element={<PlatterDetail />} />
@@ -98,6 +103,8 @@ export default function App() {
         <Route path="bread" element={<BreadOrders />} />
         <Route path="bread/bake-sheet" element={<BreadBakeSheet />} />
         <Route path="bread/settings" element={<BreadSettings />} />
+        <Route path="collections" element={<Collections />} />
+        <Route path="suppliers" element={<SupplierSheet />} />
       </Route>
 
     </Routes>

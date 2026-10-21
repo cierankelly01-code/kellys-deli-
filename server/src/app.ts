@@ -14,6 +14,7 @@ import { UPLOAD_DIR, storageMode } from "./lib/uploads";
 import { emailMode } from "./lib/notify";
 import { prisma } from "./lib/prisma";
 import { parseWebhook } from "./lib/payments";
+import { markOrderPaid } from "./lib/order-payment";
 
 const SITE = "https://www.kellysdeli.co.uk";
 
@@ -101,10 +102,7 @@ export function createApp(): Express {
     try {
       const result = parseWebhook(req.body as Buffer, req.header("stripe-signature"));
       if (result.handled && result.paidOrderRef) {
-        await prisma.order.updateMany({
-          where: { ref: result.paidOrderRef, depositStatus: "pending" },
-          data: { depositStatus: "paid", depositPaidAt: new Date(), depositIntentId: result.intentId ?? undefined },
-        });
+        await markOrderPaid(result.paidOrderRef, { intentId: result.intentId, sessionId: result.sessionId });
       }
       res.status(200).json({ received: true, handled: result.handled });
     } catch (e) {
@@ -179,6 +177,7 @@ export function createApp(): Express {
       { loc: "/", changefreq: "weekly", priority: "1.0" },
       { loc: "/platters", changefreq: "weekly", priority: "0.9" },
       { loc: "/shop", changefreq: "weekly", priority: "0.8" },
+      { loc: "/christmas", changefreq: "weekly", priority: "0.9" },
       { loc: "/plan", changefreq: "monthly", priority: "0.8" },
       { loc: "/privacy", changefreq: "yearly", priority: "0.2" },
       { loc: "/terms", changefreq: "yearly", priority: "0.2" },
@@ -186,7 +185,10 @@ export function createApp(): Express {
     let categoryUrls: Array<{ loc: string; changefreq: string; priority: string }> = [];
     try {
       const cats = await prisma.category.findMany({ where: { active: true }, select: { slug: true } });
-      categoryUrls = cats.map((c) => ({ loc: `/shop/${c.slug}`, changefreq: "weekly", priority: "0.8" }));
+      // /shop/christmas redirects to /christmas (already listed above) — don't list it twice.
+      categoryUrls = cats
+        .filter((c) => c.slug !== "christmas")
+        .map((c) => ({ loc: `/shop/${c.slug}`, changefreq: "weekly", priority: "0.8" }));
     } catch (e) {
       console.error("[sitemap] could not load categories", e);
     }

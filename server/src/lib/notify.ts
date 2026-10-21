@@ -93,16 +93,21 @@ async function sendEmail(to: string, subject: string, body: string, html?: strin
 export interface OrderNotifyInput {
   ref: string; total: number; deposit: number; collectionDate: string; locationName: string;
   boards?: OrderEmailLine[]; addOns?: OrderEmailLine[];
+  /** Set once the payment has cleared online (Stripe) — switches the copy to "paid". */
+  paidOnline?: number;
 }
 
 export async function notifyOrderReceived(t: NotifyTarget, o: OrderNotifyInput): Promise<void> {
   const balance = Math.max(0, Math.round((o.total - o.deposit) * 100) / 100);
   // SMS stays a single line — it is charged per segment and read at a glance.
-  const sms =
-    `Thanks ${t.name} — your Kelly's Deli order request ${o.ref} is in. ` +
-    `Collection ${o.collectionDate} at ${o.locationName}. Total £${o.total.toFixed(2)}. ` +
-    `We'll contact you shortly with a secure payment link for a 25% deposit (£${o.deposit.toFixed(2)}) to confirm your order. ` +
-    `The balance (£${balance.toFixed(2)}) is payable on collection.`;
+  const sms = o.paidOnline
+    ? `Thanks ${t.name} — your Kelly's Deli order ${o.ref} is paid and confirmed. ` +
+      `Collection ${o.collectionDate} at ${o.locationName}. ` +
+      (balance > 0 ? `Balance (£${balance.toFixed(2)}) payable on collection.` : `Nothing more to pay.`)
+    : `Thanks ${t.name} — your Kelly's Deli order request ${o.ref} is in. ` +
+      `Collection ${o.collectionDate} at ${o.locationName}. Total £${o.total.toFixed(2)}. ` +
+      `We'll contact you shortly with a secure payment link for a 25% deposit (£${o.deposit.toFixed(2)}) to confirm your order. ` +
+      `The balance (£${balance.toFixed(2)}) is payable on collection.`;
 
   const data = {
     customerName: t.name,
@@ -114,10 +119,11 @@ export async function notifyOrderReceived(t: NotifyTarget, o: OrderNotifyInput):
     total: o.total,
     deposit: o.deposit,
     balance,
+    paidOnline: o.paidOnline,
   };
   await Promise.all([
     sendSms(t.phone, sms),
-    sendEmail(t.email, `Order request ${o.ref} received — Kelly's Deli`, orderReceivedText(data), orderReceivedHtml(data)),
+    sendEmail(t.email, o.paidOnline ? `Order ${o.ref} confirmed — Kelly's Deli` : `Order request ${o.ref} received — Kelly's Deli`, orderReceivedText(data), orderReceivedHtml(data)),
   ]);
 }
 
@@ -148,6 +154,7 @@ export async function notifyShopOfOrder(shopEmail: string, t: NotifyTarget, o: O
     total: o.total,
     deposit: o.deposit,
     balance,
+    paidOnline: o.paidOnline,
   };
   await sendEmail(shopEmail, `New order ${o.ref} — ${o.collectionDate}`, orderShopAlertText(d), orderShopAlertHtml(d));
 }

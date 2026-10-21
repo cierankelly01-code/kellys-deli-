@@ -86,7 +86,8 @@ export default function Orders() {
                   <strong>{o.ref}</strong> <span className={`pill status-${o.status}`}>{STATUS_LABEL[o.status] ?? o.status}</span>
                   {o.occasion && <span className="pill"> {o.occasion}</span>}
                   {o.isSubscription && <span className="pill recurring-badge">Recurring · {o.subscriptionFrequency}</span>}
-                  <div className="muted">{boardItems.join(", ") || "—"} · {o.headcount} ppl</div>
+                  {o.type === "preorder" && <span className="pill preorder-pill">Pre-order</span>}
+                  <div className="muted">{boardItems.join(", ") || "—"}{o.type === "preorder" ? "" : ` · ${o.headcount} ppl`}</div>
                   {o.addOns.length > 0 && (
                     <div className="muted">+ {o.addOns.map((a) => `${a.quantity}× ${a.name}`).join(", ")}</div>
                   )}
@@ -103,9 +104,9 @@ export default function Orders() {
               </div>
               <div className="spread order-foot">
                 <span>
-                  Total <strong>{gbp(o.total)}</strong> · deposit due (25%) {gbp(o.deposit)}{" "}
-                  <span className={`pill ${o.depositStatus === "paid" ? "" : "warn"}`}>{o.depositStatus}</span>
-                  {" "}· balance {gbp(o.balance)}
+                  Total <strong>{gbp(o.total)}</strong> · {o.paymentType === "full" ? "pay in full" : "deposit (25%)"} {gbp(o.deposit)}{" "}
+                  <span className={`pill ${o.depositStatus === "paid" ? "good" : "warn"}`}>{o.depositStatus === "paid" ? "paid" : "unpaid"}</span>
+                  {o.balance > 0 && <> · balance {gbp(o.balance)}</>}
                 </span>
                 <span className="profit">profit <strong className="pos">{gbp(o.profit)}</strong></span>
               </div>

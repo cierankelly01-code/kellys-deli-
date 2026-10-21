@@ -21,6 +21,7 @@ import { SubscribeSave } from "../components/SubscribeSave";
 import { usePageTitle } from "../lib/title";
 import { trackOrderRequest } from "../lib/consent";
 import { bestBundleDiscount } from "../lib/bundle-discount";
+import { collectionWindow } from "../lib/preorder";
 import type { Bundle } from "../lib/api";
 
 const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -69,7 +70,9 @@ export default function Order() {
     setCart(c ?? null);
     setOccasion((c?.occasion as Occasion) ?? "");
     setSubFreq(c?.subscription?.frequency ?? null);
-    Promise.all([api.boards(), api.addOns(), api.locations()])
+    // Every active product, not just catering boards — the basket can hold hams and
+    // Christmas lines too, and a line we can't resolve would silently drop out.
+    Promise.all([api.platters(), api.addOns(), api.locations()])
       .then(([b, a, l]) => {
         setBoards(b);
         setAddOns(a);
@@ -95,6 +98,23 @@ export default function Order() {
     });
   }
 
+  const boardById = useMemo(() => new Map(boards.map((b) => [b.id, b])), [boards]);
+  const cartProducts = useMemo(
+    () => (cart?.boards ?? []).map((cb) => boardById.get(cb.platterId)).filter((b): b is Platter => !!b),
+    [cart, boardById],
+  );
+  // Pre-order basket = shop products only (hams, Christmas lines): no headcount, no
+  // catering slot, its own collection window. Pay in full when any line asks for it.
+  const isPreorder = cartProducts.length > 0 && cartProducts.every((b) => b.kind === "product");
+  const payInFull = cartProducts.some((b) => b.payInFull);
+  const window_ = useMemo(() => collectionWindow(cartProducts), [cartProducts]);
+  const extraLead = Math.max(0, ...cartProducts.map((b) => b.leadTimeHours ?? 0));
+
+  // Open the calendar on the first collectable month (e.g. December for Christmas lines).
+  useEffect(() => {
+    if (window_.from && window_.from > new Date().toISOString().slice(0, 10)) setCalMonth(monthStart(window_.from));
+  }, [window_.from]);
+
   // Availability follows the chosen location AND the month on show, so paging the
   // calendar forward fetches that month rather than only ever the next three weeks.
   useEffect(() => {
@@ -105,11 +125,23 @@ export default function Order() {
     // Never ask for dates in the past; for the current month start from today.
     const from = calMonth.slice(0, 7) === today.slice(0, 7) ? today : calMonth;
     const span = daysInMonth(calMonth) - (Number(from.slice(8, 10)) - 1) + 1;
-    api.availability(locationId, from, span).then((value) => { if (current) setAvailability(value); }).catch(() => { if (current) setAvailability(null); });
+    api
+      .availability(locationId, from, span, { preorder: isPreorder, leadHours: extraLead })
+      .then((value) => {
+        if (!current) return;
+        // Dates outside the products' collection window can't be picked.
+        setAvailability({
+          ...value,
+          days: value.days.map((d) =>
+            (window_.from && d.date < window_.from) || (window_.to && d.date > window_.to)
+              ? { ...d, status: "closed" as const, bookable: false }
+              : d,
+          ),
+        });
+      })
+      .catch(() => { if (current) setAvailability(null); });
     return () => { current = false; };
-  }, [locationId, calMonth]);
-
-  const boardById = useMemo(() => new Map(boards.map((b) => [b.id, b])), [boards]);
+  }, [locationId, calMonth, isPreorder, extraLead, window_.from, window_.to]);
 
   // Resolve cart lines to priced rows for display + totals.
   const boardLines = useMemo(
@@ -152,8 +184,9 @@ export default function Order() {
   ]);
   const subDiscount = subPct > 0 ? money(((totals.total - bundleSaving.amount) * subPct) / 100) : 0;
   const finalTotal = money(totals.total - bundleSaving.amount - subDiscount);
-  const finalDeposit = roundTo5p(finalTotal * 0.25);
+  const finalDeposit = payInFull ? finalTotal : roundTo5p(finalTotal * 0.25);
   const finalBalance = money(finalTotal - finalDeposit);
+  const paymentsLive = counts?.paymentsLive === true;
 
   // Headcount used for add-on suggestions: the event headcount, or the boards' combined
   // feeds midpoint for a direct order.
@@ -190,7 +223,7 @@ export default function Order() {
       <div className="app order-page">
         <h1 className="page-h">Your order</h1>
         <p className="muted">Your order is empty.</p>
-        <button className="btn" onClick={() => navigate("/platters")}>Browse boards</button>
+        <button className="btn" onClick={() => navigate("/christmas")}>Browse the Christmas menu</button>
       </div>
     );
   }
@@ -230,6 +263,11 @@ export default function Order() {
       // Conversion signal for ad platforms — fired once here at placement (not on the
       // confirmation page, which is also reached via bookmark). No-ops without consent.
       trackOrderRequest({ value: res.order.total, ref: res.order.ref });
+      // Live payments: off to Stripe's secure page; it brings them back to /confirm.
+      if (res.checkoutUrl) {
+        window.location.assign(res.checkoutUrl);
+        return;
+      }
       navigate(`/confirm/${res.order.ref}`);
     } catch (e: any) {
       setError(e?.message || "Couldn't place your order. Please try again.");
@@ -242,7 +280,7 @@ export default function Order() {
   return (
     <div className="app order-page">
       <Header />
-      <button className="link-back" onClick={() => navigate("/platters")}>← Keep shopping</button>
+      <button className="link-back" onClick={() => navigate(isPreorder ? "/christmas" : "/platters")}>← Keep shopping</button>
       <h1 className="page-h">Your order</h1>
 
       {/* progress */}
@@ -256,12 +294,14 @@ export default function Order() {
 
       {/* Always-visible board summary */}
       <section className="order-boards card">
-        <h2 className="step-h">Your boards</h2>
+        <h2 className="step-h">{isPreorder ? "Your order" : "Your boards"}</h2>
         {boardLines.map((l) => (
           <div key={l.board.id} className="order-line">
             <div>
-              <span className="ol-name">{l.board.name}</span>
-              {l.board.serves && <span className="muted ol-feeds"> · feeds {l.board.serves}</span>}
+              <span className="ol-name">{l.board.name}{l.board.variantLabel ? ` — ${l.board.variantLabel}` : ""}</span>
+              {l.board.kind === "product"
+                ? l.board.unitLabel && !l.board.variantLabel && <span className="muted ol-feeds"> · {l.board.unitLabel}</span>
+                : l.board.serves && <span className="muted ol-feeds"> · feeds {l.board.serves}</span>}
             </div>
             <div className="stepper" role="group" aria-label={`${l.board.name} quantity`}>
               <button type="button" onClick={() => setBoardQty(l.board.id, l.quantity - 1)} aria-label="Decrease">−</button>
@@ -271,13 +311,15 @@ export default function Order() {
             <span className="ol-price">{gbp(l.unitPrice * l.quantity)}</span>
           </div>
         ))}
-        <button className="btn-ghost" onClick={() => navigate("/platters")}>+ Add another board</button>
+        <button className="btn-ghost" onClick={() => navigate(isPreorder ? "/christmas" : "/platters")}>
+          {isPreorder ? "+ Add something else" : "+ Add another board"}
+        </button>
       </section>
 
       {step === "extras" && (
         <>
           <AddOnsStep addOns={addOns} headcount={headcount} value={cart?.addOns ?? []} onChange={(next) => update({ addOns: next })} />
-          <RunningTotal total={finalTotal} deposit={finalDeposit} subDiscount={subDiscount} />
+          <RunningTotal total={finalTotal} deposit={finalDeposit} subDiscount={subDiscount} payInFull={payInFull} />
           <div className="step-actions">
             <button className="btn" onClick={() => setStep("details")}>Continue to details</button>
           </div>
@@ -288,7 +330,7 @@ export default function Order() {
         <section className="order-details">
           <h2 className="step-h">Collection & contact</h2>
 
-          <label className="field">
+          {!isPreorder && <label className="field">
             <span>How many people are you feeding?</span>
             <div className="stepper" role="group" aria-label="Headcount">
               <button type="button" onClick={() => update({ headcount: Math.max(1, headcount - 1) })} aria-label="Decrease">−</button>
@@ -301,7 +343,7 @@ export default function Order() {
               />
               <button type="button" onClick={() => update({ headcount: headcount + 1 })} aria-label="Increase">+</button>
             </div>
-          </label>
+          </label>}
 
           <label className="field">
             <span>Collect from</span>
@@ -322,9 +364,10 @@ export default function Order() {
               onMonthChange={setCalMonth}
             />
             {!availability && <p className="muted">Loading dates…</p>}
+            {window_.note && <p className="muted small">{window_.note}</p>}
           </div>
 
-          <label className="field">
+          {!isPreorder && <label className="field">
             <span>Occasion (optional)</span>
             <select value={occasion} onChange={(e) => setOccasion(e.target.value as Occasion | "")}>
               <option value="">—</option>
@@ -332,9 +375,9 @@ export default function Order() {
                 <option key={o} value={o}>{o}</option>
               ))}
             </select>
-          </label>
+          </label>}
 
-          {subOn && (
+          {subOn && !isPreorder && (
             <div className="field">
               <span>Make it a regular thing?</span>
               <SubscribeSave
@@ -362,9 +405,9 @@ export default function Order() {
           <label className="field"><span>Your name</span><input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></label>
           <label className="field"><span>Phone</span><input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" /></label>
           <label className="field"><span>Email</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" /></label>
-          <label className="field"><span>Allergies / notes (optional)</span><textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} /></label>
+          <label className="field"><span>{isPreorder ? "Notes — e.g. \"slice the ham, please\" (optional)" : "Allergies / notes (optional)"}</span><textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} /></label>
 
-          <RunningTotal total={finalTotal} deposit={finalDeposit} subDiscount={subDiscount} />
+          <RunningTotal total={finalTotal} deposit={finalDeposit} subDiscount={subDiscount} payInFull={payInFull} />
           <div className="step-actions">
             <button className="btn-ghost" onClick={() => setStep("extras")}>Back</button>
             <button className="btn" disabled={!detailsValid} onClick={() => setStep("review")}>Review order</button>
@@ -390,8 +433,14 @@ export default function Order() {
               </>
             )}
             <div className="review-row total"><span>{subDiscount > 0 ? "Total per delivery" : "Total"}</span><span>{gbp(finalTotal)}</span></div>
-            <div className="review-row"><span>Deposit due (25%)</span><span>{gbp(finalDeposit)}</span></div>
-            <div className="review-row"><span>Balance on collection</span><span>{gbp(finalBalance)}</span></div>
+            {payInFull ? (
+              <div className="review-row"><span>{paymentsLive ? "To pay now" : "To pay"}</span><span>{gbp(finalDeposit)}</span></div>
+            ) : (
+              <>
+                <div className="review-row"><span>Deposit due (25%)</span><span>{gbp(finalDeposit)}</span></div>
+                <div className="review-row"><span>Balance on collection</span><span>{gbp(finalBalance)}</span></div>
+              </>
+            )}
             {date && <div className="review-row muted"><span>{subFreq ? "First collection" : "Collection"}</span><span>{formatDate(date)}</span></div>}
             {isGift && recipientName.trim() && <div className="review-row muted"><span>Gift for</span><span>{recipientName.trim()}</span></div>}
           </div>
@@ -402,9 +451,17 @@ export default function Order() {
               automatically — we&apos;ll get in touch to set your schedule up with you and confirm each delivery before we
               make it. The 25% deposit confirms your first board; pause, skip or cancel any time.
             </p>
+          ) : payInFull ? (
+            <p className="deposit-policy">
+              {paymentsLive
+                ? "You'll pay securely by card, Apple Pay or Google Pay on the next screen. Once it's paid, your order is confirmed and set aside for you."
+                : "We'll send you a secure payment link to confirm your order."}{" "}
+              Need to change something? Just ring the shop.
+            </p>
           ) : (
             <p className="deposit-policy">
               A 25% deposit confirms your order. Deposits are fully refundable up to 48 hours before collection.
+              {paymentsLive && " You'll pay it securely on the next screen."}
             </p>
           )}
 
@@ -412,7 +469,7 @@ export default function Order() {
           <div className="step-actions">
             <button className="btn-ghost" onClick={() => setStep("details")}>Back</button>
             <button className="btn" disabled={submitting} onClick={submit}>
-              {submitting ? "Placing…" : "Place order request"}
+              {submitting ? (paymentsLive ? "Taking you to payment…" : "Placing…") : paymentsLive ? `Pay ${gbp(finalDeposit)} securely` : "Place order request"}
             </button>
           </div>
         </section>
@@ -421,14 +478,15 @@ export default function Order() {
   );
 }
 
-function RunningTotal({ total, deposit, subDiscount = 0 }: { total: number; deposit: number; subDiscount?: number }) {
+function RunningTotal({ total, deposit, subDiscount = 0, payInFull = false }: { total: number; deposit: number; subDiscount?: number; payInFull?: boolean }) {
   return (
     <div className="running-total">
       <div>
         <span className="muted">Order total</span> <strong>{gbp(total)}</strong>
         {subDiscount > 0 && <span className="rt-saved"> · you save {gbp(subDiscount)}</span>}
       </div>
-      <div className="muted small">25% deposit to confirm: {gbp(deposit)}</div>
+      <div className="muted small">{payInFull ? "Paid in full when you order" : `25% deposit to confirm: ${gbp(deposit)}`}</div>
     </div>
   );
 }
+
