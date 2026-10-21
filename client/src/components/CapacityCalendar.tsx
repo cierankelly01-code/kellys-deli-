@@ -122,7 +122,7 @@ export function CapacityCalendar({
         <span><i className="dot open" /> Available</span>
         <span><i className="dot limited" /> Filling up</span>
         <span><i className="dot full" /> Full</span>
-        <span>— Too soon (48hrs&apos; notice)</span>
+        <span>— Not available (too soon, or outside the collection dates)</span>
       </div>
     </div>
   );
@@ -136,7 +136,7 @@ function shortTag(d: DayAvailability): string {
 }
 
 function labelFor(d: DayAvailability): string {
-  if (d.status === "closed") return "too soon (48h notice)";
+  if (d.status === "closed") return "not available";
   if (d.status === "full") return "fully booked";
   if (d.status === "limited") return `only ${d.remaining} slots left`;
   return "available";

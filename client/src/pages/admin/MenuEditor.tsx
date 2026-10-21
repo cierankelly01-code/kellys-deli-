@@ -298,7 +298,7 @@ export default function MenuEditor() {
               </div>
             </div>
           )}
-          {(draft.category === "shop" || draft.kind === "product") && <ProductFields draft={draft} set={set} />}
+          {(draft.category === "shop" || draft.kind === "product") && <ProductFields key={draft.id ?? "new"} draft={draft} set={set} />}
           <div className="field"><label>Name</label><input className="input" value={draft.name} onChange={(e) => set("name", e.target.value)} /></div>
           <div className="field"><label>Description</label><textarea className="input" value={draft.description} onChange={(e) => set("description", e.target.value)} /></div>
           <div className="field">

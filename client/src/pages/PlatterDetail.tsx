@@ -95,10 +95,14 @@ export default function PlatterDetail() {
   const order = () => {
     if (!platter) return;
     // Persist the Subscribe & Save choice onto the cart so it carries into checkout.
-    const cart = loadCart() ?? emptyCart();
-    if (subFreq) cart.subscription = { frequency: subFreq };
-    else delete cart.subscription;
-    saveCart(cart);
+    // Pre-order products (hams, Christmas lines) can't be subscribed to, so they leave
+    // whatever the basket already says alone.
+    if (platter.kind !== "product") {
+      const cart = loadCart() ?? emptyCart();
+      if (subFreq) cart.subscription = { frequency: subFreq };
+      else delete cart.subscription;
+      saveCart(cart);
+    }
     addBoard(platter.id);
     window.dispatchEvent(new CustomEvent(CART_CHANGED_EVENT));
     openCartDrawer();
@@ -107,6 +111,9 @@ export default function PlatterDetail() {
   const isProduct = platter?.kind === "product";
   const closed = !!platter && orderingClosed(platter);
   const subOn = counts?.subscribeSave !== false && !isProduct;
+  // A subscription carried over from the basket never applies to a pre-order product.
+  const effSub = isProduct ? null : subFreq;
+  const paymentsLive = counts?.paymentsLive === true;
   const subPct = counts?.subscribeSaveDiscountPct ?? 10;
   const price = platter?.fixedPrice ?? platter?.fromPrice ?? 0;
   const subPrice = Math.round(price * (1 - subPct / 100) * 100) / 100;
@@ -191,13 +198,15 @@ export default function PlatterDetail() {
           )}
 
           <button className="btn" onClick={order} disabled={closed}>
-            {closed ? "Orders closed" : subFreq
+            {closed ? "Orders closed" : effSub
               ? `Start a subscription — ${gbp(subPrice)} / board`
               : `Add & continue — ${gbp(platter.fixedPrice ?? platter.fromPrice)}`}
           </button>
           <p className="buy-reassure">
-            {subFreq
-              ? "No card taken now — we'll set your schedule up with you and confirm each board."
+            {effSub
+              ? paymentsLive
+                ? "25% deposit for your first board today — we'll set your schedule up with you and confirm each board."
+                : "No card taken now — we'll set your schedule up with you and confirm each board."
               : platter.payInFull
                 ? "Paid at checkout · set aside with your name on it · pick your collection day"
                 : "Only 25% today · balance on collection · fully refundable up to 48 hrs before"}

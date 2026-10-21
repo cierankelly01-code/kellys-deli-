@@ -39,8 +39,8 @@ export function SeasonSettings() {
       <div className="field">
         <label>Website look</label>
         <div className="seg wide">
-          <button className={season === "christmas" ? "active" : ""} onClick={() => setSeason("christmas")}>Christmas</button>
-          <button className={season === "classic" ? "active" : ""} onClick={() => setSeason("classic")}>Classic (all year)</button>
+          <button type="button" aria-pressed={season === "christmas"} className={season === "christmas" ? "active" : ""} onClick={() => setSeason("christmas")}>Christmas</button>
+          <button type="button" aria-pressed={season === "classic"} className={season === "classic" ? "active" : ""} onClick={() => setSeason("classic")}>Classic (all year)</button>
         </div>
         <p className="muted hint">Switch back to Classic in January — no website changes needed.</p>
       </div>

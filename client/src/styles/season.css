@@ -22,7 +22,8 @@ html[data-season="christmas"] {
 .season-banner { display: block; background: var(--berry, #9b2232); color: #fff; text-decoration: none; letter-spacing: .04em; }
 .season-banner:hover, .season-banner:focus-visible { background: var(--berry-dark, #7c1a27); }
 .season-banner-cta { font-weight: 700; white-space: nowrap; text-decoration: underline; text-underline-offset: 3px; }
-.deli-header .hdr-nav a.nav-season, .deli-mobile-menu a.nav-season { color: var(--berry, #9b2232); font-weight: 700; }
+.deli-header .hdr-nav a.nav-season { color: var(--berry, #9b2232); font-weight: 700; }
+.deli-mobile-menu a.nav-season { color: #f1dca6; font-weight: 700; } /* the menu panel is evergreen — cranberry would vanish */
 
 /* Placeholder-photo honesty label, on tiles and the product page. */
 .xmas-card-media, .detail-photo-wrap { position: relative; }
@@ -31,7 +32,7 @@ html[data-season="christmas"] {
   background: rgb(255 255 255 / 90%); color: var(--ink); font-size: .68rem; font-weight: 600;
   letter-spacing: .02em; padding: 4px 8px; border-radius: 999px; pointer-events: none;
 }
-@media (min-width: 900px) {
+@media (min-width: 1024px) { /* matches .detail-grid's two-column breakpoint */
   .detail-grid .detail-photo-wrap { position: sticky; top: 24px; align-self: start; }
   .detail-grid .detail-photo-wrap .detail-photo { position: static; }
 }

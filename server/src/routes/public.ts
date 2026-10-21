@@ -796,7 +796,9 @@ publicRouter.post("/orders", async (req, res) => {
 
   // Subscribe & Save: apply the % discount only when the customer opted in AND the feature
   // is switched on in Site Settings. No card is taken here (payment-ready, not payment-live).
-  const wantsSub = !!input.isSubscription && !!input.subscriptionFrequency;
+  // Never on a basket holding a pre-order product (hams, Christmas lines) — those are
+  // one-off, paid-in-full stock, not a recurring board.
+  const wantsSub = !!input.isSubscription && !!input.subscriptionFrequency && !boards.some((b) => b.kind === "product");
   const subOn = (await getSetting("subscribeSave")) !== "off";
   const subPctRaw = parseInt((await getSetting("subscribeSaveDiscountPct")) ?? "10", 10);
   const subPct = wantsSub && subOn && Number.isFinite(subPctRaw) ? Math.max(0, Math.min(100, subPctRaw)) : 0;

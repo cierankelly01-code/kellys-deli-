@@ -234,7 +234,7 @@
 
 @media (max-width: 760px) {
   .admin { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
-  .admin-nav { display: none; }
+  /* The full link strip stays on phones (scrolls sideways) — the tab bar is a shortcut, not a replacement. */
   .admin-top .logout { display: none; }
   .admin-tabbar {
     display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; z-index: 40; left: 0; right: 0; bottom: 0;
@@ -257,6 +257,7 @@
   .admin-more-title { margin: 0 0 4px; font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); font-weight: 700; }
   .admin-more-sheet a { display: block; padding: 12px 6px; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; font-weight: 600; }
   .admin-more-sheet a.active { color: var(--brick); }
+  .card.editor .nav-row { bottom: calc(64px + env(safe-area-inset-bottom)); }
   .stat-cards { grid-template-columns: 1fr 1fr; }
   .trow { padding: 10px; font-size: .85rem; }
   .order-card .spread { flex-wrap: wrap; gap: 8px; }
@@ -276,7 +277,7 @@
 .preorder-pill { background: var(--cream); color: var(--brick); border: 1px solid var(--line); }
 
 .collect-day { display: flex; gap: 6px; align-items: center; margin: 8px 0; }
-.collect-day .input { flex: 1; min-height: 48px; }
+.collect-day .input { flex: 1; min-width: 0; min-height: 48px; }
 .collect-day .btn-ghost { min-width: 48px; min-height: 48px; font-size: 1.2rem; }
 .collect-search { width: 100%; min-height: 52px; font-size: 1rem; margin-bottom: 8px; }
 .collect-card { display: flex; gap: 12px; align-items: stretch; padding: 14px; }
@@ -312,3 +313,8 @@
 .import-photo { display: flex; gap: 12px; align-items: center; margin: 10px 0; }
 .import-photo img { width: 110px; height: 110px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--line); }
 @media (max-width: 480px) { .import-row { flex-direction: column; } }
+
+@media print {
+  .no-print, .admin-top, .admin-nav, .admin-tabbar, .admin-more { display: none !important; }
+  .admin { padding-bottom: 0 !important; }
+}

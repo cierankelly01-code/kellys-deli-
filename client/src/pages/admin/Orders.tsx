@@ -104,7 +104,7 @@ export default function Orders() {
               </div>
               <div className="spread order-foot">
                 <span>
-                  Total <strong>{gbp(o.total)}</strong> · {o.paymentType === "full" ? "pay in full" : "deposit (25%)"} {gbp(o.deposit)}{" "}
+                  Total <strong>{gbp(o.total)}</strong> · {o.paymentType === "full" ? "pay in full" : "deposit due (25%)"} {gbp(o.deposit)}{" "}
                   <span className={`pill ${o.depositStatus === "paid" ? "good" : "warn"}`}>{o.depositStatus === "paid" ? "paid" : "unpaid"}</span>
                   {o.balance > 0 && <> · balance {gbp(o.balance)}</>}
                 </span>

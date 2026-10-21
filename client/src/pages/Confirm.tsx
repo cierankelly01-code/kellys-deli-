@@ -79,22 +79,29 @@ export default function Confirm() {
   const [error, setError] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
+  // Back from Stripe but still not showing paid after ~10s: stop saying "a moment" and
+  // offer the pay button instead of leaving them on a spinner forever.
+  const [gaveUp, setGaveUp] = useState(false);
   usePageTitle("Order confirmed");
 
   useEffect(() => {
     if (!ref) return;
     let live = true;
     let tries = 0;
+    let timer: number | undefined;
     // Back from Stripe: the server checks the payment with Stripe. Card payments clear in
     // a second or two, so if it's still pending, look again a few times before giving up.
     const load = () =>
       api.getOrder(ref, backFromPayment).then((o) => {
         if (!live) return;
         setOrder(o);
-        if (backFromPayment && o.depositStatus === "pending" && ++tries < 6) setTimeout(load, 2000);
+        if (backFromPayment && o.depositStatus === "pending") {
+          if (++tries < 6) timer = window.setTimeout(load, 2000);
+          else setGaveUp(true);
+        }
       }).catch((e) => live && setError(e.message));
     load();
-    return () => { live = false; };
+    return () => { live = false; window.clearTimeout(timer); };
   }, [ref, backFromPayment]);
 
   async function payNow() {
@@ -149,12 +156,14 @@ export default function Confirm() {
             : awaitingPayment
               ? cancelled
                 ? "The payment wasn't finished, so we haven't confirmed this order. Pay below to lock it in."
-                : "We're just checking your payment with the bank — this page will update in a moment."
+                : gaveUp
+                  ? "We couldn't confirm your payment yet. If you've paid, refresh this page in a minute — otherwise pay below."
+                  : "We're just checking your payment with the bank — this page will update in a moment."
               : full
                 ? "Thanks — your order is in. We'll send you a secure payment link to confirm it."
                 : "Thanks — your order request is in. We'll contact you shortly with a secure payment link for a 25% deposit to confirm your order. The balance is payable on collection."}
         </p>
-        {!paid && cancelled && (
+        {!paid && (cancelled || gaveUp) && (
           <>
             <button className="btn" onClick={payNow} disabled={paying}>{paying ? "Opening payment…" : `Pay ${gbp(order.deposit)} securely`}</button>
             {payError && <p className="form-error" role="alert">{payError}</p>}

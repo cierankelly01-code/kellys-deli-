@@ -48,7 +48,8 @@ const NAV = NAV_GROUPS.flatMap((g) => g.links);
 const TABS: Array<{ to: string; label: string; icon: string; end?: boolean }> = [
   { to: "/admin", label: "Today", icon: "◉", end: true },
   { to: "/admin/collections", label: "Collect", icon: "✓" },
-  { to: "/admin/orders", label: "Orders", icon: "☰" },
+  // "All orders", not "Orders": the strip above also has an "Orders" link on phones.
+  { to: "/admin/orders", label: "All orders", icon: "☰" },
   { to: "/admin/suppliers", label: "Suppliers", icon: "⇄" },
 ];
 
@@ -57,6 +58,17 @@ export default function AdminLayout() {
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
   useEffect(() => setMoreOpen(false), [location.pathname]);
+  // The storefront's seasonal skin is for customers; staff screens stay in house colours.
+  useEffect(() => {
+    delete document.documentElement.dataset.season;
+  }, []);
+  useEffect(() => {
+    if (!moreOpen) return;
+    document.querySelector<HTMLElement>("#admin-more a")?.focus();
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMoreOpen(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [moreOpen]);
   if (!auth.isAuthed) return <Navigate to="/admin/login" replace />;
 
   const logout = () => {
@@ -91,13 +103,13 @@ export default function AdminLayout() {
             {t.label}
           </NavLink>
         ))}
-        <button type="button" className={`admin-tab${moreOpen ? " active" : ""}`} aria-expanded={moreOpen} onClick={() => setMoreOpen((o) => !o)}>
+        <button type="button" className={`admin-tab${moreOpen ? " active" : ""}`} aria-expanded={moreOpen} aria-controls="admin-more" onClick={() => setMoreOpen((o) => !o)}>
           <span className="admin-tab-icon" aria-hidden="true">⋯</span>
           More
         </button>
       </nav>
       {moreOpen && (
-        <div className="admin-more" role="dialog" aria-label="All admin pages" onClick={(e) => { if (e.target === e.currentTarget) setMoreOpen(false); }}>
+        <div className="admin-more" id="admin-more" role="dialog" aria-modal="true" aria-label="All admin pages" onClick={(e) => { if (e.target === e.currentTarget) setMoreOpen(false); }}>
           <div className="admin-more-sheet">
             {NAV_GROUPS.map((g) => (
               <div key={g.title} className="admin-more-group">

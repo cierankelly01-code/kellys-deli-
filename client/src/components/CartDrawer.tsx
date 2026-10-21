@@ -130,7 +130,9 @@ export function CartDrawer() {
     ...lines.map(({ b, p }) => ({ kind: "board", refId: p.id, quantity: b.quantity, price: p.fixedPrice ?? p.fromPrice ?? 0 })),
     ...addOnLines.map(({ a, d }) => ({ kind: "addon", refId: d.id, quantity: a.quantity, price: d.price })),
   ]);
-  const subscriptionPct = cart.subscription && content?.subscribeSave !== false ? Math.min(100, Math.max(0, content?.subscribeSaveDiscountPct ?? 10)) : 0;
+  // Subscribe & Save never applies to a basket holding a pre-order product (mirrors checkout).
+  const hasProduct = lines.some(({ p }) => p.kind === "product");
+  const subscriptionPct = cart.subscription && !hasProduct && content?.subscribeSave !== false ? Math.min(100, Math.max(0, content?.subscribeSaveDiscountPct ?? 10)) : 0;
   const subscriptionSaving = Math.round((totals.total - bundleSaving.amount) * subscriptionPct) / 100;
   const basketTotal = Math.round((totals.total - bundleSaving.amount - subscriptionSaving) * 100) / 100;
   // Split the money into the two moments the customer cares about: today, and on the day.
@@ -168,7 +170,10 @@ export function CartDrawer() {
    * and are chosen on the product page, so these link through rather than add. */
   const suggestions = useMemo(() => {
     const seen = new Set<string>();
+    // Catering boards only — the catalogue now also holds per-head legacy platters and
+    // Christmas lines, which aren't the "start here" picks.
     return boards
+      .filter((b) => b.category === "board")
       .filter((b) => { const key = b.variantGroup ?? b.id; if (seen.has(key)) return false; seen.add(key); return true; })
       .sort((a, b) => (b.recommendPriority - a.recommendPriority) || (a.sortOrder - b.sortOrder))
       .slice(0, 3);

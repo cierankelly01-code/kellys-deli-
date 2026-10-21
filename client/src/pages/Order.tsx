@@ -110,6 +110,15 @@ export default function Order() {
   const window_ = useMemo(() => collectionWindow(cartProducts), [cartProducts]);
   const extraLead = Math.max(0, ...cartProducts.map((b) => b.leadTimeHours ?? 0));
 
+  // A ham-and-hamper basket has no use for the cutlery/plates step: start it on the
+  // collection details (Back still reaches the extras). Once, so Back isn't overridden.
+  const [skippedExtras, setSkippedExtras] = useState(false);
+  useEffect(() => {
+    if (!catalogueReady || skippedExtras || !isPreorder) return;
+    setSkippedExtras(true);
+    setStep((s) => (s === "extras" ? "details" : s));
+  }, [catalogueReady, isPreorder, skippedExtras]);
+
   // Open the calendar on the first collectable month (e.g. December for Christmas lines).
   useEffect(() => {
     if (window_.from && window_.from > new Date().toISOString().slice(0, 10)) setCalMonth(monthStart(window_.from));
@@ -177,7 +186,11 @@ export default function Order() {
   // Subscribe & Save display maths (server reprices authoritatively on submit). Mirrors
   // server money.ts: % off the subtotal first, then 25% deposit rounded to the nearest 5p.
   const subOn = counts?.subscribeSave !== false;
-  const subPct = subFreq && subOn ? counts?.subscribeSaveDiscountPct ?? 10 : 0;
+  // Subscribe & Save is for catering boards only — a basket with a pre-order product in it
+  // never takes the discount, even if the customer subscribed to a board earlier.
+  const hasProduct = cartProducts.some((b) => b.kind === "product");
+  const activeSub = hasProduct ? null : subFreq;
+  const subPct = activeSub && subOn ? counts?.subscribeSaveDiscountPct ?? 10 : 0;
   const bundleSaving = bestBundleDiscount(bundles, [
     ...boardLines.map((l) => ({ kind: "board", refId: l.board.id, quantity: l.quantity, price: l.unitPrice })),
     ...addOnLines.map((l) => ({ kind: "addon", refId: l.addOn.id, quantity: l.quantity, price: l.unitPrice })),
@@ -223,7 +236,8 @@ export default function Order() {
       <div className="app order-page">
         <h1 className="page-h">Your order</h1>
         <p className="muted">Your order is empty.</p>
-        <button className="btn" onClick={() => navigate("/christmas")}>Browse the Christmas menu</button>
+        <button className="btn" onClick={() => navigate("/platters")}>Browse boards</button>
+        <button className="btn-ghost" onClick={() => navigate("/christmas")}>See the Christmas menu</button>
       </div>
     );
   }
@@ -245,7 +259,7 @@ export default function Order() {
         items: boardLines.map((l) => ({ platterId: l.board.id, quantity: l.quantity })),
         addOns: addOnLines.map((l) => ({ addOnId: l.addOn.id, quantity: l.quantity })),
         headcount,
-        occasion: occasion || undefined,
+        occasion: isPreorder ? undefined : occasion || undefined,
         collectionOrDeliveryDate: date,
         locationId,
         customerName: name.trim(),
@@ -253,8 +267,8 @@ export default function Order() {
         email: email.trim(),
         notes: notes.trim() || undefined,
         src: cart?.src || params.get("src") || undefined,
-        isSubscription: subFreq ? true : undefined,
-        subscriptionFrequency: subFreq || undefined,
+        isSubscription: activeSub ? true : undefined,
+        subscriptionFrequency: activeSub || undefined,
         isGift: isGift || undefined,
         recipientName: isGift ? recipientName.trim() || undefined : undefined,
         giftMessage: isGift ? giftMessage.trim() || undefined : undefined,
@@ -265,6 +279,9 @@ export default function Order() {
       trackOrderRequest({ value: res.order.total, ref: res.order.ref });
       // Live payments: off to Stripe's secure page; it brings them back to /confirm.
       if (res.checkoutUrl) {
+        // Swap /order out of history first: pressing Back on Stripe's page then lands on
+        // this order's "not paid yet — pay now" screen, not an empty basket.
+        navigate(`/confirm/${res.order.ref}?cancelled=1`, { replace: true });
         window.location.assign(res.checkoutUrl);
         return;
       }
@@ -364,7 +381,11 @@ export default function Order() {
               onMonthChange={setCalMonth}
             />
             {!availability && <p className="muted">Loading dates…</p>}
-            {window_.note && <p className="muted small">{window_.note}</p>}
+            {window_.conflict ? (
+              <p className="form-error" role="alert">
+                These items can&apos;t be collected on the same day — please order them separately.
+              </p>
+            ) : window_.note && <p className="muted small">{window_.note}</p>}
           </div>
 
           {!isPreorder && <label className="field">
@@ -420,7 +441,7 @@ export default function Order() {
           <h2 className="step-h">Review & confirm</h2>
           <div className="card review-summary">
             {boardLines.map((l) => (
-              <div key={l.board.id} className="review-row"><span>{l.quantity}× {l.board.name}</span><span>{gbp(l.unitPrice * l.quantity)}</span></div>
+              <div key={l.board.id} className="review-row"><span>{l.quantity}× {l.board.name}{l.board.variantLabel ? ` — ${l.board.variantLabel}` : ""}</span><span>{gbp(l.unitPrice * l.quantity)}</span></div>
             ))}
             {addOnLines.map((l) => (
               <div key={l.addOn.id} className="review-row muted"><span>{l.quantity}× {l.addOn.name}</span><span>{gbp(l.unitPrice * l.quantity)}</span></div>
@@ -441,13 +462,13 @@ export default function Order() {
                 <div className="review-row"><span>Balance on collection</span><span>{gbp(finalBalance)}</span></div>
               </>
             )}
-            {date && <div className="review-row muted"><span>{subFreq ? "First collection" : "Collection"}</span><span>{formatDate(date)}</span></div>}
+            {date && <div className="review-row muted"><span>{activeSub ? "First collection" : "Collection"}</span><span>{formatDate(date)}</span></div>}
             {isGift && recipientName.trim() && <div className="review-row muted"><span>Gift for</span><span>{recipientName.trim()}</span></div>}
           </div>
 
-          {subFreq ? (
+          {activeSub ? (
             <p className="deposit-policy recurring-note">
-              <strong>You&apos;re setting up a {subFreq} board.</strong> No card is taken now and nothing bills
+              <strong>You&apos;re setting up a {activeSub} board.</strong> {paymentsLive ? "Only your first board's deposit is taken today" : "No card is taken now"} and nothing bills
               automatically — we&apos;ll get in touch to set your schedule up with you and confirm each delivery before we
               make it. The 25% deposit confirms your first board; pause, skip or cancel any time.
             </p>

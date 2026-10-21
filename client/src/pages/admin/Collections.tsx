@@ -102,7 +102,7 @@ export default function Collections() {
                 onClick={() => toggle(o)}
                 disabled={busy === o.id}
                 aria-pressed={!!o.collectedAt}
-                aria-label={o.collectedAt ? `Undo collected for ${o.customerName}` : `Mark ${o.customerName} collected`}
+                aria-label={`Collected — ${o.customerName}`}
               >
                 {o.collectedAt ? "✓" : ""}
                 <span>{o.collectedAt ? "Collected" : "Collect"}</span>
