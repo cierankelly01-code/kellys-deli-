@@ -146,7 +146,7 @@ html[data-season="christmas"] {
 .xmas-shelf { margin-top: 10px; }
 .xmas-shelf .xmas-card-media img, .xmas-shelf .xmas-card-media .product-art { display: block; width: 100%; aspect-ratio: 4/3; height: auto; object-fit: cover; }
 @media (min-width: 700px) { .xmas-shelf-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (min-width: 1040px) { .xmas-shelf-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 1040px) { .xmas-shelf-grid { grid-template-columns: repeat(3, 1fr); } }
 .xmas-hero-art { display: none; }
 .xmas-hero-copy { display: flex; flex-direction: column; gap: 10px; }
 @media (min-width: 900px) {
@@ -158,3 +158,7 @@ html[data-season="christmas"] {
   .xmas-hero-holly { display: none; } /* the framed illustration carries the holly on desktop */
 }
 .deli-hero-photo .deli-hero-art { display: block; position: absolute; inset: 0; width: 100%; height: 100%; }
+/* Links styled as buttons read as buttons, like the site's own .deli-primary. */
+a.btn, a.btn-secondary, a.btn-ghost { text-decoration: none; }
+.deli-hero-photo:has(.deli-hero-art) { background: #efe4cd; }
+.deli-hero-photo .deli-hero-art { padding: 6% 6% 18%; }

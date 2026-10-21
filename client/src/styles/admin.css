@@ -318,3 +318,8 @@
   .no-print, .admin-top, .admin-nav, .admin-tabbar, .admin-more { display: none !important; }
   .admin { padding-bottom: 0 !important; }
 }
+.supplier-group { padding: 16px; }
+.supplier-group .supplier-lines li:first-child { border-top: 1px solid var(--line); }
+.collect-tick::before { content: ""; width: 30px; height: 30px; border-radius: 50%; border: 2.5px solid var(--good); display: block; }
+.collect-tick.on::before { display: none; }
+.collect-tick:not(.on) span { color: var(--good); }

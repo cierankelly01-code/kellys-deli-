@@ -96,7 +96,13 @@ export default function Choice() {
     if (!xmas) return;
     api.shopCategory("christmas").then((c) => setXmasRange(c.boards ?? [])).catch(() => setXmasRange([]));
   }, [xmas]);
-  const xmasPicks = groupVariants(xmasRange.filter((p) => !orderingClosed(p))).slice(0, 4);
+  // One pick per section (a ham, the turkey, a pie, the hamper…) rather than three hams.
+  const xmasPicks = (() => {
+    const groups = groupVariants(xmasRange.filter((p) => !orderingClosed(p)));
+    const seen = new Set<string>();
+    const firstOfEach = groups.filter((g) => { const s = g.lead.section ?? g.lead.id; if (seen.has(s)) return false; seen.add(s); return true; });
+    return [...firstOfEach, ...groups.filter((g) => !firstOfEach.includes(g))].slice(0, 3);
+  })();
   const hours = parseHours(counts?.openingHours ?? null);
   const today = DAY_LABELS[(new Date().getDay() + 6) % 7];
   // One tile per board, not one per size (see lib/variants).
@@ -128,7 +134,7 @@ export default function Choice() {
         </div>
         <figure className="deli-hero-photo">
           {xmas
-            ? <ProductArt name="Honey Roast Ham" className="deli-hero-art" />
+            ? <ProductArt name="Honey Roast Ham" className="deli-hero-art" fit="meet" />
             : <img src={counts?.heroImageUrl || DEFAULT_HERO_IMG} alt="A generous spread of cheese, charcuterie and accompaniments" width="1000" height="1100" {...{ fetchpriority: "high" }} />}
           <figcaption><span>{xmas ? "CHRISTMAS AT KELLY’S" : "THE KELLY’S TABLE"}</span><span>{xmas ? "Order now, collect in December." : "Something for everyone."}</span></figcaption>
         </figure>

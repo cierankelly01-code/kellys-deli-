@@ -231,7 +231,8 @@ export default function PlatterDetail() {
             </>
           )}
 
-          <TrustChips />
+          {/* The deposit/refund chips describe catering boards, not paid-in-full pre-orders. */}
+          {!isProduct && <TrustChips />}
           <DeliVideos productId={platter.id} />
           {isProduct && (
             <section className="preorder-how" aria-label="How pre-ordering works">

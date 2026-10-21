@@ -23,9 +23,14 @@ const C = {
   ink: "#1d2721",
 };
 
-/** Pick the drawing from the product's name, falling back to its section. */
+/** Pick the drawing from the product's name, falling back to its section — so "Pigs in
+ * Blankets" in "Turkey & Trimmings" draws sausages, not a turkey. */
 export function artKind(name: string, section?: string | null): Kind {
-  const n = `${name} ${section ?? ""}`.toLowerCase();
+  return kindFor(name.toLowerCase()) ?? kindFor((section ?? "").toLowerCase()) ?? "gift";
+}
+
+function kindFor(n: string): Kind | null {
+  if (!n) return null;
   if (/hamper|gift/.test(n)) return "hamper";
   if (/ham\b|gammon|joint/.test(n)) return "ham";
   if (/turkey/.test(n)) return "turkey";
@@ -35,7 +40,7 @@ export function artKind(name: string, section?: string | null): Kind {
   if (/blanket|sausage|chipolata|trimming/.test(n)) return "sausages";
   if (/cheese|stilton|brie|cheddar/.test(n)) return "cheese";
   if (/platter|board|grazing|party/.test(n)) return "platter";
-  return "gift";
+  return null;
 }
 
 function Board({ cy = 222, rx = 150 }: { cy?: number; rx?: number }) {
@@ -302,11 +307,11 @@ const DRAW: Record<Kind, (p: { uid: string }) => JSX.Element> = {
   gift: Gift,
 };
 
-export function ProductArt({ name, section, className }: { name: string; section?: string | null; className?: string }) {
+export function ProductArt({ name, section, className, fit = "slice" }: { name: string; section?: string | null; className?: string; fit?: "slice" | "meet" }) {
   const uid = `pa${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   const Art = DRAW[artKind(name, section)];
   return (
-    <svg className={`product-art${className ? ` ${className}` : ""}`} viewBox="0 0 400 300" role="img" aria-label={`Illustration: ${name}`} preserveAspectRatio="xMidYMid slice">
+    <svg className={`product-art${className ? ` ${className}` : ""}`} viewBox="0 0 400 300" role="img" aria-label={`Illustration: ${name}`} preserveAspectRatio={`xMidYMid ${fit}`}>
       <defs>
         <radialGradient id={`${uid}-bg`} cx=".5" cy=".42" r=".75">
           <stop offset="0" stopColor="#fffaf0" />

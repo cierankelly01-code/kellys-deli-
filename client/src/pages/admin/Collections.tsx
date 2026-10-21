@@ -104,7 +104,7 @@ export default function Collections() {
                 aria-pressed={!!o.collectedAt}
                 aria-label={`Collected — ${o.customerName}`}
               >
-                {o.collectedAt ? "✓" : ""}
+                {o.collectedAt ? "✓" : null}
                 <span>{o.collectedAt ? "Collected" : "Collect"}</span>
               </button>
             </div>
