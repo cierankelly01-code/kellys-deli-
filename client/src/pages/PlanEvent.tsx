@@ -5,8 +5,7 @@ import { feedsCapacity, feedsRange, roundTo5p } from "../lib/addOnPricing";
 import { saveCart } from "../lib/cart";
 import { gbp } from "../lib/format";
 import { usePageTitle } from "../lib/title";
-import { ProductArt } from "../components/ProductArt";
-import { Ornament } from "../components/BrandMark";
+import { Ticket, sentence } from "../components/site/Ticket";
 
 /** Headcounts people actually type, with the occasion each one usually is. */
 const CHIPS: Array<{ n: number; label: string }> = [
@@ -22,6 +21,7 @@ const CHIPS: Array<{ n: number; label: string }> = [
  * than swapped in by an onError handler — a 404 or a slow image then degrades to the
  * monogram on its own, with no JS involved. (Uploaded photos have gone missing in
  * production before; an empty grey square is the one outcome worth engineering out.)
+ * No photo at all: the plain counter-colour block with the letter, never a drawing.
  */
 function BoardThumb({ board, size = 64, eager = false }: { board: Platter; size?: number; eager?: boolean }) {
   // onError additionally removes the failed <img>, because Chromium paints its own
@@ -31,8 +31,6 @@ function BoardThumb({ board, size = 64, eager = false }: { board: Platter; size?
   return (
     <span className="pl-thumb" style={{ width: size, height: size, fontSize: size / 2.6 }} aria-hidden="true">
       {board.name.slice(0, 1)}
-      {/* No photo yet (or it failed): the engraved illustration sits over the monogram. */}
-      {(!board.imageUrl || failed) && <ProductArt name={board.name} className="pl-thumb-art" fit={size > 120 ? "meet" : "slice"} />}
       {board.imageUrl && !failed && (
         <img
           src={board.imageUrl}
@@ -48,8 +46,14 @@ function BoardThumb({ board, size = 64, eager = false }: { board: Platter; size?
   );
 }
 
+/** "£95, feeds 12–15": the price and the crowd, for a row of text. */
+function priceFeeds(b: Platter): string {
+  const f = feedsLabel(b);
+  return f ? `${gbp(b.fixedPrice ?? 0)}, ${f}` : gbp(b.fixedPrice ?? 0);
+}
+
 function feedsLabel(b: Platter): string {
-  if (b.feedsMin && b.feedsMax) return `feeds ${b.feedsMin}–${b.feedsMax}`;
+  if (b.feedsMin && b.feedsMax) return b.feedsMin === b.feedsMax ? `feeds ${b.feedsMax}` : `feeds ${b.feedsMin}–${b.feedsMax}`;
   if (b.serves) return `feeds ${b.serves}`;
   return "";
 }
@@ -193,25 +197,23 @@ export default function PlanEvent() {
         .filter((b) => b.imageUrl && b.tier === "signature")
         .sort((a, b) => feedsCapacity(b) - feedsCapacity(a))[0]
       ?? boards.find((b) => b.imageUrl)
-      // No photos uploaded yet: show the biggest signature board as an engraving.
-      ?? boards.filter((b) => b.tier === "signature").sort((a, b) => feedsCapacity(b) - feedsCapacity(a))[0],
+      // No photos uploaded yet: no picture at all rather than a blank or a drawing.
+      ?? null,
     [boards],
   );
 
   return (
     <div className="plan-event">
       <div className="wrap pl-wrap">
-        <button className="link-back pl-back" onClick={() => (step === "combo" ? setStep("count") : navigate("/"))}>← Back</button>
+        <button className="link-back pl-back" onClick={() => (step === "combo" ? setStep("count") : navigate("/"))}>Back</button>
 
         {step === "count" && (
           <section className="plan-count pl-layout">
             <div className="pl-intro">
-              <p className="pl-eyebrow">Catering · a free consultation · takes 20 seconds</p>
               <h1 className="pl-h1">How many are you feeding?</h1>
-              <Ornament className="ornament pl-ornament" />
               <p className="pl-lede">
-                Give us a headcount and we&apos;ll put together a spread that actually stretches —
-                so you&apos;re not doing sums the night before.
+                Give us a headcount and we&apos;ll suggest boards and platters to feed everyone, so you&apos;re not
+                doing sums the night before.
               </p>
 
               {boardsFailed && (
@@ -222,18 +224,16 @@ export default function PlanEvent() {
               )}
             </div>
 
-            {/* Shown at every width: a page selling food should show the food. Decorative
-                art is hidden from AT; the caption below is real product information. */}
+            {/* Shown at every width: a page selling food should show the food. The photo is
+                decorative for AT; the caption and ticket carry the product information. */}
             {hero && (
-              <aside className="pl-aside">
+              <aside className="pl-aside" aria-label={`Pictured: ${hero.name}`}>
                 <div className="pl-aside-photo">
                   <BoardThumb board={hero} size={520} eager />
+                  {hero.imageIllustrative && <span className="illustrative-tag">Illustrative photo</span>}
+                  <Ticket price={gbp(hero.fixedPrice ?? 0)} unit={feedsLabel(hero) ? sentence(feedsLabel(hero)) : null} />
                 </div>
-                <p className="pl-aside-cap">
-                  <span className="pl-aside-k">From the counter</span>
-                  <strong>{hero.name}</strong>
-                  <span>{gbp(hero.fixedPrice ?? 0)} · {feedsLabel(hero)}</span>
-                </p>
+                <p className="pl-aside-cap">Pictured: {hero.name}</p>
               </aside>
             )}
 
@@ -275,14 +275,12 @@ export default function PlanEvent() {
               <button className="btn pl-cta" disabled={loading} onClick={() => getRecommendation(headcount)}>
                 {loading ? "Working…" : "Show me a spread"}
               </button>
-              <p className="pl-micro">Nothing&apos;s ordered yet — you&apos;ll see every price first.</p>
+              <p className="pl-micro">Nothing is ordered yet. You&apos;ll see every price first.</p>
 
               <ul className="pl-trust">
-                <li><strong>48 hours&apos;</strong> notice is all we need</li>
-                <li><strong>25% deposit</strong> confirms it — balance on collection</li>
-                {rating && reviews
-                  ? <li><strong>{rating}★</strong> from {reviews} Google reviews</li>
-                  : <li><strong>Independent</strong> and family-run since day one</li>}
+                <li>We need <strong>48 hours&apos; notice</strong></li>
+                <li>A <strong>25% deposit</strong> confirms it, and you pay the rest when you collect</li>
+                {rating && reviews ? <li>Rated <strong>{rating} out of 5</strong> from {reviews} Google reviews</li> : null}
               </ul>
             </div>
           </section>
@@ -291,10 +289,10 @@ export default function PlanEvent() {
         {step === "count" && (
           <section className="pl-how" aria-labelledby="pl-how-h">
             <h2 id="pl-how-h" className="pl-how-h">How it works</h2>
-            <ol>
-              <li><span className="pl-how-n">i.</span><strong>Tell us your numbers</strong><span>One headcount is all we need to start.</span></li>
-              <li><span className="pl-how-n">ii.</span><strong>We suggest a spread</strong><span>Sized to feed everyone — swap or add boards as you like.</span></li>
-              <li><span className="pl-how-n">iii.</span><strong>Collect from the deli</strong><span>Pick a day with 48 hours&apos; notice; a 25% deposit confirms it.</span></li>
+            <ol className="pl-how-steps">
+              <li><strong>Tell us your numbers</strong><span>One headcount is all we need to start.</span></li>
+              <li><strong>We suggest a spread</strong><span>Sized to feed everyone. Swap or add boards as you like.</span></li>
+              <li><strong>Collect from the deli</strong><span>Pick a day with 48 hours&apos; notice. A 25% deposit confirms it.</span></li>
             </ol>
           </section>
         )}
@@ -302,9 +300,8 @@ export default function PlanEvent() {
         {step === "combo" && rec && (
           <section className="plan-combo">
             <header className="pl-combo-head">
-              <p className="pl-eyebrow">Your consultation</p>
               <h1 className="pl-h1 pl-h1-sm" ref={spreadHeadingRef} tabIndex={-1}>Our suggestion for {headcount} people</h1>
-              <p className="pl-lede">Swap anything you like — remove a board, add another. Totals update as you go.</p>
+              <p className="pl-lede">Swap anything you like: take a board out or add another. The totals update as you go.</p>
             </header>
 
             <div className="pl-combo-main">
@@ -321,7 +318,7 @@ export default function PlanEvent() {
                     <BoardThumb board={l.board} size={88} />
                     <div className="combo-info">
                       <span className="combo-name">{l.board.name}</span>
-                      <span className="muted">{gbp(l.board.fixedPrice ?? 0)} · {feedsLabel(l.board)}</span>
+                      <span className="muted">{priceFeeds(l.board)}</span>
                       {l.board.description && <span className="combo-desc">{l.board.description}</span>}
                     </div>
                     <div className="combo-qty">
@@ -355,7 +352,7 @@ export default function PlanEvent() {
                               <BoardThumb board={b} size={56} />
                               <span className="pl-picker-info">
                                 <span className="combo-name">{b.name}</span>
-                                <span className="muted">{gbp(b.fixedPrice ?? 0)} · {feedsLabel(b)}</span>
+                                <span className="muted">{priceFeeds(b)}</span>
                               </span>
                               <span className="pl-picker-add" aria-hidden="true">+</span>
                             </button>
@@ -370,25 +367,25 @@ export default function PlanEvent() {
               <aside className="pl-talk" aria-label="Talk it through">
                 <p className="pl-talk-k">Prefer to talk it through?</p>
                 <p>
-                  Ring the deli on <a href="tel:01564703441">01564 703441</a> — tell us about the
-                  occasion and any dietary needs, and we&apos;ll plan the spread with you.
+                  Ring the deli on <a href="tel:01564703441">01564 703441</a>. Tell us about the occasion and any
+                  dietary needs, and we&apos;ll plan the spread with you.
                 </p>
               </aside>
 
               {undercatered && (
                 <div className="pl-shortfall" role="status">
-                  <p>This mix feeds up to {feeds.max} — it won&apos;t stretch to {headcount}.</p>
+                  <p>This mix feeds up to {feeds.max}. It won&apos;t stretch to {headcount}.</p>
                   <button type="button" className="btn-ghost" onClick={fixShortfall}>Add a board to cover it</button>
                 </div>
               )}
             </div>
 
             <div className="pl-summary">
-              <p className="pl-summary-k">Your spread</p>
+              <h2 className="pl-summary-k">Your spread</h2>
               <div className="pl-summary-nums">
                 <span className="pl-summary-feeds">
                   Feeds <strong>{feeds.min === feeds.max ? feeds.max : `${feeds.min}–${feeds.max}`}</strong>
-                  {perHead > 0 && <em>{gbp(perHead)} a head</em>}
+                  {perHead > 0 && <span className="pl-summary-head">{gbp(perHead)} a head</span>}
                 </span>
                 <span className="pl-summary-total">{gbp(totalPrice)}</span>
               </div>
@@ -397,19 +394,17 @@ export default function PlanEvent() {
               </button>
               {totalPrice > 0 && (
                 <p className="pl-micro">
-                  <strong>{gbp(deposit)}</strong> confirms it — {gbp(balance)} on collection.
-                  Nothing charged yet.
+                  A <strong>{gbp(deposit)}</strong> deposit confirms it, then {gbp(balance)} when you collect.
+                  Nothing is charged yet.
                 </p>
               )}
 
               {/* Proof belongs on the screen where the money decision is made, not only
                   on the one before it. Rating falls back to plain policy if unavailable. */}
               <ul className="pl-trust pl-trust-compact">
-                <li><strong>48 hours&apos;</strong> notice is all we need</li>
-                <li><strong>Made by hand</strong> in Solihull, collected from the deli</li>
-                {rating && reviews
-                  ? <li><strong>{rating}★</strong> from {reviews} Google reviews</li>
-                  : <li><strong>Independent</strong> and family-run since day one</li>}
+                <li>We need <strong>48 hours&apos; notice</strong></li>
+                <li>Made by hand and collected from the deli</li>
+                {rating && reviews ? <li>Rated <strong>{rating} out of 5</strong> from {reviews} Google reviews</li> : null}
               </ul>
             </div>
           </section>

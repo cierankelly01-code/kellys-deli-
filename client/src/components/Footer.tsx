@@ -44,7 +44,7 @@ export function Footer() {
             <p className="footer-col-h">Opening hours</p>
             {hours ? (
               <>
-                <p className="footer-status">{openStatus(hours).text.replace(" · ", ", ")}</p>
+                <p className="footer-status">{openStatus(hours).text}</p>
                 <dl className="footer-hours">
                   {DAY_LABELS.map((d, i) => (
                     <div key={d.key} className={i === today ? "is-today" : undefined}>

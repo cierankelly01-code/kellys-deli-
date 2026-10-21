@@ -32,9 +32,8 @@ export function AddOnsStep({ addOns, headcount, value, onChange }: Props) {
 
   return (
     <section className="addons-step">
-      <p className="eyebrow addons-eyebrow">Optional extras</p>
-      <h2 className="step-h">Make it effortless — add the extras</h2>
-      <p className="muted addons-sub">Suggested amounts are worked out from your numbers. Nothing is added until you tap — adjust anything.</p>
+      <h2 className="step-h">Add extras</h2>
+      <p className="muted addons-sub">We&apos;ve worked out suggested amounts from your numbers. Nothing is added until you choose it, and you can change anything.</p>
 
       <ul className="addon-list">
         {addOns.map((a) => {
@@ -47,7 +46,7 @@ export function AddOnsStep({ addOns, headcount, value, onChange }: Props) {
               <div className="addon-body">
                 <div className="addon-head">
                   <span className="addon-name">{a.name}</span>
-                  <span className="addon-price">{gbp(a.price)}{a.unitLabel ? ` · ${a.unitLabel}` : ""}</span>
+                  <span className="addon-price">{gbp(a.price)}{a.unitLabel ? ` ${a.unitLabel}` : ""}</span>
                 </div>
                 {a.description && <p className="addon-desc">{a.description}</p>}
                 <div className="addon-foot">
@@ -86,7 +85,7 @@ export function AddOnsStep({ addOns, headcount, value, onChange }: Props) {
       </ul>
 
       <div className="addons-running">
-        <span>Extras</span>
+        <span>Extras total</span>
         <strong>{gbp(runningTotal)}</strong>
       </div>
     </section>

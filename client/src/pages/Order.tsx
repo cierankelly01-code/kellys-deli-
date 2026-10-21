@@ -22,8 +22,6 @@ import { trackOrderRequest } from "../lib/consent";
 import { bestBundleDiscount } from "../lib/bundle-discount";
 import { collectionWindow } from "../lib/preorder";
 import type { Bundle } from "../lib/api";
-import { ProductArt } from "../components/ProductArt";
-import { Ornament } from "../components/BrandMark";
 
 const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -237,17 +235,15 @@ export default function Order() {
   if (catalogueReady && boardLines.length === 0) {
     return (
       <div className="co order-page">
-        <section className="co-empty wrap-narrow">
-          <p className="eyebrow">Your basket</p>
+        <section className="co-empty wrap">
           <h1 className="co-title">Your order</h1>
-          <Ornament />
-          <p className="muted co-empty-lede">Your order is empty.</p>
+          <p className="co-empty-lede">Your order is empty.</p>
           <div className="co-empty-actions">
             <button className="btn" onClick={() => navigate("/platters")}>Browse boards</button>
-            <button className="btn-ghost co-textlink" onClick={() => navigate("/christmas")}>See the Christmas menu</button>
+            <button className="btn btn-secondary" onClick={() => navigate("/christmas")}>See the Christmas menu</button>
           </div>
           <p className="co-empty-more">
-            Feeding a crowd? <Link to="/plan">Plan your event</Link> · Just some bread? <Link to="/bread">Order for collection</Link>
+            Feeding a crowd? <Link to="/plan">Plan your event</Link>. Just some bread? <Link to="/bread">Order it for collection</Link>.
           </p>
         </section>
       </div>
@@ -316,9 +312,9 @@ export default function Order() {
     <div className={`co order-page${isPreorder ? " is-preorder" : ""}`}>
       <div className="wrap co-wrap">
         <header className="co-head">
-          <button className="link-back co-back" onClick={shopMore}>← Keep shopping</button>
-          <p className="eyebrow co-eyebrow">{isPreorder ? "Christmas pre-order" : "Checkout"}</p>
+          <button className="link-back co-back" onClick={shopMore}>Keep shopping</button>
           <h1 className="co-title">Your order</h1>
+          {isPreorder && <p className="co-kind">Christmas pre-order</p>}
 
           <ol className="co-steps" aria-label="Order steps">
             {visibleSteps.map((s, i) => {
@@ -355,7 +351,7 @@ export default function Order() {
             >
               <span className="co-sum-toggle-l">
                 <span className="co-sum-toggle-t">{summaryOpen ? "Hide" : "Show"} order summary <i className="co-caret" aria-hidden="true" /></span>
-                <small>{itemCount} item{itemCount === 1 ? "" : "s"}{date ? ` · ${formatDate(date)}` : ""}</small>
+                <small>{itemCount} item{itemCount === 1 ? "" : "s"}{date ? `, ${formatDate(date)}` : ""}</small>
               </span>
               <span className="co-sum-toggle-r">
                 <strong>{gbp(finalTotal)}</strong>
@@ -376,9 +372,7 @@ export default function Order() {
                   return (
                     <li key={l.board.id} className="order-line co-line">
                       <span className="co-thumb" aria-hidden="true">
-                        {l.board.imageUrl
-                          ? <img src={l.board.imageUrl} alt="" loading="lazy" />
-                          : <ProductArt name={l.board.name} section={l.board.section} />}
+                        {l.board.imageUrl && <img src={l.board.imageUrl} alt="" loading="lazy" />}
                       </span>
                       <div className="co-line-info">
                         <span className="ol-name">{l.board.name}</span>
@@ -436,7 +430,7 @@ export default function Order() {
               {payInFull ? (
                 <>
                   <div className="rt-row rt-today"><span>{paymentsLive ? "To pay today" : "To pay"}</span><span>{gbp(finalDeposit)}</span></div>
-                  <p className="rt-note">Paid in full when you order — nothing to pay at the counter.</p>
+                  <p className="rt-note">Paid in full when you order. Nothing to pay at the counter.</p>
                 </>
               ) : (
                 <>
@@ -453,7 +447,7 @@ export default function Order() {
               <section className="co-panel">
                 <AddOnsStep addOns={addOns} headcount={headcount} value={cart?.addOns ?? []} onChange={(next) => update({ addOns: next })} />
                 {addOns.length === 0 && catalogueReady && (
-                  <p className="muted co-none">No extras needed — carry on to your details.</p>
+                  <p className="muted co-none">No extras needed. Carry on to your details.</p>
                 )}
                 <div className="step-actions co-actions">
                   <button className="btn" onClick={() => setStep("details")}>Continue to details</button>
@@ -467,12 +461,12 @@ export default function Order() {
                 <p className="co-panel-sub">
                   {isPreorder
                     ? "Choose the day you’ll call in. We’ll have it ready with your name on it."
-                    : "Tell us when you’d like to collect and who it’s for. Prices are set — nothing is taken yet."}
+                    : "Tell us when you’d like to collect and who it’s for. Nothing is paid yet."}
                 </p>
 
                 {!isPreorder && (
                   <div className="co-block">
-                    <h3 className="co-block-h"><span>i.</span> Your party</h3>
+                    <h3 className="co-block-h">Your party</h3>
                     <div className="co-grid-2">
                       <label className="field">
                         <span>How many people are you feeding?</span>
@@ -491,7 +485,7 @@ export default function Order() {
                       <label className="field">
                         <span>Occasion (optional)</span>
                         <select value={occasion} onChange={(e) => setOccasion(e.target.value as Occasion | "")}>
-                          <option value="">—</option>
+                          <option value="">Choose one</option>
                           {OCCASIONS.map((o) => (
                             <option key={o} value={o}>{o}</option>
                           ))}
@@ -502,7 +496,7 @@ export default function Order() {
                 )}
 
                 <div className="co-block">
-                  <h3 className="co-block-h"><span>{isPreorder ? "i." : "ii."}</span> Collection day</h3>
+                  <h3 className="co-block-h">Collection day</h3>
                   <label className="field">
                     <span>Collect from</span>
                     <select value={locationId} onChange={(e) => setLocationId(e.target.value)}>
@@ -527,7 +521,7 @@ export default function Order() {
                     {!availability && <p className="muted co-loading">Loading dates…</p>}
                     {window_.conflict && (
                       <p className="form-error" role="alert">
-                        These items can&apos;t be collected on the same day — please order them separately.
+                        These items can&apos;t be collected on the same day. Please order them separately.
                       </p>
                     )}
                     {date && selectedDay?.bookable && (
@@ -540,7 +534,7 @@ export default function Order() {
 
                 {subOn && !isPreorder && (
                   <div className="co-block">
-                    <h3 className="co-block-h"><span>iii.</span> Make it a regular thing?</h3>
+                    <h3 className="co-block-h">Make it a regular order?</h3>
                     <SubscribeSave
                       value={subFreq}
                       onChange={setSubscription}
@@ -551,18 +545,18 @@ export default function Order() {
                 )}
 
                 <div className="co-block">
-                  <h3 className="co-block-h"><span>{isPreorder ? "ii." : subOn ? "iv." : "iii."}</span> Your details</h3>
+                  <h3 className="co-block-h">Your details</h3>
                   <label className="field"><span>Your name</span><input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></label>
                   <div className="co-grid-2">
                     <label className="field"><span>Phone</span><input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" /></label>
                     <label className="field"><span>Email</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" /></label>
                   </div>
-                  <label className="field"><span>{isPreorder ? "Notes — e.g. \"slice the ham, please\" (optional)" : "Allergies / notes (optional)"}</span><textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} /></label>
+                  <label className="field"><span>{isPreorder ? "Notes, for example \"slice the ham, please\" (optional)" : "Allergies or notes (optional)"}</span><textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} /></label>
 
                   <div className="field gift-toggle co-gift">
                     <label className="gift-check">
                       <input type="checkbox" checked={isGift} onChange={(e) => setIsGift(e.target.checked)} />
-                      <span>This is a gift — add a printed note</span>
+                      <span>This is a gift: add a printed note</span>
                     </label>
                     {isGift && (
                       <div className="gift-fields">
@@ -591,9 +585,9 @@ export default function Order() {
                 <p className="co-panel-sub">One last look before it goes to the deli.</p>
 
                 <div className="card review-summary co-receipt">
-                  <p className="co-receipt-h">Kelly&apos;s · Delicatessen{locationName ? ` · ${locationName}` : ""}</p>
+                  <p className="co-receipt-h">Kelly&apos;s Deli{locationName ? `, ${locationName}` : ""}</p>
                   {boardLines.map((l) => (
-                    <div key={l.board.id} className="review-row"><span>{l.quantity}× {l.board.name}{l.board.variantLabel ? ` — ${l.board.variantLabel}` : ""}</span><span>{gbp(l.unitPrice * l.quantity)}</span></div>
+                    <div key={l.board.id} className="review-row"><span>{l.quantity}× {l.board.name}{l.board.variantLabel ? `, ${l.board.variantLabel}` : ""}</span><span>{gbp(l.unitPrice * l.quantity)}</span></div>
                   ))}
                   {addOnLines.map((l) => (
                     <div key={l.addOn.id} className="review-row muted"><span>{l.quantity}× {l.addOn.name}</span><span>{gbp(l.unitPrice * l.quantity)}</span></div>
@@ -620,8 +614,10 @@ export default function Order() {
 
                 <dl className="co-who">
                   <div><dt>Name</dt><dd>{name.trim()}</dd></div>
-                  <div><dt>Contact</dt><dd>{phone.trim()} · {email.trim()}</dd></div>
-                  {!isPreorder && <div><dt>Feeding</dt><dd>{headcount} {headcount === 1 ? "person" : "people"}{occasion ? ` · ${occasion}` : ""}</dd></div>}
+                  <div><dt>Phone</dt><dd>{phone.trim()}</dd></div>
+                  <div><dt>Email</dt><dd>{email.trim()}</dd></div>
+                  {!isPreorder && <div><dt>Feeding</dt><dd>{headcount} {headcount === 1 ? "person" : "people"}</dd></div>}
+                  {!isPreorder && occasion && <div><dt>Occasion</dt><dd>{occasion}</dd></div>}
                   {notes.trim() && <div><dt>Notes</dt><dd>{notes.trim()}</dd></div>}
                 </dl>
                 <button type="button" className="co-textlink co-edit" onClick={() => setStep("details")}>Change these details</button>
@@ -629,8 +625,8 @@ export default function Order() {
                 {activeSub ? (
                   <p className="deposit-policy recurring-note">
                     <strong>You&apos;re setting up a {activeSub} board.</strong> {paymentsLive ? "Only your first board's deposit is taken today" : "No card is taken now"} and nothing bills
-                    automatically — we&apos;ll get in touch to set your schedule up with you and confirm each delivery before we
-                    make it. The 25% deposit confirms your first board; pause, skip or cancel any time.
+                    automatically. We&apos;ll get in touch to set your schedule up with you and confirm each delivery before we
+                    make it. The 25% deposit confirms your first board. Pause, skip or cancel any time.
                   </p>
                 ) : payInFull ? (
                   <p className="deposit-policy">
@@ -654,7 +650,7 @@ export default function Order() {
                   </button>
                 </div>
                 <p className="co-terms">
-                  By placing your order you agree to our <Link to="/terms">terms</Link>. See how we look after your details in our <Link to="/privacy">privacy policy</Link>.
+                  By placing your order you agree to our <Link to="/terms">terms</Link>. Our <Link to="/privacy">privacy policy</Link> explains how we look after your details.
                 </p>
               </section>
             )}

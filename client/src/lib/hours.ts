@@ -1,5 +1,5 @@
 // Opening hours (Site Settings → "openingHours", JSON of "9:00 - 17:00" | "Closed" per day)
-// and the live "Open now · closes 17:00" line shown in the header, footer and homepage.
+// and the live "Open now, closes 17:00" line shown in the header, footer and homepage.
 import type { OpeningHours } from "./api";
 
 export const DAY_LABELS: Array<{ key: keyof OpeningHours; label: string; long: string }> = [
@@ -41,14 +41,14 @@ export function openStatus(hours: OpeningHours, now = new Date()): { open: boole
   const dayIdx = todayIndex(now);
   const todayRange = parseRange(hours[DAY_LABELS[dayIdx].key]);
   if (todayRange && nowMin >= todayRange[0] && nowMin < todayRange[1]) {
-    return { open: true, text: `Open now · closes ${fmt(todayRange[1])}` };
+    return { open: true, text: `Open now, closes ${fmt(todayRange[1])}` };
   }
   for (let i = 0; i <= 7; i++) {
     const idx = (dayIdx + i) % 7;
     const range = parseRange(hours[DAY_LABELS[idx].key]);
     if (!range) continue;
-    if (i === 0 && nowMin < range[0]) return { open: false, text: `Closed · opens today ${fmt(range[0])}` };
-    if (i > 0) return { open: false, text: `Closed · opens ${DAY_LABELS[idx].label} ${fmt(range[0])}` };
+    if (i === 0 && nowMin < range[0]) return { open: false, text: `Closed, opens today ${fmt(range[0])}` };
+    if (i > 0) return { open: false, text: `Closed, opens ${DAY_LABELS[idx].label} ${fmt(range[0])}` };
   }
   return { open: false, text: "Closed" };
 }

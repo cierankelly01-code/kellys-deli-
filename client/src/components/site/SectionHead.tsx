@@ -1,14 +1,17 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Ornament } from "../BrandMark";
 
-/** Section title in the house style: small-capital eyebrow, serif title, gold rule. */
+/**
+ * Section title in the house style: a left-aligned headline, an optional line under it
+ * and an optional link to the rest of the range. `eyebrow` is kept for the rare label that
+ * carries information (sentence case, 14px); it is not decoration. `align` is accepted for
+ * older callers and has no effect: every section head is left-aligned.
+ */
 export function SectionHead({
   eyebrow,
   title,
   intro,
   action,
-  align = "center",
   id,
   as: Tag = "h2",
 }: {
@@ -21,10 +24,9 @@ export function SectionHead({
   as?: "h1" | "h2";
 }) {
   return (
-    <header className={`section-head is-${align}`}>
+    <header className="section-head is-left">
       {eyebrow && <p className="eyebrow">{eyebrow}</p>}
       <Tag className="section-title" id={id}>{title}</Tag>
-      {align === "center" && <Ornament />}
       {intro && <p className="section-intro">{intro}</p>}
       {action && <Link className="section-action" to={action.to}>{action.label}</Link>}
     </header>

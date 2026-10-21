@@ -45,7 +45,7 @@ function reasonText(d: BreadDayAvailability): string {
 
 function shortTag(d: BreadDayAvailability): string {
   if (d.reason === "closed") return "Closed";
-  if (d.reason === "too_soon") return "—";
+  if (d.reason === "too_soon") return "";
   if (d.reason === "full") return "Full";
   if (d.remaining !== null && d.remaining <= 2) return `${d.remaining} left`;
   return "";
@@ -91,11 +91,11 @@ export function BreadCalendar({ days, selected, onSelect, month, onMonthChange, 
               className={`cal-day ${status}${selected === date ? " selected" : ""}`}
               disabled={disabled}
               onClick={() => onSelect(date)}
-              aria-label={`${dom} ${monthLabel(month)} — ${d ? reasonText(d) : "not available"}`}
+              aria-label={`${dom} ${monthLabel(month)}, ${d ? reasonText(d) : "not available"}`}
               aria-pressed={selected === date}
             >
               <span className="cal-dom">{dom}</span>
-              <span className="cal-tag">{d ? shortTag(d) : "—"}</span>
+              <span className="cal-tag">{d ? shortTag(d) : ""}</span>
             </button>
           );
         })}
@@ -105,7 +105,7 @@ export function BreadCalendar({ days, selected, onSelect, month, onMonthChange, 
         <span><i className="dot open" /> Available</span>
         <span><i className="dot limited" /> Filling up</span>
         <span><i className="dot full" /> Fully booked</span>
-        <span><i className="dot closed" /> Closed / too soon to order</span>
+        <span><i className="dot closed" /> Closed, or too soon to order</span>
       </div>
     </div>
   );
@@ -114,8 +114,8 @@ export function BreadCalendar({ days, selected, onSelect, month, onMonthChange, 
 /** Human message for the selected date, when it turns out not to be bookable. */
 export function unavailableReason(d: BreadDayAvailability | undefined): string | null {
   if (!d || d.bookable) return null;
-  if (d.reason === "closed") return "We're closed that day — please choose another date.";
-  if (d.reason === "too_soon") return "That date doesn't give us enough notice — please choose a later date.";
-  if (d.reason === "full") return "Fully booked that day — please choose another date.";
+  if (d.reason === "closed") return "We're closed that day. Please choose another date.";
+  if (d.reason === "too_soon") return "That date doesn't give us enough notice. Please choose a later date.";
+  if (d.reason === "full") return "We're fully booked that day. Please choose another date.";
   return "That date isn't available.";
 }

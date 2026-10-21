@@ -349,7 +349,7 @@ export default function Choice() {
             <a className="home-visit-map" href={SHOP_MAP_URL} target="_blank" rel="noopener noreferrer">Get directions<span className="visually-hidden"> (opens Google Maps)</span></a>
             {hours && status && (
               <>
-                <p className={`home-visit-status${status.open ? " is-open" : ""}`}>{status.text.replace(" · ", ", ")}</p>
+                <p className={`home-visit-status${status.open ? " is-open" : ""}`}>{status.text}</p>
                 <dl className="home-hours">
                   {DAY_LABELS.map((d, i) => (
                     <div key={d.key} className={i === today ? "is-today" : undefined}>

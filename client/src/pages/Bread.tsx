@@ -5,7 +5,6 @@ import { gbp, formatDate, formatDateLong } from "../lib/format";
 import { BreadCalendar, unavailableReason } from "../components/BreadCalendar";
 import { monthStart, daysInMonth } from "../components/CapacityCalendar";
 import { usePageTitle } from "../lib/title";
-import { Crest, Ornament } from "../components/BrandMark";
 
 const NOTES_LIMIT = 200;
 
@@ -120,22 +119,22 @@ export default function Bread() {
   if (confirmed) {
     return (
       <div className="co-bread co-confirm is-paid">
-        <div className="wrap-narrow cf-wrap">
+        <div className="wrap cf-wrap">
           <header className="confirm-hero cf-hero">
-            <Crest className="cf-crest" />
-            <p className="eyebrow cf-status">Booked in · Pay on collection</p>
+            <p className="cf-status">Booked in</p>
             <h1 className="cf-h">Your bread&apos;s booked in!</h1>
-            <Ornament />
             <p className="confirm-copy cf-copy">
-              Pay on collection — we&apos;ll text you if anything changes.
+              Pay when you collect. We&apos;ll text you if anything changes.
               {confirmed.email && " We've also emailed you a confirmation."}
             </p>
           </header>
 
           <article className="cf-receipt" aria-label="Your bread order">
             <div className="cf-receipt-top">
-              <p className="cf-shop">Kelly&apos;s</p>
-              <p className="cf-shop-sub">Bakery counter{confirmed.locationName ? ` · ${confirmed.locationName}` : ""}</p>
+              <div className="cf-shopname">
+                <p className="cf-shop">Kelly&apos;s</p>
+                <p className="cf-shop-sub">Deli{confirmed.locationName ? `, ${confirmed.locationName}` : ""}</p>
+              </div>
               <div className="ref-badge">Order reference<strong>{confirmed.ref}</strong></div>
             </div>
             {confirmed.items.length > 0 && (
@@ -151,15 +150,15 @@ export default function Bread() {
               {confirmed.notes && <div className="review-row"><span className="muted">Notes</span><span>{confirmed.notes}</span></div>}
             </div>
             <div className="review cf-sec cf-totals">
-              <div className="review-row cf-total"><span>Total — pay on collection</span><span>{gbp(confirmed.total)}</span></div>
+              <div className="review-row cf-total"><span>Total, pay when you collect</span><span>{gbp(confirmed.total)}</span></div>
             </div>
-            <p className="cf-receipt-foot">Thank you · Quote {confirmed.ref} at the counter</p>
+            <p className="cf-receipt-foot">Quote {confirmed.ref} at the counter.</p>
           </article>
 
           <div className="cf-actions">
             <Link className="btn" to="/">Back to menu</Link>
           </div>
-          <p className="muted center footnote cf-foot">Need to change something? Quote your reference {confirmed.ref}.</p>
+          <p className="muted footnote cf-foot">Need to change something? Quote your reference {confirmed.ref}.</p>
         </div>
       </div>
     );
@@ -169,13 +168,12 @@ export default function Bread() {
     <div className="co-bread">
       <div className="wrap br-wrap">
         <header className="br-head">
-          <p className="eyebrow">Fresh bread · Click &amp; collect</p>
           <h1 className="co-title">Order bread for collection</h1>
-          <p className="br-lede">Pre-order your bread and collect it from your local shop — pay when you pick it up.</p>
+          <p className="br-lede">Order your bread ahead and collect it from the shop. You pay when you pick it up.</p>
           <ol className="br-how" aria-label="How it works">
-            <li><span>i.</span> Pick your loaves</li>
-            <li><span>ii.</span> Choose a day</li>
-            <li><span>iii.</span> Pay when you collect</li>
+            <li>Pick your loaves</li>
+            <li>Choose a day</li>
+            <li>Pay when you collect</li>
           </ol>
         </header>
 
@@ -184,7 +182,7 @@ export default function Bread() {
         <div className="br-layout">
           <div className="br-main">
             <section className="br-block" aria-labelledby="br-loaves-h">
-              <h2 className="co-block-h" id="br-loaves-h"><span>i.</span> Your loaves</h2>
+              <h2 className="co-block-h" id="br-loaves-h">Your loaves</h2>
               {products.length === 0 && <p className="muted">No bread items available at this shop right now.</p>}
               <ul className="br-list">
                 {products.map((p) => {
@@ -208,7 +206,7 @@ export default function Bread() {
             </section>
 
             <section className="br-block" aria-labelledby="br-day-h">
-              <h2 className="co-block-h" id="br-day-h"><span>ii.</span> Collection day</h2>
+              <h2 className="co-block-h" id="br-day-h">Collection day</h2>
               <label className="field">
                 <span>Collection shop</span>
                 <select value={locationId} onChange={(e) => changeLocation(e.target.value)}>
@@ -230,16 +228,16 @@ export default function Bread() {
             </section>
 
             <section className="br-block" aria-labelledby="br-you-h">
-              <h2 className="co-block-h" id="br-you-h"><span>iii.</span> Your details</h2>
+              <h2 className="co-block-h" id="br-you-h">Your details</h2>
               <label className="field"><span>Your name</span><input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></label>
               <div className="co-grid-2">
-                <label className="field"><span>Mobile number</span><input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" placeholder="07…" /></label>
+                <label className="field"><span>Mobile number</span><input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" /></label>
                 <label className="field"><span>Email (optional)</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" /></label>
               </div>
               <label className="field">
                 <span>Notes (optional)</span>
                 <textarea value={notes} onChange={(e) => setNotes(e.target.value.slice(0, NOTES_LIMIT))} rows={2} maxLength={NOTES_LIMIT} />
-                <span className="br-count">{notes.length}/{NOTES_LIMIT}</span>
+                <span className="br-count">{notes.length} of {NOTES_LIMIT} characters</span>
               </label>
               <p className="br-small">
                 We use your name, mobile and (if given) email only to take and fulfil this order, and to contact you if
@@ -252,7 +250,7 @@ export default function Bread() {
           <aside className="br-summary" aria-labelledby="br-sum-h">
             <h2 className="br-sum-h" id="br-sum-h">Your bread</h2>
             {lines.length === 0 ? (
-              <p className="br-sum-empty">Nothing chosen yet — add a loaf or two.</p>
+              <p className="br-sum-empty">Nothing chosen yet. Add a loaf or two.</p>
             ) : (
               <ul className="br-sum-lines">
                 {lines.map((l) => (
@@ -267,14 +265,14 @@ export default function Bread() {
             </div>
             <div className="running-total br-total">
               <div className="rt-row rt-total"><span>Total{totalQty > 0 ? ` (${totalQty} item${totalQty === 1 ? "" : "s"})` : ""}</span><strong>{gbp(total)}</strong></div>
-              <p className="rt-note">Pay on collection — no card needed now.</p>
+              <p className="rt-note">Pay when you collect. No card needed now.</p>
             </div>
             {error && <p className="form-error" role="alert">{error}</p>}
             <button className="btn br-place" disabled={!formValid || submitting} onClick={submit}>
               {submitting ? "Placing…" : "Place order"}
             </button>
             {date && !selectedDay?.bookable ? null : date && (
-              <p className="br-sum-foot">Collection {formatDate(date)} — pay in shop, no card needed now.</p>
+              <p className="br-sum-foot">Collection {formatDate(date)}. Pay in the shop, no card needed now.</p>
             )}
             {!formValid && (
               <p className="br-sum-foot">

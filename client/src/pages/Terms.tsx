@@ -1,5 +1,3 @@
-import { Ornament } from "../components/BrandMark";
-
 /**
  * Customer terms for ordering. Covers deposits, allergens (UK food law), collection/
  * delivery and cancellations. Standard plain-English terms, not formal legal advice.
@@ -7,18 +5,16 @@ import { Ornament } from "../components/BrandMark";
 export default function Terms() {
   return (
     <div className="legal-page">
-      <article className="legal wrap-narrow">
+      <article className="legal wrap">
         <header className="legal-head">
-          <p className="eyebrow">Good to know</p>
-          <h1>Terms &amp; Conditions</h1>
-          <p className="muted">Last updated: 7 July 2026</p>
-          <Ornament />
+          <h1>Terms and conditions</h1>
+          <p className="legal-updated">Last updated: 7 July 2026</p>
         </header>
 
         <p>
           These terms apply when you place an order with Kelly&apos;s Deli through this website. By
           placing an order you agree to them. Please read them alongside our{" "}
-          <a href="/privacy">Privacy Policy</a>.
+          <a href="/privacy">privacy policy</a>.
         </p>
 
         <h2>Placing an order</h2>

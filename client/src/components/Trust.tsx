@@ -78,7 +78,7 @@ export function Stars({ rating, count }: { rating: string; count?: string | numb
     >
       <span className="stars" aria-hidden="true">★★★★★</span>
       <strong>{rating}</strong>
-      {count ? <span className="muted">· {count} Google reviews</span> : null}
+      {count ? <span className="muted">from {count} Google reviews</span> : null}
     </a>
   );
 }

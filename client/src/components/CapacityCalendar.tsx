@@ -113,11 +113,11 @@ export function CapacityCalendar({
               className={`cal-day ${status}${selected === date ? " selected" : ""}`}
               disabled={disabled}
               onClick={() => onSelect(date)}
-              aria-label={`${dom} ${monthLabel(month)} — ${d ? labelFor(d) : "not available"}`}
+              aria-label={`${dom} ${monthLabel(month)}, ${d ? labelFor(d) : "not available"}`}
               aria-pressed={selected === date}
             >
               <span className="cal-dom">{dom}</span>
-              <span className="cal-tag">{d ? shortTag(d) : "—"}</span>
+              <span className="cal-tag">{d ? shortTag(d) : ""}</span>
             </button>
           );
         })}
@@ -127,23 +127,23 @@ export function CapacityCalendar({
         <span><i className="dot open" /> Available</span>
         <span><i className="dot limited" /> Filling up</span>
         <span><i className="dot full" /> Full</span>
-        <span><i className="dot closed" /> Not available (too soon, or outside the collection dates)</span>
+        <span><i className="dot closed" /> Not available: too soon, or outside the collection dates</span>
       </div>
     </div>
   );
 }
 
-/** Fine-line chevron for the month buttons — shared with the bread calendar. */
+/** Chevron for the month buttons, shared with the bread calendar. */
 export function Chevron({ dir }: { dir: "left" | "right" }) {
   return (
     <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
-      <path d={dir === "left" ? "M10 3 L5 8 L10 13" : "M6 3 L11 8 L6 13"} fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="square" />
+      <path d={dir === "left" ? "M10 3 L5 8 L10 13" : "M6 3 L11 8 L6 13"} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
     </svg>
   );
 }
 
 function shortTag(d: DayAvailability): string {
-  if (d.status === "closed") return "—";
+  if (d.status === "closed") return "";
   if (d.status === "full") return "Full";
   if (d.status === "limited") return `${d.remaining} left`;
   return "";

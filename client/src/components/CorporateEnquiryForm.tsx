@@ -46,7 +46,7 @@ export function CorporateEnquiryForm({ nextDayConfirmed = false }: { nextDayConf
       });
       setStatus("done");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't send that — please try again.");
+      setError(err instanceof Error ? err.message : "Couldn't send that. Please try again.");
       setStatus("idle");
     }
   }
@@ -54,8 +54,7 @@ export function CorporateEnquiryForm({ nextDayConfirmed = false }: { nextDayConf
   if (status === "done") {
     return (
       <div className="corp-form corp-done" role="status">
-        <div className="corp-tick" aria-hidden="true">✓</div>
-        <h3>Thanks — that&apos;s with us.</h3>
+        <h3>Thanks, that&apos;s with us.</h3>
         <p>
           We&apos;ll be in touch to talk through your numbers and set up a schedule that works for your office.
         </p>
@@ -65,13 +64,12 @@ export function CorporateEnquiryForm({ nextDayConfirmed = false }: { nextDayConf
 
   return (
     <form className="corp-form" onSubmit={submit} noValidate>
-      <p className="corp-eyebrow">Office enquiry</p>
       <h3 className="corp-h">Set up office catering</h3>
       <p className="corp-sub">
         Tell us a little about your office and how often you&apos;d like feeding.
         {nextDayConfirmed
           ? " We deliver regular office orders the next working day."
-          : " Delivery is available for regular office orders — we'll confirm your schedule with you."}
+          : " Delivery is available for regular office orders, and we'll confirm your schedule with you."}
       </p>
 
       <div className="corp-row">
@@ -98,7 +96,7 @@ export function CorporateEnquiryForm({ nextDayConfirmed = false }: { nextDayConf
       <button className="btn" disabled={status === "sending"} type="submit">
         {status === "sending" ? "Sending…" : "Send enquiry"}
       </button>
-      <p className="corp-foot">We&apos;ll never share your details. This just starts a conversation — nothing&apos;s booked yet.</p>
+      <p className="corp-foot">We&apos;ll never share your details. This starts a conversation; nothing is booked yet.</p>
     </form>
   );
 }

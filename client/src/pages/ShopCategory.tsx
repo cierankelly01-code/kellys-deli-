@@ -7,7 +7,6 @@ import { Faq } from "../components/Faq";
 import { DeadlineChip } from "../components/Trust";
 import { CorporateEnquiryForm } from "../components/CorporateEnquiryForm";
 import { ReminderCapture } from "../components/ReminderCapture";
-import { ProductArt } from "../components/ProductArt";
 import { PageHero } from "../components/site/PageHero";
 import { ProductCard } from "../components/site/ProductCard";
 import { SectionHead } from "../components/site/SectionHead";
@@ -93,15 +92,6 @@ export function CollectionToolbar({
       </div>
     </div>
   );
-}
-
-/** Illustration to stand in for an occasion that has no photo yet. */
-export function occasionArt(slug: string, name: string): string {
-  if (slug === "hosting") return "Party Platter";
-  if (slug === "at-home") return "Cheese";
-  if (slug === "office-corporate") return "Sliced ham from the counter";
-  if (slug === "christmas") return "Honey Roast Ham";
-  return name;
 }
 
 /* ---------- /shop/:slug ---------- */
@@ -196,8 +186,8 @@ export default function ShopCategory() {
       <div className="collection shop-cat-page">
         <PageHero
           crumbs={[{ to: "/", label: "Home" }, { to: "/shop", label: "Shop" }, { label: "Not found" }]}
-          title="We couldn't find that section."
-          intro="It may have moved. Everything we make is still a click away."
+          title="We can't find that part of the shop."
+          intro="It may have moved. Everything we make is still in the shop."
         >
           <Link className="btn" to="/shop">Back to the shop</Link>
           <Link className="btn btn-secondary" to="/platters">See all boards</Link>
@@ -208,7 +198,7 @@ export default function ShopCategory() {
   if (!cat) {
     return (
       <div className="collection shop-cat-page">
-        <div className="collection-loading" role="status">Loading…</div>
+        <p className="collection-loading wrap" role="status">Loading…</p>
       </div>
     );
   }
@@ -222,17 +212,16 @@ export default function ShopCategory() {
     <div className={`collection shop-cat-page${cat.isCorporate ? " is-corporate" : ""}`}>
       <PageHero
         crumbs={[{ to: "/", label: "Home" }, { to: "/shop", label: "Shop" }, { label: cat.name }]}
-        eyebrow="Shop by occasion"
         title={cat.name}
         intro={
           <>
-            {cat.tagline && <span className="collection-tagline">{cat.tagline}</span>}
+            {cat.tagline && <strong className="collection-tagline">{cat.tagline}</strong>}
             {cat.tagline && cat.description ? " " : null}
             {cat.description}
           </>
         }
         imageUrl={cat.heroImageUrl}
-        art={occasionArt(cat.slug, cat.name)}
+        imageAlt={cat.name}
       >
         {cat.promotePlanner && planMyEvent}
         {cat.isCorporate && <a className="btn" href="#office-enquiry">Set up office catering</a>}
@@ -243,10 +232,10 @@ export default function ShopCategory() {
         )}
       </PageHero>
 
-      <ul className="cfacts" aria-label="How ordering works">
+      <ul className="cfacts wrap" aria-label="How ordering works">
         <li><DeadlineChip /></li>
-        <li>25% deposit secures your date</li>
-        <li>Balance paid on collection</li>
+        <li>A 25% deposit holds your date</li>
+        <li>Pay the rest when you collect</li>
       </ul>
 
       {groups.length > 0 ? (
@@ -266,7 +255,7 @@ export default function ShopCategory() {
         <section className="section">
           <div className="wrap-narrow collection-empty">
             <h2>Boards for this occasion are on their way.</h2>
-            <p>In the meantime, every board we make is on the board counter.</p>
+            <p>In the meantime, every board we make is on the boards page.</p>
             <Link className="btn btn-secondary" to="/platters">See all boards</Link>
           </div>
         </section>
@@ -277,11 +266,10 @@ export default function ShopCategory() {
         <section className="section is-green planner-band" aria-labelledby="planner-band-h">
           <div className="wrap planner-band-inner">
             <div>
-              <p className="eyebrow">Not sure how much you need?</p>
               <h2 id="planner-band-h" className="planner-band-h">Tell us how many are coming. We&apos;ll suggest the spread.</h2>
               <p className="planner-band-copy">
-                The event planner works from your headcount and puts together the boards to feed everyone —
-                you can swap anything before you order.
+                The event planner starts from your headcount and puts together boards to feed everyone. You can
+                swap anything before you order.
               </p>
             </div>
             {/* A link, not a second "Plan my event" button: the hero carries that one. */}
@@ -294,11 +282,8 @@ export default function ShopCategory() {
       {!cat.isCorporate && (
         <div className="wrap">
           <p className="subscribe-note">
-            <span className="subscribe-note-mark" aria-hidden="true">↻</span>
-            <span>
-              Order it on repeat and <strong>save 10%</strong> — pick weekly, fortnightly or monthly on any board.
-              No card taken now; we set the schedule up with you.
-            </span>
+            <strong>Order it regularly and save 10%.</strong> Choose weekly, fortnightly or monthly on any board.
+            We don&apos;t take a card now; we set the schedule up with you.
           </p>
         </div>
       )}
@@ -308,18 +293,15 @@ export default function ShopCategory() {
         <section className="section is-paper corp-section" id="office-enquiry">
           <div className="wrap corp-layout">
             <div className="corp-standing">
-              <p className="eyebrow">Office &amp; corporate</p>
               <h2 className="corp-standing-h">A standing platter for the office</h2>
               <p className="corp-standing-copy">
-                Set up a regular weekly, fortnightly or monthly platter and save 10% with Subscribe &amp; Save — we&apos;ll
-                invoice monthly and confirm every delivery with you. {nextDay
-                  ? "Regular orders are delivered the next working day."
-                  : "Delivery is available for regular office orders — we'll confirm your schedule with you."}
+                Set up a weekly, fortnightly or monthly platter and save 10% with Subscribe &amp; Save. We invoice
+                monthly and confirm every delivery with you.
               </p>
               <ol className="corp-steps">
-                <li><span aria-hidden="true">I</span>Tell us your numbers and how often</li>
-                <li><span aria-hidden="true">II</span>We talk it through and confirm the schedule</li>
-                <li><span aria-hidden="true">III</span>Platters arrive made fresh, invoiced monthly</li>
+                <li>Tell us your numbers and how often.</li>
+                <li>We talk it through and confirm the schedule.</li>
+                <li>Platters arrive made fresh, invoiced monthly.</li>
               </ol>
               <p className="corp-alt">
                 Just one meeting? Order any board above for collection, or <Link to="/plan">plan it by headcount</Link>.
@@ -332,22 +314,14 @@ export default function ShopCategory() {
 
       {/* Book-ahead / birthday selling point */}
       {!cat.isCorporate && (
-        <section className="section">
-          <div className="wrap">
-            <div className="feature is-reverse prebook">
-              <div className="feature-visual">
-                <ProductArt name="Gift" />
-              </div>
-              <div className="feature-copy">
-                <p className="eyebrow">Book ahead</p>
-                <h2>Got a date in the diary? Book it in now.</h2>
-                <p>
-                  Birthday, celebration or a big weekend coming up — pick a date ahead, pay the 25% deposit and it&apos;s
-                  locked in. Add a gift note at checkout if it&apos;s for someone else.
-                </p>
-                <Link className="btn btn-secondary" to="/platters">Book a board ahead</Link>
-              </div>
-            </div>
+        <section className="section is-paper prebook" aria-labelledby="prebook-h">
+          <div className="wrap prebook-inner">
+            <h2 id="prebook-h">Got a date in the diary? Book it in now.</h2>
+            <p>
+              A birthday, a celebration or a big weekend coming up? Pick a date ahead and pay the 25% deposit to hold
+              it. Add a gift note at checkout if it&apos;s for someone else.
+            </p>
+            <Link className="btn btn-secondary" to="/platters">Book a board ahead</Link>
           </div>
         </section>
       )}
@@ -361,22 +335,20 @@ export default function ShopCategory() {
       {otherCats.length > 0 && (
         <section className="section other-occasions" aria-labelledby="other-occasions-h">
           <div className="wrap">
-            <SectionHead id="other-occasions-h" eyebrow="Something else in mind?" title="Other occasions" />
+            <SectionHead id="other-occasions-h" title="Other occasions" />
             <ul className="other-occasions-list">
               {otherCats.map((o) => (
                 <li key={o.id}>
                   <Link to={`/shop/${o.slug}`}>
                     <span className="other-occasions-name">{o.name}</span>
                     {o.tagline && <span className="other-occasions-tag">{o.tagline}</span>}
-                    <span className="other-occasions-go" aria-hidden="true">→</span>
                   </Link>
                 </li>
               ))}
               <li>
                 <Link to="/platters">
                   <span className="other-occasions-name">Every board</span>
-                  <span className="other-occasions-tag">The whole board counter, for two to twenty.</span>
-                  <span className="other-occasions-go" aria-hidden="true">→</span>
+                  <span className="other-occasions-tag">All our boards and platters, for two to twenty.</span>
                 </Link>
               </li>
             </ul>
@@ -384,7 +356,7 @@ export default function ShopCategory() {
         </section>
       )}
 
-      <div className="wrap-narrow">
+      <div className="wrap collection-faq">
         <Faq />
       </div>
       {cat.promotePlanner ? <StickyCta label="Plan the food for your event" to="/plan" /> : <StickyCta label="Browse all boards" to="/platters" />}

@@ -7,10 +7,10 @@ import { usePageTitle } from "../lib/title";
 import { StickyCta } from "../components/StickyCta";
 import { Faq } from "../components/Faq";
 import { DeadlineChip, Stars } from "../components/Trust";
-import { ProductArt } from "../components/ProductArt";
+import { Ticket } from "../components/site/Ticket";
 import { morphNavigate } from "../lib/motion";
 import { PageHero } from "../components/site/PageHero";
-import { ProductCard, priceLine } from "../components/site/ProductCard";
+import { ProductCard, ticketUnit } from "../components/site/ProductCard";
 import { SectionHead } from "../components/site/SectionHead";
 import { CollectionToolbar, useSort, sortGroups, maxFeeds } from "./ShopCategory";
 
@@ -70,40 +70,45 @@ export default function Platters() {
   }, [sorted]);
 
   const planMyEvent = () => navigate("/plan");
+  // The hero photo: the biggest signature board that has one (never a drawing).
+  const heroBoard = useMemo(
+    () => groups.map((g) => g.lead).filter((b) => b.imageUrl && b.tier === "signature").sort((a, b) => (b.fixedPrice ?? 0) - (a.fixedPrice ?? 0))[0] ?? null,
+    [groups],
+  );
 
   return (
     <div className="collection platters-page">
       <PageHero
-        crumbs={[{ to: "/", label: "Home" }, { label: "Boards & Platters" }]}
-        eyebrow="The board counter"
-        title="Boards & Platters"
-        intro="Grazing boards for two, platters for twenty — built by hand at the deli on the day you collect. 48 hours' notice, and a 25% deposit holds your date."
-        art="Charcuterie Board"
+        crumbs={[{ to: "/", label: "Home" }, { label: "Boards and platters" }]}
+        title="Boards and platters"
+        intro="Grazing boards for two and platters for twenty, made up by hand at the deli. We need 48 hours' notice, and a 25% deposit holds your date."
+        imageUrl={heroBoard?.imageUrl}
+        imageAlt={heroBoard?.name ?? ""}
+        illustrative={!!heroBoard?.imageIllustrative}
       >
         <a className="btn" href="#signature">Shop the boards</a>
         <a className="btn btn-secondary" href="#size-guide">How many does it feed?</a>
       </PageHero>
 
-      <ul className="cfacts" aria-label="How ordering works">
+      <ul className="cfacts wrap" aria-label="How ordering works">
         <li><DeadlineChip /></li>
-        <li>25% deposit secures your date</li>
-        {counts?.reviewRating ? <li className="cfacts-stars"><Stars rating={counts.reviewRating} count={counts.reviewCount} /></li> : <li>Balance paid on collection</li>}
+        <li>A 25% deposit holds your date</li>
+        {counts?.reviewRating ? <li className="cfacts-stars"><Stars rating={counts.reviewRating} count={counts.reviewCount} /></li> : <li>Pay the rest when you collect</li>}
       </ul>
 
       {boards !== null && groups.length > 0 && (
         <CollectionToolbar count={groups.length} sort={sort} onSort={setSort} />
       )}
 
-      {boards === null && <div className="collection-loading" role="status">Loading boards…</div>}
+      {boards === null && <p className="collection-loading wrap" role="status">Loading boards…</p>}
 
       {signature.length > 0 && (
         <section className="section" id="signature" aria-labelledby="signature-h">
           <div className="wrap">
             <SectionHead
               id="signature-h"
-              eyebrow="Made every day"
               title="Signature boards"
-              intro="The boards we're known for, in the sizes people ask for most."
+              intro="Our signature boards, in the sizes people ask for most."
             />
             <div className="pgrid cgrid" data-n={signature.length}>
               {signature.map((g) => (
@@ -118,11 +123,10 @@ export default function Platters() {
         <section className="section is-green planner-band" aria-labelledby="planner-band-h">
           <div className="wrap planner-band-inner">
             <div>
-              <p className="eyebrow">Feeding a crowd?</p>
-              <h2 id="planner-band-h" className="planner-band-h">Tell us how many. We&apos;ll suggest the spread.</h2>
+              <h2 id="planner-band-h" className="planner-band-h">Feeding a crowd? Tell us how many.</h2>
               <p className="planner-band-copy">
-                Party, christening or the office do — the event planner starts from your headcount and builds the boards
-                to feed everyone. Swap anything before you order.
+                A party, a christening or the office do. The event planner starts from your headcount and suggests
+                boards to feed everyone. Swap anything before you order.
               </p>
             </div>
             <div className="planner-band-cta">
@@ -135,8 +139,8 @@ export default function Platters() {
       {gallery.length > 0 && (
         <section className="section" aria-labelledby="more-boards-h">
           <div className="wrap">
-            <SectionHead id="more-boards-h" eyebrow="From the counter" title="More boards" intro="Something a little different — each one made to order." />
-            <div className="pgrid cgrid gallery-grid" data-n={gallery.length}>
+            <SectionHead id="more-boards-h" title="More boards" intro="Something a little different, each one made to order." />
+            <div className="pgrid gallery-grid">
               {gallery.map((g) => (
                 <button
                   type="button"
@@ -144,22 +148,29 @@ export default function Platters() {
                   className="gallery-card"
                   onClick={(e) => morphNavigate(navigate, `/platter/${g.lead.id}`, e.currentTarget.querySelector(".board-card-img") as HTMLElement | null)}
                 >
-                  <span className="gallery-card-media">
-                    {g.lead.imageUrl ? (
-                      <span
-                        className="board-card-img"
-                        style={{ backgroundImage: `url(${g.lead.imageUrl})` }}
-                        role="img"
-                        aria-label={g.lead.name}
-                      />
-                    ) : (
-                      <ProductArt name={g.lead.name} section={g.lead.section} className="board-card-img" />
-                    )}
+                  <span className="gallery-card-photo">
+                    <span className="gallery-card-media">
+                      {g.lead.imageUrl ? (
+                        <span
+                          className="board-card-img"
+                          style={{ backgroundImage: `url(${g.lead.imageUrl})` }}
+                          role="img"
+                          aria-label={g.lead.imageIllustrative ? `${g.lead.name} (illustrative photo)` : g.lead.name}
+                        />
+                      ) : (
+                        <span className="board-card-img gallery-card-blank" role="img" aria-label={g.lead.name} />
+                      )}
+                      {g.lead.imageIllustrative && g.lead.imageUrl && <span className="illustrative-tag">Illustrative photo</span>}
+                    </span>
+                    <Ticket
+                      from={g.hasChoice}
+                      price={gbp(g.hasChoice ? g.fromPrice : g.lead.fixedPrice ?? g.lead.fromPrice ?? 0)}
+                      unit={ticketUnit(g)}
+                    />
                   </span>
                   <span className="gallery-card-body">
                     <span className="gallery-card-name">{g.lead.name}</span>
-                    <span className="gallery-card-price">{priceLine(g)}</span>
-                    <span className="gallery-card-go">{g.hasChoice ? `${g.variants.length} sizes` : "View the board"} <span aria-hidden="true">→</span></span>
+                    <span className="gallery-card-go">{g.hasChoice ? "Choose a size" : "See the board"}</span>
                   </span>
                 </button>
               ))}
@@ -172,7 +183,7 @@ export default function Platters() {
         <section className="section">
           <div className="wrap-narrow collection-empty">
             <h2>Our boards are being updated.</h2>
-            <p>Please check back shortly — or tell us about your event and we&apos;ll suggest a spread.</p>
+            <p>Please check back shortly, or tell us about your event and we&apos;ll suggest a spread.</p>
             <Link className="btn btn-secondary" to="/plan">Open the event planner</Link>
           </div>
         </section>
@@ -183,9 +194,8 @@ export default function Platters() {
           <div className="wrap">
             <SectionHead
               id="size-guide-h"
-              eyebrow="Size guide"
               title="How many does each board feed?"
-              intro="Every board and size, smallest gathering first. For a big number, mix and match — or let the planner do the sums."
+              intro="Every board and size, smallest gathering first. For a big number, mix and match, or let the planner do the sums."
             />
             <table className="size-table">
               <caption className="visually-hidden">Every board and size by how many it feeds</caption>
@@ -218,7 +228,7 @@ export default function Platters() {
         </section>
       )}
 
-      <div className="wrap-narrow">
+      <div className="wrap collection-faq">
         <Faq />
       </div>
 

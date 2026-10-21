@@ -35,7 +35,7 @@ export function GiftVoucher() {
       });
       setStatus("done");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't send that — please try again.");
+      setError(err instanceof Error ? err.message : "Couldn't send that. Please try again.");
       setStatus("idle");
     }
   }
@@ -44,9 +44,8 @@ export function GiftVoucher() {
     return (
       <section className="gift-section is-done" id="gift-vouchers" aria-labelledby="gift-h">
         <div className="wrap gift-done">
-          <span className="gift-tick" aria-hidden="true">✓</span>
-          <h2 id="gift-h" className="gift-done-h">Lovely — that&apos;s with us.</h2>
-          <p>We&apos;ll be in touch to sort payment and get the voucher out to you.</p>
+          <h2 id="gift-h" className="gift-done-h">Thanks, that&apos;s with us.</h2>
+          <p>We&apos;ll be in touch to sort out payment and send the voucher to you.</p>
         </div>
       </section>
     );
@@ -56,18 +55,17 @@ export function GiftVoucher() {
     <section className="gift-section" id="gift-vouchers" aria-labelledby="gift-h">
       <div className="wrap gift-layout">
         <div className="gift-copy">
-          <p className="eyebrow">Gift vouchers</p>
           <h2 id="gift-h" className="gift-h">Give a board as a gift</h2>
           <p className="gift-intro">
-            Perfect for a birthday, a thank you, or a new-baby drop-off. Tell us the amount and who it&apos;s for —
-            we&apos;ll set the voucher up and confirm with you directly.
+            For a birthday, a thank you or a new-baby drop-off. Tell us the amount and who it&apos;s for, and
+            we&apos;ll set up the voucher and confirm it with you.
           </p>
           <ol className="gift-steps">
-            <li><span aria-hidden="true">I</span>Choose an amount and add a message</li>
-            <li><span aria-hidden="true">II</span>We confirm with you and arrange payment</li>
-            <li><span aria-hidden="true">III</span>The voucher goes out, ready to give</li>
+            <li>Choose an amount and add a message.</li>
+            <li>We confirm with you and arrange payment.</li>
+            <li>The voucher goes out, ready to give.</li>
           </ol>
-          <p className="gift-note">Instant online gift cards are coming soon.</p>
+          <p className="gift-note">You can&apos;t buy a gift card online yet. This form starts the order.</p>
         </div>
         <form className="gift-form" onSubmit={submit} noValidate>
           <div className="gift-row">

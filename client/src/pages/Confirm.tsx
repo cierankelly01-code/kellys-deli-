@@ -3,12 +3,11 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, type OrderDTO } from "../lib/api";
 import { gbp, formatDateLong } from "../lib/format";
 import { usePageTitle } from "../lib/title";
-import { Crest, Ornament } from "../components/BrandMark";
 
 function ReferralShare({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
   const link = `${window.location.origin}/order?referral=${code}`;
-  const message = `Kelly's Deli do proper grazing boards — order with my link and we both get £15 off: ${link}`;
+  const message = `Kelly's Deli do proper grazing boards. Order with my link and we both get £15 off: ${link}`;
 
   async function share() {
     if (navigator.share) {
@@ -32,9 +31,8 @@ function ReferralShare({ code }: { code: string }) {
   }
   return (
     <section className="referral-card cf-referral" aria-labelledby="cf-referral-h">
-      <p className="eyebrow">Pass it on</p>
       <h2 id="cf-referral-h">Know an office that needs lunch?</h2>
-      <p className="muted">Share your link — you both get £15 off your next order.</p>
+      <p className="cf-referral-p">Share your link and you both get £15 off your next order. Your code:</p>
       <div className="referral-code">{code}</div>
       <div className="share-row">
         <a className="btn whatsapp-btn" href={`https://wa.me/?text=${encodeURIComponent(message)}`} target="_blank" rel="noreferrer">
@@ -122,10 +120,8 @@ export default function Confirm() {
   if (error) {
     return (
       <div className="co-confirm">
-        <div className="wrap-narrow cf-wrap cf-center">
-          <p className="eyebrow">Order lookup</p>
+        <div className="wrap cf-wrap">
           <h1 className="cf-h">We couldn&apos;t find that order</h1>
-          <Ornament />
           <p className="cf-copy">We couldn&apos;t find that order ({error}). Check the link in your confirmation, or ring the shop with your reference.</p>
           <Link className="btn btn-secondary" to="/">Back to menu</Link>
         </div>
@@ -133,7 +129,7 @@ export default function Confirm() {
     );
   }
   if (!order) {
-    return <div className="co-confirm"><p className="muted center cf-loading" role="status">Loading your order…</p></div>;
+    return <div className="co-confirm"><p className="muted wrap cf-loading" role="status">Loading your order…</p></div>;
   }
 
   // v2 orders itemise boards + add-ons; fall back to the primary board for legacy rows.
@@ -149,31 +145,29 @@ export default function Confirm() {
   const awaitingPayment = !paid && (cancelled || backFromPayment);
 
   const status = paid
-    ? full ? "Paid · Confirmed" : "Deposit paid · Confirmed"
+    ? full ? "Paid and confirmed" : "Deposit paid, order confirmed"
     : awaitingPayment ? "Awaiting payment" : "Order request received";
 
   return (
     <div className={`co-confirm${paid ? " is-paid" : awaitingPayment ? " is-awaiting" : ""}`}>
-      <div className="wrap-narrow cf-wrap">
+      <div className="wrap cf-wrap">
         <header className="confirm-hero cf-hero">
-          <Crest className="cf-crest" />
-          <p className="eyebrow cf-status">{status}</p>
+          <p className="cf-status">{status}</p>
           <h1 className="cf-h">{paid ? "You're all sorted!" : awaitingPayment ? "Your order isn't paid yet" : "Your order request is in!"}</h1>
-          <Ornament />
           <p className="confirm-copy cf-copy">
             {paid
               ? full
-                ? "Payment received — your order is confirmed and will be set aside with your name on it. Just give your name or reference at the counter."
-                : "Deposit received — your order is confirmed. The balance is payable on collection."
+                ? "Payment received. Your order is confirmed and will be set aside with your name on it. Give your name or reference at the counter."
+                : "Deposit received. Your order is confirmed, and you pay the balance when you collect."
               : awaitingPayment
                 ? cancelled
                   ? "The payment wasn't finished, so we haven't confirmed this order. Pay below to lock it in."
                   : gaveUp
-                    ? "We couldn't confirm your payment yet. If you've paid, refresh this page in a minute — otherwise pay below."
-                    : "We're just checking your payment with the bank — this page will update in a moment."
+                    ? "We couldn't confirm your payment yet. If you've paid, refresh this page in a minute. Otherwise, pay below."
+                    : "We're checking your payment with the bank. This page will update in a moment."
                 : full
-                  ? "Thanks — your order is in. We'll send you a secure payment link to confirm it."
-                  : "Thanks — your order request is in. We'll contact you shortly with a secure payment link for a 25% deposit to confirm your order. The balance is payable on collection."}
+                  ? "Thanks, your order is in. We'll send you a secure payment link to confirm it."
+                  : "Thanks, your order request is in. We'll contact you shortly with a secure payment link for a 25% deposit to confirm your order. You pay the balance when you collect."}
           </p>
           {!paid && (cancelled || gaveUp) && (
             <div className="cf-pay">
@@ -181,17 +175,18 @@ export default function Confirm() {
               {payError && <p className="form-error" role="alert">{payError}</p>}
             </div>
           )}
-          {awaitingPayment && !cancelled && !gaveUp && <span className="cf-checking" aria-hidden="true" />}
         </header>
 
         {order.freebie && (
-          <p className="cf-freebie">First-order treat: <strong>{order.freebie}</strong> — on the house!</p>
+          <p className="cf-freebie">First-order treat: <strong>{order.freebie}</strong>, on the house.</p>
         )}
 
         <article className="cf-receipt" aria-label="Your order">
           <div className="cf-receipt-top">
-            <p className="cf-shop">Kelly&apos;s</p>
-            <p className="cf-shop-sub">Delicatessen{order.locationName ? ` · ${order.locationName}` : ""}</p>
+            <div className="cf-shopname">
+              <p className="cf-shop">Kelly&apos;s</p>
+              <p className="cf-shop-sub">Deli{order.locationName ? `, ${order.locationName}` : ""}</p>
+            </div>
             <div className="ref-badge">Order reference<strong>{order.ref}</strong></div>
             {order.createdAt && <p className="cf-placed">Placed {formatDateLong(order.createdAt.slice(0, 10))}</p>}
           </div>
@@ -216,12 +211,12 @@ export default function Confirm() {
             <div className="review-row cf-total"><span>Total</span><span>{gbp(order.total)}</span></div>
             <div className="review-row accent">
               <span className="muted">{full ? (paid ? "Paid" : "To pay") : paid ? "Deposit paid (25%)" : "Deposit due (25%)"}</span>
-              <span>{gbp(order.deposit)} <span className={`pill ${paid ? "good" : "warn"}`}>{paid ? "paid" : "pending"}</span></span>
+              <span>{gbp(order.deposit)} <span className={`pill ${paid ? "good" : "warn"}`}>{paid ? "Paid" : "Not paid yet"}</span></span>
             </div>
             {order.balance > 0 && <div className="review-row"><span className="muted">Balance on collection</span><span>{gbp(order.balance)}</span></div>}
           </div>
 
-          <p className="cf-receipt-foot">Thank you · Quote {order.ref} at the counter</p>
+          <p className="cf-receipt-foot">Quote {order.ref} at the counter.</p>
         </article>
 
         <div className="cf-actions">
@@ -230,11 +225,11 @@ export default function Confirm() {
           </button>
           <Link className="btn" to="/">Back to menu</Link>
         </div>
-        <p className="muted save-hint cf-hint">Screenshot or bookmark this page — your order lives at this link.</p>
+        <p className="muted save-hint cf-hint">Screenshot or bookmark this page. Your order lives at this link.</p>
 
         {order.customerReferralCode && <ReferralShare code={order.customerReferralCode} />}
 
-        <p className="muted center footnote cf-foot">
+        <p className="muted footnote cf-foot">
           {full ? "" : "Deposits are fully refundable up to 48 hours before collection. "}Need to change something? Quote your reference {order.ref}.
         </p>
       </div>

@@ -1,5 +1,3 @@
-import { Ornament } from "../components/BrandMark";
-
 /**
  * UK GDPR / Data Protection Act 2018 privacy notice. Plain-English, email-contact
  * based (no postal address needed). Update the contact email + add an ICO registration
@@ -8,12 +6,10 @@ import { Ornament } from "../components/BrandMark";
 export default function Privacy() {
   return (
     <div className="legal-page">
-      <article className="legal wrap-narrow">
+      <article className="legal wrap">
         <header className="legal-head">
-          <p className="eyebrow">Good to know</p>
-          <h1>Privacy Policy</h1>
-          <p className="muted">Last updated: 6 September 2026</p>
-          <Ornament />
+          <h1>Privacy policy</h1>
+          <p className="legal-updated">Last updated: 6 September 2026</p>
         </header>
 
         <p>
