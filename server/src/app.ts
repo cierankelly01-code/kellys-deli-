@@ -15,6 +15,7 @@ import { emailMode } from "./lib/notify";
 import { prisma } from "./lib/prisma";
 import { parseWebhook } from "./lib/payments";
 import { markOrderPaid } from "./lib/order-payment";
+import { injectMeta, platterMeta, absoluteUrl, clip, type PageMeta } from "./lib/seo";
 
 const SITE = "https://www.kellysdeli.co.uk";
 
@@ -267,10 +268,92 @@ export function createApp(): Express {
           },
         })
       );
+      const indexPath = path.join(clientDist, "index.html");
+      // Read once: the built index.html only changes on a redeploy, which restarts us.
+      let indexHtml: string | null = null;
+      const readIndex = (): string => (indexHtml ??= fs.readFileSync(indexPath, "utf8"));
+
+      // Per-page <head> for the money pages, so link previews and Google's first pass see
+      // the board/category rather than the homepage (bots don't run the client's JS).
+      // null = no override: unknown/inactive pages keep today's plain index.html (200),
+      // since the client renders its own "not found" and we don't want to change that.
+      const pageMeta = async (reqPath: string): Promise<PageMeta | null> => {
+        const pathname = reqPath.replace(/\/+$/, "") || "/";
+
+        if (pathname === "/christmas") {
+          const cat = await prisma.category.findUnique({
+            where: { slug: "christmas" },
+            select: { seoTitle: true, seoDescription: true, heroImageUrl: true },
+          });
+          // The owner's own Christmas hero photo when set, otherwise the branded Christmas
+          // share card shipped with the client (client/public/img/christmas/share.jpg).
+          const image = absoluteUrl(cat?.heroImageUrl, SITE) ?? `${SITE}/img/christmas/share.jpg`;
+          return {
+            // Same fallbacks as client/src/pages/Christmas.tsx, so JS/no-JS agree.
+            title: cat?.seoTitle || "Christmas Food Pre-Orders — Hams, Turkey & Hampers | Kelly's Deli",
+            description:
+              cat?.seoDescription ||
+              "Pre-order Christmas hams, turkey crowns, party food, cheese and hampers from Kelly's Deli, Bentley Heath. Pay online and collect any day in December.",
+            canonical: `${SITE}/christmas`,
+            image,
+          };
+        }
+
+        const platterMatch = /^\/platter\/([^/]+)$/.exec(pathname);
+        if (platterMatch) {
+          const id = decodeURIComponent(platterMatch[1]);
+          const p = await prisma.platter.findUnique({
+            where: { id },
+            select: { id: true, name: true, description: true, fixedPrice: true, imageUrl: true, active: true, kind: true },
+          });
+          if (!p || !p.active) return null;
+          return platterMeta(
+            {
+              id: p.id,
+              name: p.name,
+              description: p.description,
+              fixedPrice: p.fixedPrice == null ? null : Number(p.fixedPrice), // Prisma Decimal -> number
+              imageUrl: p.imageUrl,
+              kind: p.kind,
+            },
+            SITE
+          );
+        }
+
+        const shopMatch = /^\/shop\/([^/]+)$/.exec(pathname);
+        if (shopMatch) {
+          const slug = decodeURIComponent(shopMatch[1]);
+          if (slug === "christmas") return null; // client redirects to /christmas
+          const cat = await prisma.category.findUnique({ where: { slug } });
+          if (!cat || !cat.active) return null;
+          return {
+            // Mirrors ShopCategory.tsx's usePageTitle: seo titles already carry the brand.
+            title: cat.seoTitle || `${cat.name} — Kelly's Deli Bentley Heath`,
+            description: clip(
+              cat.seoDescription || cat.description || cat.tagline || `${cat.name} from Kelly's Deli, Bentley Heath, Solihull — made fresh for collection.`
+            ),
+            canonical: `${SITE}/shop/${encodeURIComponent(cat.slug)}`,
+            image: absoluteUrl(cat.heroImageUrl, SITE),
+          };
+        }
+        return null;
+      };
+
       // SPA fallback: client-side routes get index.html; API/uploads 404 as JSON-land paths.
-      app.get("*", (req, res, next) => {
+      app.get("*", async (req, res, next) => {
         if (req.path.startsWith("/api") || req.path.startsWith("/uploads")) return next();
-        res.sendFile(path.join(clientDist, "index.html"));
+        // SEO is best-effort: a DB blip, bad URL encoding or unreadable file must never
+        // stop the page loading, so any failure falls back to the plain index.html.
+        try {
+          const meta = await pageMeta(req.path);
+          if (meta) {
+            res.type("html").send(injectMeta(readIndex(), meta));
+            return;
+          }
+        } catch (e) {
+          console.error("[seo] meta injection failed for", req.path, e);
+        }
+        res.sendFile(indexPath);
       });
     } else {
       console.warn("[app] client/dist not found — running API-only (no static client).");

@@ -80,3 +80,80 @@ html[data-season="christmas"] {
   .xmas-hero, .xmas-hero-scrim { min-height: 420px; }
   .season-banner { font-size: .66rem; line-height: 1.5; }
 }
+
+/* ---------- Pro pass: hero detail, trust strip, section chips, tiles, basket bar ---------- */
+.xmas-hero-scrim { background-image:
+    radial-gradient(circle at 18% 22%, rgb(241 220 166 / 18%) 0 1.5px, transparent 2px),
+    radial-gradient(circle at 72% 38%, rgb(241 220 166 / 14%) 0 1.5px, transparent 2px),
+    radial-gradient(circle at 40% 70%, rgb(255 255 255 / 10%) 0 1px, transparent 1.5px),
+    linear-gradient(180deg, rgb(17 39 30 / 10%) 0%, rgb(17 39 30 / 55%) 45%, rgb(17 39 30 / 90%) 100%);
+  background-size: 90px 90px, 130px 130px, 60px 60px, auto; }
+.xmas-hero-holly { position: absolute; top: clamp(16px, 4vw, 34px); right: clamp(16px, 4vw, 40px); width: clamp(64px, 10vw, 112px); opacity: .95; }
+.xmas-hero-h em { font-style: italic; color: #f1dca6; }
+.xmas-deadline strong { color: #f1dca6; }
+
+.xmas-trust { list-style: none; margin: 14px 0 0; padding: 12px 14px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 22px;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: .84rem; font-weight: 600; color: var(--ink); }
+.xmas-trust li span { color: var(--gold-text); margin-right: 4px; }
+
+.xmas-chips { position: sticky; top: 0; z-index: 20; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+  margin: 26px calc(-1 * var(--chip-bleed, 0px)) 0; padding: 10px 2px; background: var(--cream); border-bottom: 1px solid var(--line); }
+.xmas-chips::-webkit-scrollbar { display: none; }
+.xmas-chips a { flex: 0 0 auto; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff;
+  color: var(--ink); font-size: .85rem; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.xmas-chips a:hover, .xmas-chips a:focus-visible { border-color: var(--brick); color: var(--brick); }
+.xmas-section { scroll-margin-top: 70px; }
+
+.xmas-card-media { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: pointer; font: inherit; text-align: left; }
+.xmas-card-media .product-art { display: block; width: 100%; height: auto; aspect-ratio: 4/3; }
+.xmas-badge { position: absolute; top: 10px; left: 10px; background: var(--brick); color: #fff; font-size: .66rem; font-weight: 800;
+  letter-spacing: .1em; text-transform: uppercase; padding: 5px 9px; border-radius: 999px; }
+.xmas-card { transition: transform var(--dur-std) var(--ease-enter), box-shadow var(--dur-std) var(--ease-enter); }
+@media (hover: hover) { .xmas-card:hover { transform: translateY(-3px); box-shadow: 0 14px 32px rgb(27 58 45 / 12%); } }
+.btn.is-added { background: var(--good); border-color: var(--good); }
+@media (min-width: 700px) { .xmas-page .board-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1040px) { .xmas-page .board-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.xmas-band { position: relative; overflow: hidden; }
+.xmas-band-art { display: block; width: calc(100% + 52px); margin: -26px -26px 18px; height: auto; aspect-ratio: 16/7; }
+
+.basket-bar { display: none; }
+@media (max-width: 760px) {
+  .basket-bar { position: fixed; z-index: 45; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom));
+    display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 16px; border-radius: 14px;
+    background: var(--navy); color: #fff; box-shadow: 0 10px 30px rgb(0 0 0 / 25%); }
+  .basket-bar-view { flex: 1; background: none; border: 0; color: #fff; font: inherit; font-weight: 600; text-align: left; padding: 8px 0; cursor: pointer; }
+  .basket-bar-count { display: inline-grid; place-items: center; min-width: 26px; height: 26px; margin-right: 6px; border-radius: 999px; background: var(--berry, #9b2232); font-weight: 800; }
+  .basket-bar-go { background: #fff; color: var(--navy); border-color: #fff; min-height: 44px; }
+  .xmas-page { padding-bottom: 90px; }
+}
+
+/* Product page: drawn art in place of a missing photo, and the pre-order explainer. */
+.detail-art { display: block; width: 100%; height: auto; aspect-ratio: 4/3; border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+.preorder-how { margin: 18px 0; padding: 16px; border-radius: var(--radius-sm); background: var(--card); border: 1px solid var(--line); }
+.preorder-how h2 { font-size: 1.05rem; margin: 0 0 8px; }
+.preorder-how ol { margin: 0; padding-left: 20px; color: var(--ink-soft); font-size: .92rem; }
+.preorder-how li + li { margin-top: 4px; }
+.pairs { margin: 28px 0 8px; }
+.pairs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.pairs-card { display: flex; flex-direction: column; gap: 4px; padding: 0 0 10px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: #fff; overflow: hidden; text-decoration: none; color: var(--ink); font-size: .82rem; font-weight: 600; }
+.pairs-card .product-art, .pairs-card .pairs-img { width: 100%; aspect-ratio: 4/3; height: auto; display: block; background-size: cover; background-position: center; }
+.pairs-card span { padding: 0 8px; }
+.pairs-card .muted { font-weight: 500; }
+@media (max-width: 420px) { .pairs-grid { grid-template-columns: repeat(2, 1fr); } .pairs-card:nth-child(3) { display: none; } }
+.xmas-shelf { margin-top: 10px; }
+.xmas-shelf .xmas-card-media img, .xmas-shelf .xmas-card-media .product-art { display: block; width: 100%; aspect-ratio: 4/3; height: auto; object-fit: cover; }
+@media (min-width: 700px) { .xmas-shelf-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1040px) { .xmas-shelf-grid { grid-template-columns: repeat(4, 1fr); } }
+.xmas-hero-art { display: none; }
+.xmas-hero-copy { display: flex; flex-direction: column; gap: 10px; }
+@media (min-width: 900px) {
+  .xmas-hero-scrim { flex-direction: row; align-items: flex-end; justify-content: space-between; gap: 40px; }
+  .xmas-hero-copy { flex: 1 1 auto; }
+  .xmas-hero-art { display: block; order: 2; flex: 0 0 min(38%, 420px); height: auto; aspect-ratio: 4/3; border-radius: 18px;
+    box-shadow: 0 20px 50px rgb(0 0 0 / 35%); outline: 6px solid rgb(241 220 166 / 25%); align-self: center; }
+  .xmas-hero-actions .xmas-cta { width: auto; padding-inline: 34px; }
+  .xmas-hero-holly { display: none; } /* the framed illustration carries the holly on desktop */
+}
+.deli-hero-photo .deli-hero-art { display: block; position: absolute; inset: 0; width: 100%; height: 100%; }

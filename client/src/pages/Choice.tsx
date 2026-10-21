@@ -14,6 +14,8 @@ import { Bundles } from "../components/Bundles";
 import { ReminderCapture } from "../components/ReminderCapture";
 import { DeliVideos } from "../components/DeliVideos";
 import { useSeason } from "../lib/season";
+import { ProductArt } from "../components/ProductArt";
+import { orderByLabel, orderingClosed } from "../lib/preorder";
 
 const DAY_LABELS: Array<{ key: keyof OpeningHours; label: string }> = [
   { key: "mon", label: "Mon" }, { key: "tue", label: "Tue" }, { key: "wed", label: "Wed" },
@@ -89,6 +91,12 @@ export default function Choice() {
 
   const { season } = useSeason();
   const xmas = season === "christmas";
+  const [xmasRange, setXmasRange] = useState<Platter[]>([]);
+  useEffect(() => {
+    if (!xmas) return;
+    api.shopCategory("christmas").then((c) => setXmasRange(c.boards ?? [])).catch(() => setXmasRange([]));
+  }, [xmas]);
+  const xmasPicks = groupVariants(xmasRange.filter((p) => !orderingClosed(p))).slice(0, 4);
   const hours = parseHours(counts?.openingHours ?? null);
   const today = DAY_LABELS[(new Date().getDay() + 6) % 7];
   // One tile per board, not one per size (see lib/variants).
@@ -119,8 +127,10 @@ export default function Choice() {
           {counts?.reviewRating && <Stars rating={counts.reviewRating} count={counts.reviewCount} />}
         </div>
         <figure className="deli-hero-photo">
-          <img src={xmas ? "/img/christmas/hero.webp" : counts?.heroImageUrl || DEFAULT_HERO_IMG} onError={(e) => { if (!e.currentTarget.src.endsWith(DEFAULT_HERO_IMG)) e.currentTarget.src = counts?.heroImageUrl || DEFAULT_HERO_IMG; }} alt={xmas ? "A Christmas table with a glazed ham, cheese and festive deli food" : "A generous spread of cheese, charcuterie and accompaniments"} width="1000" height="1100" {...{ fetchpriority: "high" }} />
-          <figcaption><span>{xmas ? "CHRISTMAS AT KELLY’S" : "THE KELLY’S TABLE"}</span><span>{xmas ? "Illustrative image" : "Something for everyone."}</span></figcaption>
+          {xmas
+            ? <ProductArt name="Honey Roast Ham" className="deli-hero-art" />
+            : <img src={counts?.heroImageUrl || DEFAULT_HERO_IMG} alt="A generous spread of cheese, charcuterie and accompaniments" width="1000" height="1100" {...{ fetchpriority: "high" }} />}
+          <figcaption><span>{xmas ? "CHRISTMAS AT KELLY’S" : "THE KELLY’S TABLE"}</span><span>{xmas ? "Order now, collect in December." : "Something for everyone."}</span></figcaption>
         </figure>
       </header>
 
@@ -141,6 +151,35 @@ export default function Choice() {
       )}
 
       <div className="app app-wide">
+        {xmas && xmasPicks.length > 0 && (
+          <section className="board-section xmas-shelf">
+            <div className="spread shelf-head">
+              <div><p className="deli-eyebrow">Christmas pre-orders are open</p><h2 className="section-h" style={{ margin: 0 }}>Christmas favourites.</h2></div>
+              <Link className="btn-ghost" to={`/christmas${suffix}`}>Full Christmas menu →</Link>
+            </div>
+            <div className="board-grid xmas-shelf-grid">
+              {xmasPicks.map((g) => {
+                const p = g.lead;
+                return (
+                  <article key={p.id} className="board-card card xmas-card">
+                    <Link to={`/platter/${p.id}${suffix}`} className="xmas-card-media" aria-label={`View ${p.name}`}>
+                      {p.imageUrl
+                        ? <img className="board-card-img" src={p.imageUrl} alt={p.name} width="640" height="480" loading="lazy" />
+                        : <ProductArt name={p.name} section={p.section} className="board-card-img" />}
+                      {p.imageIllustrative && p.imageUrl && <span className="illustrative-tag">Illustrative image</span>}
+                    </Link>
+                    <div className="board-card-body">
+                      <h3 className="board-card-name"><Link to={`/platter/${p.id}${suffix}`}>{p.name}</Link></h3>
+                      <p className="board-card-price">{g.hasChoice ? `From ${gbp(g.fromPrice)}` : gbp(p.fixedPrice ?? 0)}</p>
+                      {p.orderBy && <p className="xmas-orderby">{orderByLabel(p.orderBy)}</p>}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         <section className="board-section">
           <div className="spread shelf-head" data-reveal>
             <div><p className="deli-eyebrow">From the deli counter</p><h2 className="section-h" style={{ margin: 0 }}>Made for the middle of the table.</h2></div>

@@ -12,6 +12,9 @@ import { SubscribeSave } from "../components/SubscribeSave";
 import { trackViewContent } from "../lib/consent";
 import { pickerHeading } from "../lib/variants";
 import { orderByLabel, orderingClosed } from "../lib/preorder";
+import { ProductArt } from "../components/ProductArt";
+import { CART_CHANGED_EVENT } from "../components/CartDrawer";
+import { groupVariants } from "../lib/variants";
 
 export default function PlatterDetail() {
   const { id } = useParams();
@@ -22,6 +25,8 @@ export default function PlatterDetail() {
   const [subFreq, setSubFreq] = useState<SubscriptionFrequency | null>(null);
   // Which size/option is chosen. Each one is its own board, so this decides what gets added.
   const [chosenId, setChosenId] = useState<string | null>(null);
+  // "Goes well with": other Christmas lines, only fetched for shop products.
+  const [pairs, setPairs] = useState<Platter[]>([]);
 
   const variants = product?.variants ?? [];
   const platter: Platter | null =
@@ -35,6 +40,20 @@ export default function PlatterDetail() {
     // Pre-select any subscription choice already in the cart.
     setSubFreq(loadCart()?.subscription?.frequency ?? null);
   }, [id]);
+
+  useEffect(() => {
+    if (product?.category !== "shop") { setPairs([]); return; }
+    let live = true;
+    api.shopCategory("christmas").then((cat) => {
+      if (!live) return;
+      const mine = new Set([product.id, ...product.variants.map((v) => v.id)]);
+      const others = groupVariants((cat.boards ?? []).filter((b) => !mine.has(b.id) && !orderingClosed(b))).map((g) => g.lead);
+      // Prefer other sections (ham → cheese, pies, hampers) over more of the same.
+      const sorted = [...others].sort((a, b) => Number(a.section === product.section) - Number(b.section === product.section));
+      setPairs(sorted.slice(0, 3));
+    }).catch(() => live && setPairs([]));
+    return () => { live = false; };
+  }, [product]);
 
   // Switching size swaps the URL too, so a refresh or a shared link keeps the choice.
   // `replace` keeps the back button pointing at the shop rather than at each size tried.
@@ -81,6 +100,7 @@ export default function PlatterDetail() {
     else delete cart.subscription;
     saveCart(cart);
     addBoard(platter.id);
+    window.dispatchEvent(new CustomEvent(CART_CHANGED_EVENT));
     openCartDrawer();
   };
 
@@ -116,6 +136,9 @@ export default function PlatterDetail() {
 
       <div className="detail-grid">
         {/* Sizes often share one photo — fall back to any sibling's rather than showing a hole. */}
+        {!heroImage && isProduct && (
+          <div className="detail-photo-wrap"><ProductArt name={platter.name} section={platter.section} className="detail-art" /></div>
+        )}
         {heroImage && (
           <div className="detail-photo-wrap">
             <div className="detail-photo arch vt-hero" style={{ backgroundImage: `url(${heroImage})` }} role="img" aria-label={platter.imageIllustrative ? `${platter.name} (illustrative image)` : platter.name} />
@@ -201,6 +224,34 @@ export default function PlatterDetail() {
 
           <TrustChips />
           <DeliVideos productId={platter.id} />
+          {isProduct && (
+            <section className="preorder-how" aria-label="How pre-ordering works">
+              <h2>How it works</h2>
+              <ol>
+                <li>Add it to your basket and pick any collection day{platter.collectTo ? " up to " + new Date(`${platter.collectTo}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long" }) : ""}.</li>
+                <li>{platter.payInFull ? "Pay securely online — it's then set aside with your name on it." : "Pay the 25% deposit to lock it in."}</li>
+                <li>Pop in on the day, give your name, and it&apos;s ready.</li>
+              </ol>
+            </section>
+          )}
+
+          {pairs.length > 0 && (
+            <section className="pairs">
+              <h2 className="detail-h2">Goes well with</h2>
+              <div className="pairs-grid">
+                {pairs.map((p) => (
+                  <Link key={p.id} to={`/platter/${p.id}`} className="pairs-card">
+                    {p.imageUrl
+                      ? <div className="pairs-img" style={{ backgroundImage: `url(${p.imageUrl})` }} role="img" aria-label={p.name} />
+                      : <ProductArt name={p.name} section={p.section} />}
+                    <span>{p.name}</span>
+                    <span className="muted">{gbp(p.fixedPrice ?? p.fromPrice ?? 0)}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
           {isProduct ? (
             <p className="muted footnote">
               Allergies or a question about this? Add a note when you order or ring the shop — we&apos;ll sort it.
