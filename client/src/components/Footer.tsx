@@ -4,7 +4,6 @@ import { OPEN_CONSENT_EVENT } from "../lib/consent";
 import { loadSiteContent } from "../lib/season";
 import { DAY_LABELS, openStatus, parseHours, todayIndex, SHOP_ADDRESS, SHOP_MAP_URL, SHOP_EMAIL } from "../lib/hours";
 import type { OpeningHours } from "../lib/api";
-import { Crest, Ornament } from "./BrandMark";
 
 /** Site footer — the shop's front door online: where we are, when we're open, every
  * department, and the UK-required legal links. id="our-shops" is the "Visit us" target. */
@@ -26,11 +25,9 @@ export function Footer() {
     <footer className="site-footer" id="our-shops">
       <div className="site-footer-inner">
         <div className="footer-brand">
-          <Crest className="footer-crest" />
           <p className="footer-word">Kelly&apos;s</p>
-          <p className="footer-tag">Delicatessen · Bentley Heath</p>
-          <Ornament className="ornament footer-ornament" />
-          {rating && <p className="footer-rating">{rating.value}★ on Google{rating.count ? ` · ${rating.count} reviews` : ""}</p>}
+          <p className="footer-tag">Deli, Bentley Heath</p>
+          {rating && <p className="footer-rating">Rated {rating.value} out of 5 on Google{rating.count ? ` from ${rating.count} reviews` : ""}</p>}
         </div>
 
         <div className="footer-cols">
@@ -47,7 +44,7 @@ export function Footer() {
             <p className="footer-col-h">Opening hours</p>
             {hours ? (
               <>
-                <p className="footer-status">{openStatus(hours).text}</p>
+                <p className="footer-status">{openStatus(hours).text.replace(" · ", ", ")}</p>
                 <dl className="footer-hours">
                   {DAY_LABELS.map((d, i) => (
                     <div key={d.key} className={i === today ? "is-today" : undefined}>
@@ -74,8 +71,8 @@ export function Footer() {
 
           <div className="footer-col">
             <p className="footer-col-h">Good to know</p>
-            <Link to="/terms">Terms &amp; Conditions</Link>
-            <Link to="/privacy">Privacy Policy</Link>
+            <Link to="/terms">Terms and conditions</Link>
+            <Link to="/privacy">Privacy policy</Link>
             <button type="button" className="footer-linkbtn" onClick={() => window.dispatchEvent(new CustomEvent(OPEN_CONSENT_EVENT))}>
               Cookie settings
             </button>
@@ -83,7 +80,7 @@ export function Footer() {
           </div>
         </div>
 
-        <p className="footer-copy">© {year} Kelly&apos;s Deli · Bentley Heath, Solihull</p>
+        <p className="footer-copy">© {year} Kelly&apos;s Deli, Bentley Heath, Solihull</p>
       </div>
     </footer>
   );

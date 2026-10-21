@@ -8,8 +8,6 @@ import { gbp } from "../lib/format";
 import { DeliVideos } from "./DeliVideos";
 import { trackShoppingEvent } from "../lib/consent";
 import { collectionWindow } from "../lib/preorder";
-import { ProductArt } from "./ProductArt";
-import { Ornament } from "./BrandMark";
 
 /* Smart Cart — the slide-over basket the big DTC stores run as a paid app.
  * Opens on add-to-order, shows the boards with steppers, one-tap add-on upsells
@@ -221,9 +219,8 @@ export function CartDrawer() {
         <div className="bk-body">
           {lines.length === 0 && (
             <div className="bk-empty">
-              <Ornament className="ornament bk-orn" />
               <p className="bk-empty-lead">Your basket is empty.</p>
-              <p className="bk-empty-sub">Something lovely for the table is only a few taps away.</p>
+              <p className="bk-empty-sub">Start with a board, or have a look at what else the shop makes.</p>
               {suggestions.length > 0 && (
                 <>
                   <p className="bk-label">Start with one of these</p>
@@ -231,15 +228,14 @@ export function CartDrawer() {
                     {suggestions.map((s) => (
                       <li key={s.id}>
                         <Link className="bk-suggest" to={`/platter/${encodeURIComponent(s.id)}`} onClick={close}>
-                          <Thumb name={s.name} section={s.section ?? "board"} imageUrl={s.imageUrl} />
+                          <Thumb name={s.name} imageUrl={s.imageUrl} />
                           <span className="bk-line-info">
                             <span className="bk-name">{s.name}</span>
                             <span className="bk-meta">
-                              {s.serves ? `Feeds ${s.serves} · ` : ""}
-                              {s.fixedPrice != null ? gbp(s.fixedPrice) : `from ${gbp(s.fromPrice)}`}
+                              {s.fixedPrice != null ? gbp(s.fixedPrice) : `From ${gbp(s.fromPrice)}`}
+                              {s.serves ? `, feeds ${s.serves}` : ""}
                             </span>
                           </span>
-                          <span className="bk-chev" aria-hidden="true">→</span>
                         </Link>
                       </li>
                     ))}
@@ -277,7 +273,7 @@ export function CartDrawer() {
             <ul className="bk-lines">
               {lines.map(({ b, p }) => (
                 <li className="bk-line" key={b.platterId}>
-                  <Thumb name={p.name} section={p.section ?? (p.kind === "product" ? null : "board")} imageUrl={p.imageUrl} />
+                  <Thumb name={p.name} imageUrl={p.imageUrl} />
                   <div className="bk-line-info">
                     <span className="bk-name">{p.name}</span>
                     {(p.variantLabel || p.unitLabel || p.serves) && (
@@ -285,7 +281,7 @@ export function CartDrawer() {
                         {p.kind === "product" ? (p.variantLabel ?? p.unitLabel ?? "") : p.variantLabel ?? (p.serves ? `Feeds ${p.serves}` : "")}
                       </span>
                     )}
-                    {p.kind === "product" && <span className="bk-tag">{p.payInFull ? "Pre-order · paid in full" : "Pre-order"}</span>}
+                    {p.kind === "product" && <span className="bk-tag">{p.payInFull ? "Pre-order, paid in full" : "Pre-order"}</span>}
                     <div className="bk-row">
                       <div className="bk-stepper stepper">
                         <button onClick={() => setBoardQty(b.platterId, b.quantity - 1)} aria-label={`One fewer ${p.name}`}>−</button>
@@ -321,7 +317,7 @@ export function CartDrawer() {
           {lines.length > 0 && completeOffer && <section className="bk-bundle">
             <p className="eyebrow">Make it a complete spread</p><h3 className="bk-bundle-h">{completeOffer.bundle.name}</h3>
             <p>Add {completeOffer.missing.map((i) => `${i.quantity}× ${i.name}`).join(", ")} to unlock {gbp(completeOffer.bundle.saving)} bundle savings.</p>
-            <button type="button" className="btn btn-secondary" onClick={completeBundle}>Add missing items · {gbp(completeOffer.missing.reduce((sum, i) => sum + i.quantity * i.price, 0))}</button>
+            <button type="button" className="btn btn-secondary" onClick={completeBundle}>Add missing items, {gbp(completeOffer.missing.reduce((sum, i) => sum + i.quantity * i.price, 0))}</button>
             <p className="bk-fine">Item price shown before the bundle saving. Your total updates below.</p>
           </section>}
 
@@ -354,7 +350,7 @@ export function CartDrawer() {
             </div>
             <div className="bk-split">
               <div className="bk-split-col is-now">
-                <span className="bk-split-k">{payInFull ? (paymentsLive ? "Pay today · in full" : "To pay · in full") : (paymentsLive ? "Pay today · 25% deposit" : "To confirm · 25% deposit")}</span>
+                <span className="bk-split-k">{payInFull ? (paymentsLive ? "Pay today, in full" : "To pay, in full") : (paymentsLive ? "Pay today (25% deposit)" : "To confirm (25% deposit)")}</span>
                 <strong className="bk-split-v">{gbp(deposit)}</strong>
               </div>
               <div className="bk-split-col">
@@ -381,9 +377,9 @@ export function CartDrawer() {
   );
 }
 
-/** Small square thumbnail: the owner's photo, the engraved product art, or a serif monogram. */
-function Thumb({ name, section, imageUrl, monogram = false }: { name: string; section?: string | null; imageUrl: string | null; monogram?: boolean }) {
+/** Small thumbnail: the owner's photo, a letter for extras, or a plain counter-colour block. */
+function Thumb({ name, imageUrl, monogram = false }: { name: string; imageUrl: string | null; monogram?: boolean }) {
   if (imageUrl) return <span className="bk-thumb" style={{ backgroundImage: `url(${imageUrl})` }} aria-hidden="true" />;
   if (monogram) return <span className="bk-thumb is-mono" aria-hidden="true">{name.charAt(0)}</span>;
-  return <span className="bk-thumb is-art" aria-hidden="true"><ProductArt name={name} section={section} fit="meet" /></span>;
+  return <span className="bk-thumb is-blank" aria-hidden="true" />;
 }

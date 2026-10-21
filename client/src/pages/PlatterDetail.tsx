@@ -11,14 +11,13 @@ import { SubscribeSave } from "../components/SubscribeSave";
 import { trackViewContent } from "../lib/consent";
 import { pickerHeading, groupVariants, type ProductGroup } from "../lib/variants";
 import { orderByLabel, orderingClosed, shortDate } from "../lib/preorder";
-import { ProductArt } from "../components/ProductArt";
 import { CART_CHANGED_EVENT } from "../components/CartDrawer";
 import { Breadcrumbs, type Crumb } from "../components/site/PageHero";
 import { ProductCard } from "../components/site/ProductCard";
 import { SectionHead } from "../components/site/SectionHead";
-import { Ornament } from "../components/BrandMark";
+import { Ticket, sentence } from "../components/site/Ticket";
 
-/** Which part of the shop a product belongs to — drives the breadcrumb, eyebrow and pairings. */
+/** Which part of the shop a product belongs to — drives the breadcrumb and pairings. */
 function departmentOf(p: Platter): { label: string; to: string; eyebrow: string } {
   if (p.category === "shop") return { label: "Christmas", to: "/christmas", eyebrow: p.section ?? "Christmas" };
   if (p.category === "home") return { label: "Boards for a night in", to: "/shop/at-home", eyebrow: "A board for tonight" };
@@ -179,7 +178,6 @@ export default function PlatterDetail() {
     return (
       <div className="pdp">
         <div className="wrap pdp-state">
-          <p className="eyebrow">Sorry</p>
           <h1 className="pdp-state-h">We couldn&apos;t find that one.</h1>
           <p className="pdp-state-p">{error}</p>
           <Link className="btn btn-secondary" to="/platters">Back to boards</Link>
@@ -199,7 +197,7 @@ export default function PlatterDetail() {
   const hasSizes = variants.length > 1;
   const fromPrice = hasSizes ? Math.min(...variants.map(priceOf)) : price;
   const unitLine = isProduct
-    ? [platter.unitLabel, platter.serves ? `serves ${platter.serves}` : null].filter(Boolean).join(" · ")
+    ? [platter.unitLabel ? sentence(platter.unitLabel) : null, platter.serves ? `serves ${platter.serves}` : null].filter(Boolean).join(", ")
     : platter.serves ? `Feeds ${platter.serves}` : "";
   const deadline = platter.orderBy ? orderByLabel(platter.orderBy) : null;
   const nice = (d: string) => shortDate(new Date(`${d}T12:00:00Z`));
@@ -219,33 +217,33 @@ export default function PlatterDetail() {
         <div className="pdp-crumbrow">
           <Breadcrumbs items={crumbs} />
           {platter.category === "shop"
-            ? <Link to="/christmas" className="pdp-back">← Christmas menu</Link>
-            : <Link to="/platters" className="pdp-back">← Back to boards</Link>}
+            ? <Link to="/christmas" className="pdp-back">Back to the Christmas menu</Link>
+            : <Link to="/platters" className="pdp-back">Back to all boards</Link>}
         </div>
 
         <div className="pdp-main">
           <div className="pdp-media">
             <figure className="pdp-frame">
               {heroImage ? (
-                <img className="pdp-photo vt-hero" src={heroImage} alt={illustrative ? `${platter.name} (illustrative image)` : platter.name} width="1000" height="1000" />
+                <img className="pdp-photo vt-hero" src={heroImage} alt={illustrative ? `${platter.name} (illustrative photo)` : platter.name} width="1000" height="1250" />
               ) : (
-                <ProductArt name={platter.name} section={platter.section ?? (isProduct ? null : "board")} className="pdp-art" fit="meet" />
+                <span className="pdp-blank vt-hero" role="img" aria-label={platter.name} />
               )}
-              {heroImage && illustrative && <figcaption className="pdp-illus">Illustrative image — real photo coming soon</figcaption>}
+              {heroImage && illustrative && <figcaption className="illustrative-tag">Illustrative photo</figcaption>}
             </figure>
           </div>
 
           <div className="pdp-buy">
-            <p className="eyebrow pdp-eyebrow">{dept.eyebrow}</p>
             <h1 className="pdp-title">{platter.name}</h1>
-            <Ornament className="ornament pdp-orn" />
 
             <div className="pdp-pricebar">
-              <p className="pdp-price">
-                <span className="pdp-price-now">{gbp(price)}</span>
-                {hasSizes && <span className="pdp-price-from">From {gbp(fromPrice)} · {variants.length} {pickerHeading(variants) === "Choose your size" ? "sizes" : "options"}</span>}
-              </p>
-              {unitLine && <p className="pdp-unit">{unitLine}</p>}
+              <Ticket
+                large
+                price={gbp(price)}
+                unit={isProduct ? (platter.unitLabel ? sentence(platter.unitLabel) : null) : platter.serves ? `Feeds ${platter.serves}` : null}
+                note={isProduct && platter.serves ? `Serves ${platter.serves}` : null}
+              />
+              {hasSizes && <p className="pdp-price-from">{variants.length} {pickerHeading(variants) === "Choose your size" ? "sizes" : "options"}, from {gbp(fromPrice)}</p>}
             </div>
 
             {deadline && (
@@ -299,14 +297,14 @@ export default function PlatterDetail() {
                   ? "25% deposit for your first board today — we'll set your schedule up with you and confirm each board."
                   : "No card taken now — we'll set your schedule up with you and confirm each board."
                 : platter.payInFull
-                  ? "Paid at checkout · set aside with your name on it · pick your collection day"
-                  : "Only 25% today · balance on collection · fully refundable up to 48 hrs before"}
+                  ? "Paid at checkout and set aside with your name on it. You pick the collection day."
+                  : "Pay 25% today and the rest when you collect. Fully refundable up to 48 hours before."}
             </p>
 
             {isProduct && !closed && (
               <ul className="pdp-assure pdp-assure-list" aria-label="Pre-order details">
                 {collectSpan && <li>{collectSpan}</li>}
-                <li>{platter.payInFull ? "Paid in full up front" : "25% deposit · balance on collection"}</li>
+                <li>{platter.payInFull ? "Paid in full when you order" : "25% deposit, balance on collection"}</li>
                 <li>Set aside with your name on it</li>
               </ul>
             )}
@@ -327,8 +325,7 @@ export default function PlatterDetail() {
 
         <section className="pdp-details" aria-labelledby="pdp-details-h">
           <div className="pdp-details-head">
-            <p className="eyebrow">Good to know</p>
-            <h2 id="pdp-details-h" className="pdp-details-title">The particulars</h2>
+            <h2 id="pdp-details-h" className="pdp-details-title">Good to know</h2>
           </div>
           <div className="pdp-acc">
             <details className="pdp-acc-item" open>
@@ -371,7 +368,7 @@ export default function PlatterDetail() {
                     </ol>
                     <dl className="pdp-facts">
                       <div><dt>Notice</dt><dd>{leadHours} hours</dd></div>
-                      <div><dt>Payment</dt><dd>{platter.payInFull ? "Paid in full when you order" : "25% deposit · balance on collection"}</dd></div>
+                      <div><dt>Payment</dt><dd>{platter.payInFull ? "Paid in full when you order" : "25% deposit, balance on collection"}</dd></div>
                       {!platter.payInFull && <div><dt>Changes</dt><dd>Deposit fully refundable up to 48 hours before collection</dd></div>}
                       <div><dt>Extras</dt><dd>Plates, cutlery and napkins are offered at the next step, sized to your numbers</dd></div>
                     </dl>
@@ -403,7 +400,6 @@ export default function PlatterDetail() {
           <div className="wrap">
             <SectionHead
               id="pdp-pairs-h"
-              eyebrow={isProduct ? "From the Christmas menu" : "From the deli"}
               title="Goes well with"
               action={isProduct ? { to: "/christmas", label: "The full Christmas menu" } : { to: "/platters", label: "See every board" }}
               align="left"
@@ -422,7 +418,7 @@ export default function PlatterDetail() {
             <span className="pdp-bar-sub">{platter.variantLabel ?? unitLine}</span>
           </div>
           <button type="button" className="btn pdp-bar-btn" onClick={order} disabled={closed}>
-            {closed ? "Closed" : effSub ? `Subscribe · ${gbp(subPrice)}` : `Add to basket · ${gbp(price)}`}
+            {closed ? "Closed" : effSub ? `Subscribe for ${gbp(subPrice)}` : `Add for ${gbp(price)}`}
           </button>
         </div>
       )}

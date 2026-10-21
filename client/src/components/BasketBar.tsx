@@ -34,7 +34,7 @@ export function BasketBar() {
       <button type="button" className="basket-bar-view" onClick={openCartDrawer}>
         <span className="basket-bar-count">{count}</span> in your basket
       </button>
-      <button type="button" className="btn basket-bar-go" onClick={() => navigate("/order")}>Checkout →</button>
+      <button type="button" className="btn basket-bar-go" onClick={() => navigate("/order")}>Checkout</button>
     </div>
   );
 }

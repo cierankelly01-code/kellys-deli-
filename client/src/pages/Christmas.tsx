@@ -6,11 +6,8 @@ import { ReminderCapture } from "../components/ReminderCapture";
 import { groupVariants } from "../lib/variants";
 import { orderByLabel, orderingClosed } from "../lib/preorder";
 import { loadSiteContent } from "../lib/season";
-import { ProductArt } from "../components/ProductArt";
-import { Crest, Ornament } from "../components/BrandMark";
 import { BasketBar } from "../components/BasketBar";
 import { ProductCard } from "../components/site/ProductCard";
-import { SectionHead } from "../components/site/SectionHead";
 
 const SITE = "https://www.kellysdeli.co.uk";
 
@@ -20,7 +17,7 @@ const SECTION_ORDER = ["Hams & Joints", "Turkey & Trimmings", "Party Food", "Che
 const XMAS_FAQ = [
   {
     q: "When can I collect?",
-    a: "Any day in December the shop is open, up to Christmas Eve — you pick the day at checkout. Some items (like turkey crowns) are collected closer to Christmas; the checkout only offers the days that work for everything in your basket.",
+    a: "Any day in December the shop is open, up to Christmas Eve. You pick the day at checkout. Some items (like turkey crowns) are collected closer to Christmas; the checkout only offers the days that work for everything in your basket.",
   },
   {
     q: "Do I pay now?",
@@ -155,7 +152,7 @@ export default function Christmas() {
 
   useEffect(() => {
     if (!active) return;
-    const chip = document.querySelector<HTMLElement>(`.xmas-chips a[href="#${active}"]`);
+    const chip = document.querySelector<HTMLElement>(`.xm-nav a[href="#${active}"]`);
     const bar = chip?.parentElement;
     if (chip && bar && bar.scrollWidth > bar.clientWidth) {
       bar.scrollTo({ left: chip.offsetLeft - bar.clientWidth / 2 + chip.clientWidth / 2, behavior: "smooth" });
@@ -166,84 +163,73 @@ export default function Christmas() {
   const daysLeft = lastOrders ? daysUntil(lastOrders) : 0;
 
   return (
-    <div className="collection xmas-page">
-      <header className="xmas-hero">
-        {cat?.heroImageUrl && <img className="xmas-hero-img" src={cat.heroImageUrl} alt="" aria-hidden="true" onError={(e) => { e.currentTarget.style.display = "none"; }} />}
-        <div className="xmas-hero-scrim">
-          <Crest className="xmas-hero-crest" />
-          <p className="xmas-eyebrow">The Christmas Collection</p>
-          <h1 className="xmas-hero-h">Christmas <em>at Kelly&apos;s</em></h1>
-          <Ornament className="ornament xmas-hero-ornament" />
-          <p className="xmas-hero-sub">
-            {cat?.tagline ?? "Hams glazed in the deli, turkey, party food and hampers — ordered now, collected in December."}
+    <div className="xm">
+      <section className="photo-hero xm-hero" aria-labelledby="xm-hero-h">
+        <figure className="photo-hero-photo">
+          {cat?.heroImageUrl && <img src={cat.heroImageUrl} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} />}
+        </figure>
+        <div className="photo-hero-copy">
+          <h1 id="xm-hero-h" className="photo-hero-h">Christmas at Kelly&apos;s</h1>
+          <p className="photo-hero-sub">
+            {cat?.tagline ?? "Hams glazed in the deli, turkey, party food and hampers. Order now and collect in December."}
           </p>
-          <div className="xmas-hero-actions">
-            <a className="btn xmas-cta" href="#xmas-menu">Shop the collection</a>
-            <Link className="btn btn-secondary xmas-cta-alt" to="/plan">Christmas party catering</Link>
-          </div>
           {lastOrders && (
-            <a className="xmas-deadline" href="#xmas-dates">
-              {orderByLabel(lastOrders)?.replace("Order by", "First order-by date")}
-              {daysLeft > 0 && <> · <strong>{daysLeft} days to go</strong></>}
+            <a className="photo-hero-note" href="#xmas-dates">
+              {orderByLabel(lastOrders)?.replace("Order by", "First order-by date:")}
+              {daysLeft > 0 && `, ${daysLeft} days to go`}
             </a>
           )}
+          <div className="photo-hero-actions">
+            <a className="btn" href="#xmas-menu">Shop the Christmas menu</a>
+            <Link className="btn btn-secondary" to="/plan">Christmas party catering</Link>
+          </div>
         </div>
-      </header>
-
-      <ul className="xmas-trust" aria-label="Why order from us">
-        {counts?.reviewRating && <li>{counts.reviewRating}★ on Google{counts.reviewCount ? ` · ${counts.reviewCount} reviews` : ""}</li>}
-        <li>Family-run in Bentley Heath</li>
-        <li>Collect any day in December</li>
-        <li>{counts?.paymentsLive ? "Pay securely online" : "Order online in two minutes"}</li>
-      </ul>
+      </section>
 
       <div className="wrap">
-        <ol className="xmas-steps" aria-label="How Christmas ordering works">
-          <li><span className="xmas-step-n" aria-hidden="true">I</span><strong>Choose your Christmas</strong><span>Hams, turkey, party food, cheese and hampers.</span></li>
-          <li><span className="xmas-step-n" aria-hidden="true">II</span><strong>Pick your day</strong><span>Collect any day in December, up to Christmas Eve.</span></li>
-          <li><span className="xmas-step-n" aria-hidden="true">III</span><strong>Pay, and it&apos;s set aside</strong><span>Waiting with your name on it — no queue.</span></li>
+        <ol className="xm-steps" aria-label="How Christmas ordering works">
+          <li><strong>Choose your Christmas</strong><span>Hams, turkey, party food, cheese and hampers.</span></li>
+          <li><strong>Pick your day</strong><span>Collect from the shop any day in December, up to Christmas Eve.</span></li>
+          <li><strong>{counts?.paymentsLive ? "Pay online, and it’s set aside" : "Send your order, and it’s set aside"}</strong><span>Waiting with your name on it when you come in.</span></li>
         </ol>
       </div>
 
       {sections.length > 1 && (
-        <nav className="xmas-chips" aria-label="Jump to a section">
-          <div className="xmas-chips-track">
+        <nav className="xm-nav" aria-label="Jump to a section">
+          <div className="xm-nav-track">
             {sections.map((sec) => (
               <a key={sec.name} href={`#xs-${sec.id}`} aria-current={active === `xs-${sec.id}` ? "true" : undefined}>
                 {sec.name}
               </a>
             ))}
-            {diary.length > 0 && <a href="#xmas-dates" className="xmas-chips-dates">Order-by dates</a>}
+            {diary.length > 0 && <a href="#xmas-dates" className="xm-nav-dates">Order-by dates</a>}
           </div>
         </nav>
       )}
 
-      <div id="xmas-menu" className="xmas-menu">
-        {!cat && !failed && <div className="collection-loading" role="status">Loading the Christmas menu…</div>}
+      <div id="xmas-menu" className="xm-menu">
+        {!cat && !failed && <div className="wrap xm-loading" role="status">Loading the Christmas menu…</div>}
 
         {empty && (
-          <section className="section">
-            <div className="wrap-narrow collection-empty xmas-empty">
-              <Crest className="xmas-empty-crest" />
-              <h2>The Christmas menu is landing very soon.</h2>
-              <p>
-                Hams, turkey crowns, party food and hampers — leave your details below and we&apos;ll tell you the moment
-                ordering opens.
-              </p>
-              <a className="btn btn-secondary" href="#xmas-reminder">Remind me when it opens</a>
-            </div>
+          <section className="wrap xm-empty">
+            <h2>The Christmas menu is nearly ready.</h2>
+            <p>
+              Hams, turkey crowns, party food and hampers. Leave your details below and we&apos;ll tell you when ordering opens.
+            </p>
+            <a className="btn btn-secondary" href="#xmas-reminder">Remind me when it opens</a>
           </section>
         )}
 
         {sections.map((section) => (
-          <section key={section.name} className="xmas-section" id={`xs-${section.id}`} aria-labelledby={`xsh-${section.id}`}>
+          <section key={section.name} className="xm-section" id={`xs-${section.id}`} aria-labelledby={`xsh-${section.id}`}>
             <div className="wrap">
-              <SectionHead
-                id={`xsh-${section.id}`}
-                eyebrow={section.firstOrderBy ? orderByLabel(section.firstOrderBy) ?? undefined : `${section.groups.length} to choose from`}
-                title={section.name}
-              />
-              <div className="pgrid cgrid" data-n={section.groups.length}>
+              <header className="xm-section-head">
+                <h2 id={`xsh-${section.id}`} className="xm-section-h">{section.name}</h2>
+                {section.firstOrderBy
+                  ? <p className="xm-section-by">{orderByLabel(section.firstOrderBy)}</p>
+                  : <p className="xm-section-by is-quiet">{section.groups.length} to choose from</p>}
+              </header>
+              <div className="pgrid" data-n={section.groups.length}>
                 {section.groups.map((g) => (
                   <ProductCard key={g.lead.id} group={g} showDescription />
                 ))}
@@ -254,24 +240,20 @@ export default function Christmas() {
       </div>
 
       {diary.length > 0 && (
-        <section className="section is-paper xmas-dates" id="xmas-dates" aria-labelledby="xmas-dates-h">
+        <section className="xm-dates" id="xmas-dates" aria-labelledby="xmas-dates-h">
           <div className="wrap">
-            <SectionHead
-              id="xmas-dates-h"
-              eyebrow="The Christmas diary"
-              title="Order-by dates"
-              intro="Stock is ordered in for you, so each item has its own last day to order. Once a date passes we can't promise it."
-            />
-            <ol className="xmas-diary">
+            <h2 id="xmas-dates-h" className="xm-dates-h">Order-by dates</h2>
+            <p className="xm-dates-intro">Stock is ordered in for you, so each item has its own last day to order. Once a date has passed we can&apos;t promise it.</p>
+            <ol className="xm-book">
               {diary.map((d) => {
                 const n = daysUntil(d.iso);
                 return (
                   <li key={d.label}>
-                    <p className="xmas-diary-date">
+                    <p className="xm-book-date">
                       {d.label.replace("Order by ", "")}
-                      <span>{n > 0 ? `${n} days to go` : "Today"}</span>
+                      <span className="xm-book-left">{n > 0 ? `${n} days to go` : "Today"}</span>
                     </p>
-                    <p className="xmas-diary-items">{d.names.join(" · ")}</p>
+                    <p className="xm-book-items">{d.names.join(", ")}</p>
                   </li>
                 );
               })}
@@ -280,35 +262,27 @@ export default function Christmas() {
         </section>
       )}
 
-      <section className="section xmas-bands" aria-label="Catering and gifting">
-        <div className="wrap xmas-bands-grid">
-          <div className="xmas-band">
-            <div className="xmas-band-art"><ProductArt name="Christmas Party Platter" /></div>
-            <div className="xmas-band-copy">
-              <p className="eyebrow">Entertaining</p>
-              <h2>Christmas party catering</h2>
-              <p>Office do, family get-together or Boxing Day open house — tell us how many and we&apos;ll put the spread together.</p>
-              <Link className="btn btn-secondary" to="/plan">Plan my party food</Link>
-            </div>
+      <section className="xm-band on-green" aria-label="Catering and gifting">
+        <div className="wrap xm-band-grid">
+          <div className="xm-offer">
+            <h2>Christmas party catering</h2>
+            <p>Office do, family get-together or Boxing Day open house. Tell us how many and we&apos;ll put the spread together.</p>
+            <Link className="btn" to="/plan">Plan my party food</Link>
           </div>
-          <div className="xmas-band">
-            <div className="xmas-band-art"><ProductArt name="Hamper" /></div>
-            <div className="xmas-band-copy">
-              <p className="eyebrow">Corporate gifting</p>
-              <h2>Gifts for clients &amp; staff</h2>
-              <p>Hampers in any quantity, with a printed note in each. Bigger order? We&apos;ll sort it with you.</p>
-              <Link className="btn btn-secondary" to="/shop/office-corporate">Talk to us about gifting</Link>
-            </div>
+          <div className="xm-offer">
+            <h2>Gifts for clients and staff</h2>
+            <p>Hampers in any quantity, with a printed note in each. For a bigger order, we&apos;ll sort it with you.</p>
+            <Link className="btn btn-secondary" to="/shop/office-corporate">Talk to us about gifting</Link>
           </div>
         </div>
       </section>
 
-      <div className="wrap" id="xmas-reminder">
+      <div className="wrap xm-reminder" id="xmas-reminder">
         <ReminderCapture defaultOccasion="Christmas" />
       </div>
 
-      <section className="faq xmas-faq wrap-narrow" aria-labelledby="xmas-faq-h">
-        <SectionHead id="xmas-faq-h" eyebrow="Good to know" title="Christmas questions" />
+      <section className="wrap xm-faq" aria-labelledby="xmas-faq-h">
+        <h2 id="xmas-faq-h" className="xm-faq-h">Christmas questions</h2>
         {XMAS_FAQ.map((item) => (
           <details className="faq-item" key={item.q}>
             <summary>{item.q}</summary>

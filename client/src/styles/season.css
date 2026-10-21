@@ -1,225 +1,210 @@
-/* Kelly's brand layer — "Provisioners": ivory, bottle green and antique gold, a classical
-   display serif with small-capital labels, fine rules and plenty of air. Loaded last, so
-   it sets the brand tokens every other stylesheet reads. The seasonal skin (Site Settings
-   → "season") only adds the Christmas accent and banner on top. */
+/* Kelly's brand layer: "The Counter" (see DESIGN.md). White page, the food large, prices on
+   counter tickets. One family (Archivo), bottle green for brand surfaces, counter red for
+   actions and order-by warnings. Loaded after the legacy layers, so the tokens here are what
+   every other stylesheet reads. Christmas adds nothing new: the season is in the photos. */
 
 :root {
-  --green: #16352c;          /* Kelly's bottle green — the brand colour */
-  --green-deep: #0f2620;
-  --ivory: #f8f4ec;          /* page */
-  --paper: #fffdf8;          /* cards, panels */
-  --gold: #a98a4f;           /* rules, ornaments, frames — decoration only */
-  --gold-text: #7c6330;      /* gold for text (AA on ivory) */
-  --gold-soft: #e6d7b5;
-  --hairline: rgb(169 138 79 / 45%);
+  /* The six brand colours */
+  --paper: #ffffff;          /* page */
+  --counter: #f1efe9;        /* quiet bands, image placeholders */
+  --ink: #1d1d1b;            /* text */
+  --green: #1f3d2b;          /* header, footer, the big CTA band */
+  --red: #c8102e;            /* action buttons, the ticket stripe, order-by warnings */
+  --kraft: #c9a26b;          /* rare: paper-bag accents on the order slip */
 
-  /* Existing tokens, mapped onto the brand. */
+  /* Working shades */
+  --ink-soft: #57564f;       /* secondary text, AA on white and on --counter */
+  --green-deep: #172f21;     /* hover on green */
+  --red-deep: #a50d26;       /* hover on red */
+  --rule: #d9d6ce;           /* functional borders: inputs, list rows */
+  --on-green: rgb(255 255 255 / 80%);
+
+  /* Legacy names, mapped onto the brand so older stylesheets follow along. */
+  --ivory: var(--paper);
+  --cream: var(--paper);
+  --card: var(--paper);
   --navy: var(--green);
   --brick: var(--green);
   --brick-dark: var(--green-deep);
-  --ink: #1d201c;
-  --ink-soft: #5c5f57;
-  --cream: var(--ivory);
-  --card: var(--paper);
-  --line: #e6dfd0;
-  --mustard: var(--gold);
-  --olive: #5f7366;
-  --radius: 0px;
-  --radius-sm: 0px;
-  --shadow: 0 18px 40px rgb(22 53 44 / 8%);
+  --gold: var(--red);
+  --mustard: var(--red);
+  --gold-text: var(--ink-soft);
+  --gold-soft: #ece9e2;
+  --hairline: var(--rule);
+  --line: var(--rule);
+  --olive: #2f5a3e;
+  --berry: var(--red);
+  --berry-dark: var(--red-deep);
+
+  /* Shape: photos square, buttons and tickets 2px, no shadows. */
+  --radius: 2px;
+  --radius-sm: 2px;
+  --shadow: none;
   --shadow-sm: none;
 
-  --serif: "Cormorant Garamond", "Cormorant", Garamond, "Times New Roman", serif;
-  --font: "Jost", "Futura", "Century Gothic", system-ui, sans-serif;
-  --display: clamp(3rem, 6vw, 5.4rem);
-  --heading: clamp(2.1rem, 3.4vw, 3.2rem);
+  /* Type: Archivo only. --serif is kept as a name for the old stylesheets. */
+  --font: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --serif: var(--font);
+  --display: clamp(2.75rem, 7vw, 6rem);
+  --heading: clamp(1.85rem, 3.6vw, 3rem);
+  --label: .875rem;          /* 14px small labels, sentence case, 600 */
 }
 
-html[data-season="christmas"] {
-  --berry: #7d1d2c;          /* deep wine — the one Christmas accent, used sparingly */
-  --berry-dark: #621522;
+/* ---------- Base ---------- */
+/* `clip` stops sideways scroll without turning body into a scroll container, so
+   position: sticky works everywhere (theme.css uses `hidden`). */
+html, body { overflow-x: clip; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--font);
+  font-size: 1.0625rem; line-height: 1.55; font-weight: 400; letter-spacing: 0;
 }
+h1, h2, h3 { font-family: var(--font); font-weight: 800; font-stretch: 100%; letter-spacing: -.01em; line-height: 1.05; color: var(--ink); }
+h1 { font-stretch: 112%; line-height: 1; }
+/* No italic accent words: an <em> in a headline reads as part of the sentence. */
+h1 em, h2 em, h3 em { font-style: normal; font-weight: inherit; color: inherit; display: inline; }
 
-/* ---------- Typography ---------- */
-body { background: var(--ivory); font-family: var(--font); color: var(--ink); font-weight: 400; letter-spacing: .005em; }
-h1, h2, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -.005em; color: var(--ink); }
-h1 { font-weight: 500; }
-em { font-style: italic; }
-.deli-eyebrow, .xmas-eyebrow, .eyebrow {
-  font-family: var(--font); font-size: .7rem; font-weight: 500; letter-spacing: .26em; text-transform: uppercase; color: var(--gold-text);
+/* Small labels: sentence case, 14px, 600. Never tracked capitals. */
+.eyebrow, .deli-eyebrow, .xmas-eyebrow {
+  font-family: var(--font); font-size: var(--label); font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--ink-soft);
 }
+/* The old ornamental rule: shared components still render it, the brand doesn't show it. */
+.ornament { display: none; }
 
-/* ---------- Buttons: square-cut, small capitals ---------- */
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* ---------- Buttons: counter red for actions, 2px corners ---------- */
 .btn {
-  border-radius: 0; font-family: var(--font); font-weight: 500; font-size: .78rem; letter-spacing: .2em;
-  min-height: 52px; padding: 14px 26px; background: var(--green); color: var(--ivory); border: 1px solid var(--green);
-  transition: background var(--dur-std) ease, color var(--dur-std) ease, border-color var(--dur-std) ease;
+  border-radius: 2px; font-family: var(--font); font-weight: 650; font-size: 1rem; letter-spacing: 0; text-transform: none;
+  min-height: 48px; padding: 12px 22px; background: var(--red); color: #fff; border: 2px solid var(--red); box-shadow: none;
+  transition: background-color var(--dur-micro) ease, color var(--dur-micro) ease, border-color var(--dur-micro) ease;
 }
-.btn:hover { background: var(--green-deep); }
-.btn-secondary { background: transparent; color: var(--green); border: 1px solid var(--green); }
-.btn-secondary:hover { background: var(--green); color: var(--ivory); }
-.btn-ghost { font-family: var(--font); font-weight: 500; letter-spacing: .06em; border-radius: 0; }
+.btn:hover { background: var(--red-deep); border-color: var(--red-deep); }
+.btn:active { transform: none; }
+.btn-secondary { background: transparent; color: var(--ink); border: 2px solid var(--ink); }
+.btn-secondary:hover { background: var(--ink); border-color: var(--ink); color: #fff; }
+.btn-ghost { font-family: var(--font); font-weight: 600; letter-spacing: 0; border-radius: 2px; }
 a.btn, a.btn-secondary, a.btn-ghost { text-decoration: none; }
-.btn.is-added { background: var(--olive); border-color: var(--olive); }
+.btn.is-added { background: var(--green); border-color: var(--green); color: #fff; }
+/* On green surfaces the secondary button turns white. */
+.on-green .btn-secondary { color: #fff; border-color: #fff; }
+.on-green .btn-secondary:hover { background: #fff; color: var(--green); }
 
-/* ---------- Announcement + header lockup ---------- */
-.deli-announcement { background: var(--green); color: var(--gold-soft); font-size: .66rem; letter-spacing: .22em; text-transform: uppercase; padding: 11px 20px; font-weight: 500; }
-.season-banner { display: block; text-decoration: none; }
-.season-banner:hover, .season-banner:focus-visible { background: var(--green-deep); }
-.season-banner-cta { color: var(--ivory); border-bottom: 1px solid var(--gold); padding-bottom: 1px; margin-left: 10px; white-space: nowrap; }
-
-.hdr.deli-header { background: var(--ivory); border-bottom: 1px solid var(--hairline); padding-top: 22px; }
-.deli-header .brand { text-decoration: none; gap: 2px; padding-bottom: 18px; }
-.deli-header .brand-crest { width: 44px; height: 46px; color: var(--gold); margin-bottom: 4px; }
-.deli-header .brand-mark { font-family: var(--serif); font-weight: 500; font-size: clamp(2.2rem, 3.6vw, 3.1rem); letter-spacing: .14em; text-transform: uppercase; color: var(--green); line-height: 1; padding-left: .14em; }
-.deli-header .brand-sub { font-size: .6rem; letter-spacing: .34em; text-transform: uppercase; color: var(--gold-text); font-weight: 500; margin-top: 6px; }
-.deli-header-note { font-size: .6rem; letter-spacing: .24em; text-transform: uppercase; color: var(--ink-soft); line-height: 2; }
-.deli-header .basket-pill { border: 1px solid var(--hairline); color: var(--green); font-size: .66rem; letter-spacing: .2em; text-transform: uppercase; padding: 10px 16px; background: transparent; }
-.deli-header .hdr-nav { border-top: 1px solid var(--hairline); padding: 4px 12px; gap: clamp(18px, 3.2vw, 52px); }
-.deli-header .hdr-nav a { font-size: .66rem; letter-spacing: .22em; text-transform: uppercase; font-weight: 500; color: var(--ink); text-decoration: none; padding: 12px 0; border-bottom: 1px solid transparent; }
-.deli-header .hdr-nav a:hover { border-bottom-color: var(--gold); }
-.deli-header .hdr-nav a.nav-season { color: var(--berry, var(--green)); }
-.deli-mobile-menu a.nav-season { color: var(--gold-soft); }
-@media (max-width: 800px) {
-  .deli-header .brand { align-items: center; }
-}
-@media (max-width: 560px) {
-  .deli-header .brand-crest { width: 30px; height: 31px; margin-bottom: 2px; }
-  .deli-header .brand-mark { font-size: 1.6rem; letter-spacing: .12em; }
-  .deli-header .brand-sub { display: block; font-size: .46rem; letter-spacing: .26em; margin-top: 3px; }
-  .deli-header .brand { padding-bottom: 0; }
-  .deli-header .basket-pill { padding: 8px 10px; font-size: .6rem; letter-spacing: .14em; }
-  .deli-mobile-menu summary { font-size: .62rem; letter-spacing: .2em; text-transform: uppercase; }
-  .season-banner { font-size: .56rem; letter-spacing: .16em; line-height: 1.7; }
-}
-
-/* ---------- Ornament ---------- */
-.ornament { display: block; width: 150px; height: 12px; color: var(--gold); margin: 10px auto 0; }
-
-/* ---------- Product art + honest photo labels ---------- */
-.product-art { display: block; width: 100%; height: auto; aspect-ratio: 4/3; background: #f3ecdf; }
-.xmas-card-media, .detail-photo-wrap { position: relative; }
+/* ---------- Photos ---------- */
+/* Engraved art still appears on pages not yet moved to photos; give it the plain counter ground. */
+.product-art { display: block; width: 100%; height: auto; aspect-ratio: 4/3; background: var(--counter); }
+/* AI or stock photos say so until the owner's own photos replace them. */
 .illustrative-tag {
-  position: absolute; left: 10px; bottom: 10px; max-width: calc(100% - 20px); background: rgb(255 253 248 / 92%);
-  color: var(--ink); font-size: .6rem; letter-spacing: .14em; text-transform: uppercase; padding: 5px 9px; pointer-events: none;
-}
-.detail-art { display: block; width: 100%; height: auto; aspect-ratio: 4/3; }
-@media (min-width: 1024px) { /* matches .detail-grid's two-column breakpoint */
-  .detail-grid .detail-photo-wrap { position: sticky; top: 24px; align-self: start; }
-  .detail-grid .detail-photo-wrap .detail-photo { position: static; }
+  position: absolute; top: 8px; left: 8px; max-width: calc(100% - 16px); padding: 3px 7px; border-radius: 2px;
+  background: rgb(29 29 27 / 72%); color: #fff; font-size: .75rem; font-weight: 600; line-height: 1.3; pointer-events: none;
 }
 
-/* ---------- /christmas ---------- */
-.xmas-hero { position: relative; overflow: hidden; margin: 18px 0 0; background: var(--green); color: var(--ivory); }
-.xmas-hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .35; }
-.xmas-hero-scrim {
-  position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0;
-  padding: clamp(46px, 8vw, 96px) clamp(20px, 6vw, 80px) clamp(40px, 6vw, 72px);
-  /* A faint gold damask: lozenges on a diagonal lattice. */
-  background-image:
-    radial-gradient(circle at 50% 50%, rgb(169 138 79 / 18%) 0 1.4px, transparent 1.6px),
-    linear-gradient(45deg, transparent 48.6%, rgb(169 138 79 / 9%) 49%, rgb(169 138 79 / 9%) 51%, transparent 51.4%),
-    linear-gradient(-45deg, transparent 48.6%, rgb(169 138 79 / 9%) 49%, rgb(169 138 79 / 9%) 51%, transparent 51.4%);
-  background-size: 44px 44px;
-  outline: 1px solid rgb(169 138 79 / 55%); outline-offset: -14px;
+/* ======================================================================
+   /christmas (pages/Christmas.tsx), scoped to .xm
+   ====================================================================== */
+.xm { padding-bottom: 0; }
+
+/* How it works: a real sequence, so it is numbered. */
+.xm-steps { list-style: none; margin: 0; padding: 28px 0; display: grid; gap: 18px; counter-reset: xm; border-bottom: 1px solid var(--rule); }
+.xm-steps li { counter-increment: xm; display: grid; grid-template-columns: 40px 1fr; column-gap: 12px; }
+.xm-steps li::before {
+  content: counter(xm); grid-row: span 2; font-stretch: 75%; font-weight: 800; font-size: 2rem; line-height: 1; color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
-.xmas-hero-crest { width: 64px; height: 66px; color: var(--gold); margin-bottom: 18px; }
-.xmas-hero .xmas-eyebrow { color: var(--gold-soft); margin: 0 0 14px; }
-.xmas-hero-h { color: var(--ivory); font-size: var(--display); line-height: .98; margin: 0; font-weight: 500; }
-.xmas-hero-h em { color: var(--gold-soft); font-weight: 400; }
-.xmas-hero-ornament { color: var(--gold); margin: 22px auto 18px; }
-.xmas-hero-sub { margin: 0 auto 30px; max-width: 46ch; font-size: clamp(.95rem, 1.6vw, 1.05rem); line-height: 1.7; color: rgb(248 244 236 / 86%); }
-.xmas-hero-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
-.xmas-hero-actions .btn { width: auto; min-width: 240px; }
-.xmas-cta { background: var(--gold); border-color: var(--gold); color: var(--green-deep); }
-.xmas-cta:hover { background: var(--gold-soft); border-color: var(--gold-soft); }
-.xmas-cta-alt { color: var(--ivory); border-color: rgb(248 244 236 / 55%); }
-.xmas-cta-alt:hover { background: var(--ivory); color: var(--green); }
-.xmas-deadline { margin: 24px 0 0; font-size: .66rem; letter-spacing: .24em; text-transform: uppercase; color: var(--gold-soft); }
+.xm-steps strong { font-size: 1.0625rem; font-weight: 700; }
+.xm-steps span { color: var(--ink-soft); font-size: .9375rem; }
+@media (min-width: 760px) { .xm-steps { grid-template-columns: repeat(3, 1fr); gap: 24px; padding: 36px 0; } }
 
-.xmas-trust { list-style: none; margin: 0; padding: 16px 12px; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 0;
-  border-bottom: 1px solid var(--hairline); font-size: .64rem; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-soft); }
-.xmas-trust li { padding: 0 18px; }
-.xmas-trust li + li { border-left: 1px solid var(--hairline); }
+/* Jump nav: sticky, plain words, the section in view underlined. */
+.xm-nav { position: sticky; top: 0; z-index: 25; background: var(--paper); border-bottom: 1px solid var(--rule); }
+.xm-nav-track { display: flex; gap: 4px 22px; overflow-x: auto; scrollbar-width: none; max-width: 1240px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 40px); }
+.xm-nav-track::-webkit-scrollbar { display: none; }
+.xm-nav a {
+  flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 52px; color: var(--ink); font-size: .9375rem; font-weight: 600;
+  text-decoration: none; white-space: nowrap; box-shadow: inset 0 -3px 0 transparent;
+}
+.xm-nav a:hover { box-shadow: inset 0 -3px 0 var(--rule); }
+.xm-nav a[aria-current="true"] { box-shadow: inset 0 -3px 0 var(--ink); }
+.xm-nav a.xm-nav-dates { color: var(--red); }
 
-.xmas-steps { list-style: none; padding: 0; margin: 44px 0 10px; display: grid; gap: 28px; grid-template-columns: 1fr; text-align: center; }
-.xmas-steps li { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.xmas-step-n { font-family: var(--serif); font-style: italic; font-size: 1.8rem; color: var(--gold); line-height: 1; margin-bottom: 4px; }
-.xmas-steps strong { font-family: var(--serif); font-weight: 500; font-size: 1.35rem; }
-.xmas-steps li > span:last-child { color: var(--ink-soft); font-size: .88rem; max-width: 30ch; }
-@media (min-width: 760px) { .xmas-steps { grid-template-columns: repeat(3, 1fr); } .xmas-steps li + li { border-left: 1px solid var(--hairline); } }
+/* Menu sections */
+.xm-menu { padding-bottom: clamp(48px, 7vw, 88px); scroll-margin-top: 56px; }
+.xm-section { padding-top: clamp(44px, 6vw, 72px); scroll-margin-top: 56px; }
+.xm-section-head { margin: 0 0 20px; }
+.xm-section-h { margin: 0; font-size: var(--heading); }
+.xm-section-by { margin: 6px 0 0; font-size: var(--label); font-weight: 600; color: var(--red); }
+.xm-section-by.is-quiet { color: var(--ink-soft); }
+.xm-loading { padding: 40px 0; color: var(--ink-soft); }
+.xm-empty { padding: clamp(32px, 5vw, 56px) 0; }
+.xm-empty h2 { margin: 0 0 10px; font-size: var(--heading); max-width: 18ch; }
+.xm-empty p { margin: 0 0 20px; max-width: 34em; color: var(--ink-soft); }
+.xm-empty .btn { width: auto; }
 
-.xmas-chips { position: sticky; top: 0; z-index: 20; display: flex; justify-content: safe center; gap: 0; overflow-x: auto; scrollbar-width: none;
-  margin: 40px 0 0; padding: 0; background: var(--ivory); border-block: 1px solid var(--hairline); }
-.xmas-chips::-webkit-scrollbar { display: none; }
-.xmas-chips a { flex: 0 0 auto; padding: 15px 18px; color: var(--ink); font-size: .64rem; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; text-decoration: none; white-space: nowrap; border-bottom: 1px solid transparent; }
-.xmas-chips a:hover, .xmas-chips a:focus-visible { color: var(--green); border-bottom-color: var(--gold); }
+/* Order-by dates: the order book by the till. */
+.xm-dates { background: var(--counter); padding-block: clamp(44px, 6vw, 80px); scroll-margin-top: 56px; }
+.xm-dates-h { margin: 0; font-size: var(--heading); }
+.xm-dates-intro { margin: 10px 0 24px; max-width: 34em; color: var(--ink-soft); }
+.xm-book { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.xm-book li {
+  display: grid; grid-template-columns: minmax(150px, 190px) 1fr; gap: 6px 18px; align-items: baseline;
+  padding: 14px 16px; background: var(--paper); border-top: 4px solid var(--kraft); border-radius: 2px;
+}
+.xm-book-date { white-space: nowrap; margin: 0; font-stretch: 75%; font-weight: 800; font-size: 1.75rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.xm-book-left { display: block; white-space: normal; margin-top: 6px; font-stretch: 100%; font-size: var(--label); font-weight: 600; color: var(--red); }
+.xm-book-items { margin: 0; color: var(--ink); }
+@media (min-width: 900px) { .xm-book { grid-template-columns: repeat(2, 1fr); } }
 
+/* Catering + gifting: one green band, two offers. */
+.xm-band { background: var(--green); color: #fff; padding-block: clamp(44px, 6vw, 80px); }
+.xm-band-grid { display: grid; gap: 36px; }
+.xm-offer h2 { margin: 0 0 10px; color: #fff; font-size: clamp(1.6rem, 2.8vw, 2.25rem); }
+.xm-offer p { margin: 0 0 20px; max-width: 34em; color: var(--on-green); }
+.xm-offer .btn { width: auto; }
+@media (min-width: 760px) { .xm-band-grid { grid-template-columns: 1fr 1fr; gap: 48px; } }
+@media (max-width: 480px) { .xm-offer .btn { width: 100%; } }
 
-.xmas-card { background: transparent; border: 0; box-shadow: none; text-align: center; transition: none; }
-.xmas-card.is-closed { opacity: .55; }
-.xmas-card-media { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: pointer; overflow: hidden; }
-.xmas-card-media .product-art, .xmas-card-media .board-card-img { transition: transform var(--dur-reveal) var(--ease-enter); }
-@media (hover: hover) { .xmas-card-media:hover .product-art, .xmas-card-media:hover .board-card-img { transform: scale(1.03); } }
-.xmas-card .board-card-body { padding: 18px 6px 0; align-items: center; gap: 6px; }
-.xmas-card .board-card-name { font-size: 1.55rem; font-weight: 500; line-height: 1.15; }
-.xmas-card-title { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; }
-.xmas-card-title:hover { color: var(--green); }
-.xmas-card .board-card-price { font-family: var(--font); font-weight: 400; color: var(--ink); font-size: .9rem; letter-spacing: .04em; }
-.xmas-card .board-card-desc { font-size: .88rem; line-height: 1.65; max-width: 34ch; margin-inline: auto; }
-.xmas-orderby { display: inline-block; margin: 4px 0 2px; font-size: .6rem; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; color: var(--berry, var(--gold-text)); }
-.xmas-orderby.closed { color: var(--ink-soft); }
-.xmas-card .board-card-actions { width: 100%; justify-content: center; margin-top: 12px; }
-.xmas-card .board-card-actions .btn { background: transparent; color: var(--green); width: 100%; }
-.xmas-card .board-card-actions .btn:hover { background: var(--green); color: var(--ivory); }
-.xmas-card .board-card-actions .btn.is-added { background: var(--olive); color: #fff; border-color: var(--olive); }
+/* Reminder + questions */
+.xm-reminder { padding-top: clamp(44px, 6vw, 80px); }
+.xm .deli-reminder { display: grid; gap: 22px; margin: 0; padding: clamp(20px, 4vw, 40px); background: var(--counter); border: 0; border-radius: 0; box-shadow: none; }
+.xm .deli-reminder h2 { margin: 6px 0 10px; font-size: clamp(1.6rem, 2.8vw, 2.25rem); }
+.xm .deli-reminder > div > p:not(.deli-eyebrow) { color: var(--ink-soft); max-width: 34em; margin: 0; }
+.xm .deli-reminder form { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.xm .deli-reminder-fields { display: grid; gap: 12px; }
+.xm .deli-reminder label { display: flex; flex-direction: column; gap: 6px; font-size: var(--label); font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--ink); }
+.xm .deli-reminder .input { border-radius: 2px; border: 1px solid #bdb9b0; background: var(--paper); font-family: var(--font); font-size: 1rem; min-width: 0; }
+.xm .deli-reminder .deli-check { flex-direction: row; align-items: flex-start; gap: 12px; font-weight: 400; font-size: .9375rem; }
+.xm .deli-reminder .deli-check input { flex: none; width: 24px; height: 24px; margin: 0; accent-color: var(--green); }
+.xm .deli-reminder .muted { margin: 0; font-size: .875rem; color: var(--ink-soft); }
+.xm .deli-reminder .btn { align-self: flex-start; width: auto; }
+@media (min-width: 900px) {
+  .xm .deli-reminder { grid-template-columns: 1fr 1.4fr; gap: 48px; }
+  .xm .deli-reminder-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.xm-faq { padding-block: clamp(44px, 6vw, 80px); }
+.xm-faq-h { margin: 0 0 16px; font-size: var(--heading); }
+.xm .faq-item { max-width: 820px; border-bottom: 1px solid var(--rule); padding: 0; }
+.xm .faq-item:first-of-type { border-top: 1px solid var(--rule); }
+.xm .faq-item summary { display: flex; justify-content: space-between; gap: 16px; min-height: 56px; align-items: center; padding: 12px 0; font-size: 1.0625rem; font-weight: 700; color: var(--ink); cursor: pointer; list-style: none; }
+.xm .faq-item summary::-webkit-details-marker { display: none; }
+.xm .faq-item summary::after { content: "+"; font-weight: 400; font-size: 1.4rem; line-height: 1; }
+.xm .faq-item[open] summary::after { content: "–"; }
+.xm .faq-item p { margin: 0 0 18px; max-width: 34em; color: var(--ink-soft); }
 
-
-
-/* ---------- Homepage (Christmas) ---------- */
-.deli-hero-photo:has(.deli-hero-art) { background: #f3ecdf; }
-.deli-hero-photo .deli-hero-art { display: block; position: absolute; inset: 0; width: 100%; height: 100%; padding: 6% 6% 18%; background: transparent; }
-.deli-hero h1 { font-weight: 500; letter-spacing: -.01em; }
-.deli-hero h1 em { font-weight: 400; color: var(--green); }
-.deli-hero-photo figcaption { background: var(--green); letter-spacing: .22em; text-transform: uppercase; font-size: .6rem; }
-.deli-hero-photo figcaption span:last-child { text-transform: none; letter-spacing: 0; }
-.deli-primary.xmas-cta { background: var(--green); border-color: var(--green); color: var(--ivory); }
-.deli-primary.xmas-cta:hover { background: var(--green-deep); }
-.xmas-shelf { margin-top: 10px; }
-.xmas-shelf .xmas-card-media img, .xmas-shelf .xmas-card-media .product-art { display: block; width: 100%; aspect-ratio: 4/3; height: auto; object-fit: cover; }
-.xmas-shelf .xmas-card { text-align: left; }
-.xmas-shelf .xmas-card .board-card-body { align-items: flex-start; padding-inline: 0; }
-@media (min-width: 700px) { .xmas-shelf-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (min-width: 1040px) { .xmas-shelf-grid { grid-template-columns: repeat(3, 1fr); } }
-
-/* ---------- Product page ---------- */
-.preorder-how { margin: 22px 0; padding: 20px; background: var(--paper); border: 1px solid var(--hairline); }
-.preorder-how h2 { font-size: 1.3rem; margin: 0 0 10px; }
-.preorder-how ol { margin: 0; padding-left: 20px; color: var(--ink-soft); font-size: .92rem; line-height: 1.7; }
-.pairs { margin: 32px 0 8px; }
-.pairs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.pairs-card { display: flex; flex-direction: column; gap: 4px; padding: 0 0 10px; text-decoration: none; color: var(--ink); font-size: .95rem; }
-.pairs-card .product-art, .pairs-card .pairs-img { width: 100%; aspect-ratio: 4/3; height: auto; display: block; background-size: cover; background-position: center; }
-.pairs-card span { font-family: var(--serif); font-size: 1.1rem; line-height: 1.2; }
-.pairs-card .muted { font-family: var(--font); font-size: .8rem; }
-@media (max-width: 420px) { .pairs-grid { grid-template-columns: repeat(2, 1fr); } .pairs-card:nth-child(3) { display: none; } }
-
-/* ---------- Phone basket bar ---------- */
+/* ---------- Phone basket bar (Christmas + collection pages) ---------- */
 .basket-bar { display: none; }
 @media (max-width: 760px) {
-  .basket-bar { position: fixed; z-index: 45; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom));
-    display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 16px; background: var(--green); color: var(--ivory); box-shadow: 0 12px 30px rgb(0 0 0 / 25%); }
-  .basket-bar-view { flex: 1; background: none; border: 0; color: var(--ivory); font: inherit; font-size: .7rem; letter-spacing: .18em; text-transform: uppercase; text-align: left; padding: 8px 0; cursor: pointer; }
-  .basket-bar-count { display: inline-grid; place-items: center; min-width: 24px; height: 24px; margin-right: 8px; background: var(--gold); color: var(--green-deep); font-weight: 600; letter-spacing: 0; }
-  .basket-bar-go { width: auto; min-height: 44px; background: var(--ivory); color: var(--green); border-color: var(--ivory); padding-inline: 16px; }
+  div.basket-bar {
+    position: fixed; z-index: 45; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom));
+    display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: 2px; border: 0;
+    background: var(--green); color: #fff; box-shadow: none; animation: none;
+  }
+  .basket-bar-view {
+    flex: 1; display: inline-flex; align-items: center; min-height: 44px; padding: 0; background: none; border: 0; cursor: pointer;
+    color: #fff; font: inherit; font-size: .9375rem; font-weight: 600; letter-spacing: 0; text-transform: none; text-align: left;
+  }
+  .basket-bar-count {
+    display: inline-grid; place-items: center; min-width: 26px; height: 26px; margin-right: 8px; padding-inline: 6px; border-radius: 2px;
+    background: #fff; color: var(--ink); font-stretch: 75%; font-weight: 800; font-variant-numeric: tabular-nums;
+  }
+  .basket-bar-go { width: auto; min-height: 44px; padding-inline: 16px; font-size: .9375rem; }
+  .xm { padding-bottom: 76px; }
 }
-
-@media (max-width: 600px) {
-  .xmas-trust { flex-direction: column; align-items: center; gap: 8px; }
-  .xmas-trust li + li { border-left: 0; }
-}
-/* Homepage trust strip in the same small-capital voice. */
-.trust-strip { background: transparent; border-block: 1px solid var(--hairline); font-size: .62rem; letter-spacing: .22em; text-transform: uppercase; color: var(--ink-soft); }
-.detail-buy .price strong { font-family: var(--serif); font-weight: 500; font-size: 1.9rem; color: var(--green); }
-.detail-buy h1 { font-weight: 500; }
-@media (max-width: 560px) { .xmas-hero-actions .btn { width: 100%; min-width: 0; } }
