@@ -9,16 +9,17 @@
 
 const SITE = process.env.PUBLIC_SITE_URL || "https://www.kellysdeli.co.uk";
 
+// The brand palette (ivory, bottle green, antique gold) — matches the website.
 const C = {
-  cream: "#f8f4ea",
+  cream: "#f8f4ec",
   card: "#fffdf8",
-  ink: "#241f1a",
-  inkSoft: "#6b6255",
-  line: "#e6ded0",
-  green: "#1f2e23",
-  gold: "#8a6220",
+  ink: "#1d201c",
+  inkSoft: "#5c5f57",
+  line: "#e6dfd0",
+  green: "#16352c",
+  gold: "#7c6330",
 };
-const SERIF = "Georgia, 'Times New Roman', serif";
+const SERIF = "'Cormorant Garamond', Garamond, Georgia, 'Times New Roman', serif";
 const SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif";
 
 /** Escape anything customer- or admin-supplied before it goes near the markup. */
@@ -85,12 +86,12 @@ export function layout(inner: string, preheader: string): string {
 
       <tr><td align="center" style="padding:0 0 20px;">
         <a href="${SITE}" style="text-decoration:none;">
-          <span style="font-family:${SERIF};font-size:26px;color:${C.ink};letter-spacing:-0.5px;">Kelly&#39;s Deli</span>
-          <span style="font-family:${SANS};font-size:10px;letter-spacing:2px;text-transform:uppercase;color:${C.gold};font-weight:bold;">&nbsp;Family Deli</span>
+          <span style="display:block;font-family:${SERIF};font-size:30px;color:${C.green};letter-spacing:5px;text-transform:uppercase;">Kelly&#39;s</span>
+          <span style="display:block;font-family:${SANS};font-size:9px;letter-spacing:3px;text-transform:uppercase;color:${C.gold};margin-top:4px;">Delicatessen &middot; Bentley Heath</span>
         </a>
       </td></tr>
 
-      <tr><td style="background:${C.card};border:1px solid ${C.line};border-radius:14px;overflow:hidden;">
+      <tr><td style="background:${C.card};border:1px solid ${C.line};border-radius:0;overflow:hidden;">
         ${inner}
       </td></tr>
 
@@ -165,7 +166,7 @@ export function orderReceivedHtml(d: OrderEmailData): string {
       </p>
 
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px;">
-        <tr><td style="border:2px dashed ${C.gold};border-radius:10px;padding:12px 22px;font-family:${SANS};text-align:center;">
+        <tr><td style="border:2px dashed ${C.gold};border-radius:0;padding:12px 22px;font-family:${SANS};text-align:center;">
           <span style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:${C.inkSoft};">Your reference</span><br>
           <strong style="font-family:${SERIF};font-size:24px;letter-spacing:1px;color:${C.green};">${esc(d.ref)}</strong>
         </td></tr>
@@ -191,7 +192,7 @@ export function orderReceivedHtml(d: OrderEmailData): string {
     </td></tr>
 
     <tr><td style="padding:22px 28px 0;">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.cream};border-radius:10px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.cream};border-radius:0;">
         <tr><td style="padding:16px 18px;font-family:${SANS};font-size:15px;line-height:1.7;color:${C.ink};">
           <strong style="font-weight:600;">Collection</strong><br>
           ${esc(d.collectionDate)} — ${esc(d.locationName)}
@@ -213,7 +214,7 @@ export function orderReceivedHtml(d: OrderEmailData): string {
 
     <tr><td align="center" style="padding:0 28px 30px;">
       <a href="${SITE}/confirm/${encodeURIComponent(d.ref)}"
-         style="display:inline-block;background:${C.green};color:#ffffff;font-family:${SANS};font-size:15px;font-weight:600;text-decoration:none;padding:14px 30px;border-radius:10px;">
+         style="display:inline-block;background:${C.green};color:#ffffff;font-family:${SANS};font-size:15px;font-weight:600;text-decoration:none;padding:14px 30px;border-radius:0;">
         View your order
       </a>
     </td></tr>
@@ -302,7 +303,7 @@ export function breadOrderReceivedHtml(d: BreadOrderEmailData): string {
       </p>
 
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px;">
-        <tr><td style="border:2px dashed ${C.gold};border-radius:10px;padding:12px 22px;font-family:${SANS};text-align:center;">
+        <tr><td style="border:2px dashed ${C.gold};border-radius:0;padding:12px 22px;font-family:${SANS};text-align:center;">
           <span style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:${C.inkSoft};">Your reference</span><br>
           <strong style="font-family:${SERIF};font-size:24px;letter-spacing:1px;color:${C.green};">${esc(d.ref)}</strong>
         </td></tr>
@@ -322,7 +323,7 @@ export function breadOrderReceivedHtml(d: BreadOrderEmailData): string {
     </td></tr>
 
     <tr><td style="padding:22px 28px 0;">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.cream};border-radius:10px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.cream};border-radius:0;">
         <tr><td style="padding:16px 18px;font-family:${SANS};font-size:15px;line-height:1.7;color:${C.ink};">
           <strong style="font-weight:600;">Collection</strong><br>
           ${esc(d.collectionDate)} — ${esc(d.locationName)}
@@ -394,7 +395,7 @@ export function breadShopAlertHtml(d: BreadOrderEmailData): string {
       <h1 style="margin:0 0 14px;font-family:${SERIF};font-size:22px;font-weight:normal;color:${C.ink};">
         New bread order — ${esc(d.ref)}
       </h1>
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.cream};border-radius:10px;margin:0 0 18px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.cream};border-radius:0;margin:0 0 18px;">
         <tr><td style="padding:14px 16px;font-family:${SANS};font-size:15px;line-height:1.8;color:${C.ink};">
           <strong>Collection:</strong> ${esc(d.collectionDate)} — ${esc(d.locationName)}<br>
           <strong>Customer:</strong> ${esc(d.customerName)}<br>
@@ -454,7 +455,7 @@ export function orderShopAlertHtml(d: OrderEmailData): string {
       <h1 style="margin:0 0 14px;font-family:${SERIF};font-size:22px;font-weight:normal;color:${C.ink};">
         New order — ${esc(d.ref)}
       </h1>
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.cream};border-radius:10px;margin:0 0 18px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.cream};border-radius:0;margin:0 0 18px;">
         <tr><td style="padding:14px 16px;font-family:${SANS};font-size:15px;line-height:1.8;color:${C.ink};">
           <strong>Collection:</strong> ${esc(d.collectionDate)} — ${esc(d.locationName)}<br>
           <strong>Customer:</strong> ${esc(d.customerName)}<br>

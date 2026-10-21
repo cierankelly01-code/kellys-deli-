@@ -11,7 +11,8 @@ import { morphNavigate } from "../lib/motion";
 import { groupVariants, type ProductGroup } from "../lib/variants";
 import { orderByLabel, orderingClosed } from "../lib/preorder";
 import { loadSiteContent } from "../lib/season";
-import { ProductArt, HollySprig } from "../components/ProductArt";
+import { ProductArt } from "../components/ProductArt";
+import { Crest, Ornament } from "../components/BrandMark";
 import { BasketBar } from "../components/BasketBar";
 import { CART_CHANGED_EVENT } from "../components/CartDrawer";
 
@@ -144,38 +145,37 @@ export default function Christmas() {
       <header className="xmas-hero">
         {cat?.heroImageUrl && <img className="xmas-hero-img" src={cat.heroImageUrl} alt="" aria-hidden="true" onError={(e) => { e.currentTarget.style.display = "none"; }} />}
         <div className="xmas-hero-scrim">
-          <HollySprig className="xmas-hero-holly" />
-          <ProductArt name="Honey Roast Ham" className="xmas-hero-art" />
-          <div className="xmas-hero-copy">
-          <p className="xmas-eyebrow">Christmas at Kelly&apos;s Deli · Bentley Heath</p>
-          <h1 className="xmas-hero-h">Christmas, <em>sorted</em> from the deli.</h1>
+          <Crest className="xmas-hero-crest" />
+          <p className="xmas-eyebrow">The Christmas Collection</p>
+          <h1 className="xmas-hero-h">Christmas <em>at Kelly&apos;s</em></h1>
+          <Ornament className="ornament xmas-hero-ornament" />
           <p className="xmas-hero-sub">
-            {cat?.tagline ?? "Hams, turkey, party food and hampers — ordered now, collected in December."}
+            {cat?.tagline ?? "Hams glazed in the deli, turkey, party food and hampers — ordered now, collected in December."}
           </p>
           <div className="xmas-hero-actions">
-            <a className="btn xmas-cta" href="#xmas-menu">See the Christmas menu</a>
-            {lastOrders && (
-              <span className="xmas-deadline">
-                {orderByLabel(lastOrders)?.replace("Order by", "Last orders")}
-                {daysUntil(lastOrders) > 0 && <> · <strong>{daysUntil(lastOrders)} days to go</strong></>}
-              </span>
-            )}
+            <a className="btn xmas-cta" href="#xmas-menu">Shop the collection</a>
+            <Link className="btn btn-secondary xmas-cta-alt" to="/plan">Christmas party catering</Link>
           </div>
-          </div>
+          {lastOrders && (
+            <p className="xmas-deadline">
+              {orderByLabel(lastOrders)?.replace("Order by", "Last orders")}
+              {daysUntil(lastOrders) > 0 && <> · {daysUntil(lastOrders)} days to go</>}
+            </p>
+          )}
         </div>
       </header>
 
       <ul className="xmas-trust" aria-label="Why order from us">
-        {counts?.reviewRating && <li><span aria-hidden="true">★</span> {counts.reviewRating} on Google{counts.reviewCount ? ` · ${counts.reviewCount} reviews` : ""}</li>}
-        <li><span aria-hidden="true">✦</span> Family-run in Bentley Heath</li>
-        <li><span aria-hidden="true">✦</span> Collect any day in December</li>
-        <li><span aria-hidden="true">✦</span> {counts?.paymentsLive ? "Pay securely · card, Apple Pay, Google Pay" : "Order online in two minutes"}</li>
+        {counts?.reviewRating && <li>{counts.reviewRating}★ on Google{counts.reviewCount ? ` · ${counts.reviewCount} reviews` : ""}</li>}
+        <li>Family-run in Bentley Heath</li>
+        <li>Collect any day in December</li>
+        <li>{counts?.paymentsLive ? "Pay securely online" : "Order online in two minutes"}</li>
       </ul>
 
       <ol className="xmas-steps" aria-label="How Christmas ordering works">
-        <li><strong>Pick your Christmas</strong><span>Hams, turkey, party food, cheese, hampers.</span></li>
-        <li><strong>Choose your day</strong><span>Collect any day in December, up to Christmas Eve.</span></li>
-        <li><strong>Pay online, skip the queue</strong><span>It&apos;s set aside with your name on it.</span></li>
+        <li><span className="xmas-step-n" aria-hidden="true">I</span><strong>Choose your Christmas</strong><span>Hams, turkey, party food, cheese and hampers.</span></li>
+        <li><span className="xmas-step-n" aria-hidden="true">II</span><strong>Pick your day</strong><span>Collect any day in December, up to Christmas Eve.</span></li>
+        <li><span className="xmas-step-n" aria-hidden="true">III</span><strong>Pay, and it&apos;s set aside</strong><span>Waiting with your name on it — no queue.</span></li>
       </ol>
 
       {sections.length > 1 && (
@@ -201,7 +201,10 @@ export default function Christmas() {
 
         {sections.map((section) => (
           <section key={section.name} className="xmas-section" id={`xs-${slug(section.name)}`} aria-labelledby={`xsh-${slug(section.name)}`}>
-            <h2 className="xmas-section-h" id={`xsh-${slug(section.name)}`}>{section.name}</h2>
+            <header className="xmas-section-head">
+              <h2 className="xmas-section-h" id={`xsh-${slug(section.name)}`}>{section.name}</h2>
+              <Ornament />
+            </header>
             <div className="board-grid">
               {section.groups.map((g) => {
                 const p = g.lead;
@@ -225,7 +228,7 @@ export default function Christmas() {
                       {p.imageIllustrative && p.imageUrl && <span className="illustrative-tag">Illustrative image</span>}
                     </button>
                     <div className="board-card-body">
-                      <h3 className="board-card-name">{p.name}</h3>
+                      <h3 className="board-card-name"><button type="button" className="xmas-card-title" onClick={toDetail}>{p.name}</button></h3>
                       <p className="board-card-price">{priceLine(g)}</p>
                       <p className="board-card-desc muted">{p.description}</p>
                       {deadline && <p className={`xmas-orderby${closed ? " closed" : ""}`}>{closed ? "Orders closed" : deadline}</p>}
@@ -233,13 +236,12 @@ export default function Christmas() {
                         {closed ? (
                           <button className="btn" disabled>Sold out for Christmas</button>
                         ) : g.hasChoice ? (
-                          <button className="btn" onClick={toDetail}>Choose · {g.variants.length} sizes</button>
+                          <button className="btn" onClick={toDetail}>Choose a size</button>
                         ) : (
                           <>
                             <button className={`btn${justAdded === p.id ? " is-added" : ""}`} onClick={() => add(p)}>
-                              {justAdded === p.id ? "Added ✓" : `Add · ${gbp(p.fixedPrice ?? 0)}`}
+                              {justAdded === p.id ? "Added ✓" : "Add to basket"}
                             </button>
-                            <button className="btn-ghost" onClick={toDetail}>Details</button>
                           </>
                         )}
                       </div>
@@ -255,12 +257,14 @@ export default function Christmas() {
       <section className="xmas-bands">
         <div className="xmas-band">
           <ProductArt name="Christmas Party Platter" className="xmas-band-art" />
+          <p className="xmas-eyebrow">Entertaining</p>
           <h2>Christmas party catering</h2>
           <p>Office do, family get-together or Boxing Day open house — tell us how many and we&apos;ll put the spread together.</p>
           <Link className="btn btn-secondary" to="/plan">Plan my party food</Link>
         </div>
         <div className="xmas-band">
           <ProductArt name="Hamper" className="xmas-band-art" />
+          <p className="xmas-eyebrow">Corporate gifting</p>
           <h2>Gifts for clients &amp; staff</h2>
           <p>Hampers in any quantity, with a printed note in each. Bigger order? We&apos;ll sort it with you.</p>
           <Link className="btn btn-secondary" to="/shop/office-corporate">Talk to us about gifting</Link>

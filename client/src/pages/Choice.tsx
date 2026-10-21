@@ -115,8 +115,8 @@ export default function Choice() {
         <div className="deli-hero-copy">
           {xmas ? (
             <>
-              <p className="deli-eyebrow">Christmas at Kelly&apos;s Deli</p>
-              <h1>Christmas,<br /><em>sorted from the deli.</em></h1>
+              <p className="deli-eyebrow">The Christmas Collection</p>
+              <h1>Christmas<br /><em>at Kelly&apos;s</em></h1>
               <p className="deli-hero-intro">Honey roast and Wiltshire hams, turkey crowns, party food, cheese and hampers. Order now, pay online, collect any day in December.</p>
               <Link className="btn deli-primary xmas-cta" to={`/christmas${suffix}`}>Order your Christmas <span aria-hidden="true">↗</span></Link>
               <p className="deli-hero-note">Hosting a do? <Link to={`/plan${suffix}`}>Plan your party food →</Link></p>

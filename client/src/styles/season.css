@@ -1,164 +1,245 @@
-/* Seasonal skin. Everything on the storefront reads colour from tokens, so a season is a
-   token override on <html data-season="…"> (set from Site Settings → "season"), plus a
-   few seasonal components. Switch back to the classic look in January with no deploy. */
+/* Kelly's brand layer — "Provisioners": ivory, bottle green and antique gold, a classical
+   display serif with small-capital labels, fine rules and plenty of air. Loaded last, so
+   it sets the brand tokens every other stylesheet reads. The seasonal skin (Site Settings
+   → "season") only adds the Christmas accent and banner on top. */
+
+:root {
+  --green: #16352c;          /* Kelly's bottle green — the brand colour */
+  --green-deep: #0f2620;
+  --ivory: #f8f4ec;          /* page */
+  --paper: #fffdf8;          /* cards, panels */
+  --gold: #a98a4f;           /* rules, ornaments, frames — decoration only */
+  --gold-text: #7c6330;      /* gold for text (AA on ivory) */
+  --gold-soft: #e6d7b5;
+  --hairline: rgb(169 138 79 / 45%);
+
+  /* Existing tokens, mapped onto the brand. */
+  --navy: var(--green);
+  --brick: var(--green);
+  --brick-dark: var(--green-deep);
+  --ink: #1d201c;
+  --ink-soft: #5c5f57;
+  --cream: var(--ivory);
+  --card: var(--paper);
+  --line: #e6dfd0;
+  --mustard: var(--gold);
+  --olive: #5f7366;
+  --radius: 0px;
+  --radius-sm: 0px;
+  --shadow: 0 18px 40px rgb(22 53 44 / 8%);
+  --shadow-sm: none;
+
+  --serif: "Cormorant Garamond", "Cormorant", Garamond, "Times New Roman", serif;
+  --font: "Jost", "Futura", "Century Gothic", system-ui, sans-serif;
+  --display: clamp(3rem, 6vw, 5.4rem);
+  --heading: clamp(2.1rem, 3.4vw, 3.2rem);
+}
 
 html[data-season="christmas"] {
-  --navy: #1b3a2d;        /* evergreen — brand bar, announcement */
-  --brick: #1b3a2d;       /* primary buttons */
-  --brick-dark: #11271e;
-  --ink: #1d2721;
-  --ink-soft: #56615a;
-  --cream: #fbf7ef;
-  --card: #fffdf8;
-  --line: #e5dccb;
-  --mustard: #b8913f;     /* gold — decoration only */
-  --gold-text: #7a5c20;   /* AA gold for text */
-  --olive: #5b7264;
-  --berry: #9b2232;       /* cranberry — seasonal accents */
-  --berry-dark: #7c1a27;
+  --berry: #7d1d2c;          /* deep wine — the one Christmas accent, used sparingly */
+  --berry-dark: #621522;
 }
 
-/* Announcement bar becomes the Christmas call-to-action. */
-.season-banner { display: block; background: var(--berry, #9b2232); color: #fff; text-decoration: none; letter-spacing: .04em; }
-.season-banner:hover, .season-banner:focus-visible { background: var(--berry-dark, #7c1a27); }
-.season-banner-cta { font-weight: 700; white-space: nowrap; text-decoration: underline; text-underline-offset: 3px; }
-.deli-header .hdr-nav a.nav-season { color: var(--berry, #9b2232); font-weight: 700; }
-.deli-mobile-menu a.nav-season { color: #f1dca6; font-weight: 700; } /* the menu panel is evergreen — cranberry would vanish */
+/* ---------- Typography ---------- */
+body { background: var(--ivory); font-family: var(--font); color: var(--ink); font-weight: 400; letter-spacing: .005em; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -.005em; color: var(--ink); }
+h1 { font-weight: 500; }
+em { font-style: italic; }
+.deli-eyebrow, .xmas-eyebrow, .eyebrow {
+  font-family: var(--font); font-size: .7rem; font-weight: 500; letter-spacing: .26em; text-transform: uppercase; color: var(--gold-text);
+}
 
-/* Placeholder-photo honesty label, on tiles and the product page. */
+/* ---------- Buttons: square-cut, small capitals ---------- */
+.btn {
+  border-radius: 0; font-family: var(--font); font-weight: 500; font-size: .78rem; letter-spacing: .2em;
+  min-height: 52px; padding: 14px 26px; background: var(--green); color: var(--ivory); border: 1px solid var(--green);
+  transition: background var(--dur-std) ease, color var(--dur-std) ease, border-color var(--dur-std) ease;
+}
+.btn:hover { background: var(--green-deep); }
+.btn-secondary { background: transparent; color: var(--green); border: 1px solid var(--green); }
+.btn-secondary:hover { background: var(--green); color: var(--ivory); }
+.btn-ghost { font-family: var(--font); font-weight: 500; letter-spacing: .06em; border-radius: 0; }
+a.btn, a.btn-secondary, a.btn-ghost { text-decoration: none; }
+.btn.is-added { background: var(--olive); border-color: var(--olive); }
+
+/* ---------- Announcement + header lockup ---------- */
+.deli-announcement { background: var(--green); color: var(--gold-soft); font-size: .66rem; letter-spacing: .22em; text-transform: uppercase; padding: 11px 20px; font-weight: 500; }
+.season-banner { display: block; text-decoration: none; }
+.season-banner:hover, .season-banner:focus-visible { background: var(--green-deep); }
+.season-banner-cta { color: var(--ivory); border-bottom: 1px solid var(--gold); padding-bottom: 1px; margin-left: 10px; white-space: nowrap; }
+
+.hdr.deli-header { background: var(--ivory); border-bottom: 1px solid var(--hairline); padding-top: 22px; }
+.deli-header .brand { text-decoration: none; gap: 2px; padding-bottom: 18px; }
+.deli-header .brand-crest { width: 44px; height: 46px; color: var(--gold); margin-bottom: 4px; }
+.deli-header .brand-mark { font-family: var(--serif); font-weight: 500; font-size: clamp(2.2rem, 3.6vw, 3.1rem); letter-spacing: .14em; text-transform: uppercase; color: var(--green); line-height: 1; padding-left: .14em; }
+.deli-header .brand-sub { font-size: .6rem; letter-spacing: .34em; text-transform: uppercase; color: var(--gold-text); font-weight: 500; margin-top: 6px; }
+.deli-header-note { font-size: .6rem; letter-spacing: .24em; text-transform: uppercase; color: var(--ink-soft); line-height: 2; }
+.deli-header .basket-pill { border: 1px solid var(--hairline); color: var(--green); font-size: .66rem; letter-spacing: .2em; text-transform: uppercase; padding: 10px 16px; background: transparent; }
+.deli-header .hdr-nav { border-top: 1px solid var(--hairline); padding: 4px 12px; gap: clamp(18px, 3.2vw, 52px); }
+.deli-header .hdr-nav a { font-size: .66rem; letter-spacing: .22em; text-transform: uppercase; font-weight: 500; color: var(--ink); text-decoration: none; padding: 12px 0; border-bottom: 1px solid transparent; }
+.deli-header .hdr-nav a:hover { border-bottom-color: var(--gold); }
+.deli-header .hdr-nav a.nav-season { color: var(--berry, var(--green)); }
+.deli-mobile-menu a.nav-season { color: var(--gold-soft); }
+@media (max-width: 800px) {
+  .deli-header .brand { align-items: center; }
+}
+@media (max-width: 560px) {
+  .deli-header .brand-crest { width: 30px; height: 31px; margin-bottom: 2px; }
+  .deli-header .brand-mark { font-size: 1.6rem; letter-spacing: .12em; }
+  .deli-header .brand-sub { display: block; font-size: .46rem; letter-spacing: .26em; margin-top: 3px; }
+  .deli-header .brand { padding-bottom: 0; }
+  .deli-header .basket-pill { padding: 8px 10px; font-size: .6rem; letter-spacing: .14em; }
+  .deli-mobile-menu summary { font-size: .62rem; letter-spacing: .2em; text-transform: uppercase; }
+  .season-banner { font-size: .56rem; letter-spacing: .16em; line-height: 1.7; }
+}
+
+/* ---------- Ornament ---------- */
+.ornament { display: block; width: 150px; height: 12px; color: var(--gold); margin: 10px auto 0; }
+
+/* ---------- Product art + honest photo labels ---------- */
+.product-art { display: block; width: 100%; height: auto; aspect-ratio: 4/3; background: #f3ecdf; }
 .xmas-card-media, .detail-photo-wrap { position: relative; }
 .illustrative-tag {
-  position: absolute; left: 10px; bottom: 10px; max-width: calc(100% - 20px);
-  background: rgb(255 255 255 / 90%); color: var(--ink); font-size: .68rem; font-weight: 600;
-  letter-spacing: .02em; padding: 4px 8px; border-radius: 999px; pointer-events: none;
+  position: absolute; left: 10px; bottom: 10px; max-width: calc(100% - 20px); background: rgb(255 253 248 / 92%);
+  color: var(--ink); font-size: .6rem; letter-spacing: .14em; text-transform: uppercase; padding: 5px 9px; pointer-events: none;
 }
+.detail-art { display: block; width: 100%; height: auto; aspect-ratio: 4/3; }
 @media (min-width: 1024px) { /* matches .detail-grid's two-column breakpoint */
   .detail-grid .detail-photo-wrap { position: sticky; top: 24px; align-self: start; }
   .detail-grid .detail-photo-wrap .detail-photo { position: static; }
 }
 
-/* ---------- /christmas landing page ---------- */
-.xmas-hero { position: relative; overflow: hidden; border-radius: var(--radius); margin: 12px 0 0; min-height: 360px; background: var(--navy); }
-.xmas-hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* ---------- /christmas ---------- */
+.xmas-hero { position: relative; overflow: hidden; margin: 18px 0 0; background: var(--green); color: var(--ivory); }
+.xmas-hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .35; }
 .xmas-hero-scrim {
-  position: relative; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px;
-  min-height: 360px; padding: clamp(22px, 5vw, 56px);
-  background: linear-gradient(180deg, rgb(17 39 30 / 10%) 0%, rgb(17 39 30 / 55%) 45%, rgb(17 39 30 / 88%) 100%);
-  color: #fff;
+  position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0;
+  padding: clamp(46px, 8vw, 96px) clamp(20px, 6vw, 80px) clamp(40px, 6vw, 72px);
+  /* A faint gold damask: lozenges on a diagonal lattice. */
+  background-image:
+    radial-gradient(circle at 50% 50%, rgb(169 138 79 / 18%) 0 1.4px, transparent 1.6px),
+    linear-gradient(45deg, transparent 48.6%, rgb(169 138 79 / 9%) 49%, rgb(169 138 79 / 9%) 51%, transparent 51.4%),
+    linear-gradient(-45deg, transparent 48.6%, rgb(169 138 79 / 9%) 49%, rgb(169 138 79 / 9%) 51%, transparent 51.4%);
+  background-size: 44px 44px;
+  outline: 1px solid rgb(169 138 79 / 55%); outline-offset: -14px;
 }
-.xmas-eyebrow { margin: 0; text-transform: uppercase; letter-spacing: .14em; font-size: .72rem; font-weight: 700; color: #f1dca6; }
-.xmas-hero-h { color: #fff; font-size: clamp(2.1rem, 6vw, 4.2rem); margin: 0; max-width: 14ch; }
-.xmas-hero-sub { margin: 0; max-width: 46ch; font-size: clamp(1rem, 2vw, 1.15rem); color: rgb(255 255 255 / 92%); }
-.xmas-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 8px; }
-.xmas-cta { background: var(--berry, #9b2232); border-color: var(--berry, #9b2232); }
-.xmas-cta:hover { background: var(--berry-dark, #7c1a27); }
-.xmas-deadline { background: rgb(255 255 255 / 14%); border: 1px solid rgb(255 255 255 / 35%); border-radius: 999px; padding: 6px 12px; font-size: .85rem; font-weight: 600; }
+.xmas-hero-crest { width: 64px; height: 66px; color: var(--gold); margin-bottom: 18px; }
+.xmas-hero .xmas-eyebrow { color: var(--gold-soft); margin: 0 0 14px; }
+.xmas-hero-h { color: var(--ivory); font-size: var(--display); line-height: .98; margin: 0; font-weight: 500; }
+.xmas-hero-h em { color: var(--gold-soft); font-weight: 400; }
+.xmas-hero-ornament { color: var(--gold); margin: 22px auto 18px; }
+.xmas-hero-sub { margin: 0 auto 30px; max-width: 46ch; font-size: clamp(.95rem, 1.6vw, 1.05rem); line-height: 1.7; color: rgb(248 244 236 / 86%); }
+.xmas-hero-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.xmas-hero-actions .btn { width: auto; min-width: 240px; }
+.xmas-cta { background: var(--gold); border-color: var(--gold); color: var(--green-deep); }
+.xmas-cta:hover { background: var(--gold-soft); border-color: var(--gold-soft); }
+.xmas-cta-alt { color: var(--ivory); border-color: rgb(248 244 236 / 55%); }
+.xmas-cta-alt:hover { background: var(--ivory); color: var(--green); }
+.xmas-deadline { margin: 24px 0 0; font-size: .66rem; letter-spacing: .24em; text-transform: uppercase; color: var(--gold-soft); }
 
-.xmas-steps { list-style: none; padding: 0; margin: 22px 0; display: grid; gap: 10px; grid-template-columns: 1fr; counter-reset: xs; }
-.xmas-steps li { counter-increment: xs; display: grid; grid-template-columns: 34px 1fr; column-gap: 12px; align-items: start; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px; }
-.xmas-steps li::before { content: counter(xs); grid-row: span 2; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--navy); color: #fff; font-weight: 700; }
-.xmas-steps strong { font-family: var(--serif); font-weight: 500; font-size: 1.05rem; }
-.xmas-steps span { color: var(--ink-soft); font-size: .92rem; }
-@media (min-width: 760px) { .xmas-steps { grid-template-columns: repeat(3, 1fr); } }
+.xmas-trust { list-style: none; margin: 0; padding: 16px 12px; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 0;
+  border-bottom: 1px solid var(--hairline); font-size: .64rem; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-soft); }
+.xmas-trust li { padding: 0 18px; }
+.xmas-trust li + li { border-left: 1px solid var(--hairline); }
+
+.xmas-steps { list-style: none; padding: 0; margin: 44px 0 10px; display: grid; gap: 28px; grid-template-columns: 1fr; text-align: center; }
+.xmas-steps li { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.xmas-step-n { font-family: var(--serif); font-style: italic; font-size: 1.8rem; color: var(--gold); line-height: 1; margin-bottom: 4px; }
+.xmas-steps strong { font-family: var(--serif); font-weight: 500; font-size: 1.35rem; }
+.xmas-steps li > span:last-child { color: var(--ink-soft); font-size: .88rem; max-width: 30ch; }
+@media (min-width: 760px) { .xmas-steps { grid-template-columns: repeat(3, 1fr); } .xmas-steps li + li { border-left: 1px solid var(--hairline); } }
+
+.xmas-chips { position: sticky; top: 0; z-index: 20; display: flex; justify-content: safe center; gap: 0; overflow-x: auto; scrollbar-width: none;
+  margin: 40px 0 0; padding: 0; background: var(--ivory); border-block: 1px solid var(--hairline); }
+.xmas-chips::-webkit-scrollbar { display: none; }
+.xmas-chips a { flex: 0 0 auto; padding: 15px 18px; color: var(--ink); font-size: .64rem; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; text-decoration: none; white-space: nowrap; border-bottom: 1px solid transparent; }
+.xmas-chips a:hover, .xmas-chips a:focus-visible { color: var(--green); border-bottom-color: var(--gold); }
 
 .xmas-menu { scroll-margin-top: 16px; }
-.xmas-section { margin: 34px 0 10px; }
-.xmas-section-h { display: flex; align-items: center; gap: 14px; font-size: clamp(1.4rem, 3vw, 2rem); }
-.xmas-section-h::after { content: ""; flex: 1; height: 1px; background: var(--line); }
-.xmas-card.is-closed { opacity: .6; }
-.xmas-orderby { display: inline-block; margin: 6px 0 2px; font-size: .78rem; font-weight: 700; color: var(--berry, #9b2232); letter-spacing: .02em; }
-.xmas-orderby.closed { color: var(--ink-soft); }
-.xmas-empty { text-align: center; padding: 30px 20px; margin: 20px 0; }
+.xmas-section { margin: 64px 0 10px; scroll-margin-top: 70px; }
+.xmas-section-head { text-align: center; margin-bottom: 34px; }
+.xmas-section-h { font-size: var(--heading); margin: 0; }
+.xmas-section-head .ornament { margin-top: 12px; }
 
-.xmas-bands { display: grid; gap: 14px; margin: 40px 0; }
-.xmas-band { background: var(--navy); color: #fff; border-radius: var(--radius); padding: 26px; }
-.xmas-band h2 { color: #fff; }
-.xmas-band p { color: rgb(255 255 255 / 85%); margin: 0 0 16px; }
-.xmas-band .btn-secondary { color: #fff; border-color: rgb(255 255 255 / 70%); }
-@media (min-width: 760px) { .xmas-bands { grid-template-columns: 1fr 1fr; } }
-
-@media (max-width: 560px) {
-  .xmas-hero, .xmas-hero-scrim { min-height: 420px; }
-  .season-banner { font-size: .66rem; line-height: 1.5; }
-}
-
-/* ---------- Pro pass: hero detail, trust strip, section chips, tiles, basket bar ---------- */
-.xmas-hero-scrim { background-image:
-    radial-gradient(circle at 18% 22%, rgb(241 220 166 / 18%) 0 1.5px, transparent 2px),
-    radial-gradient(circle at 72% 38%, rgb(241 220 166 / 14%) 0 1.5px, transparent 2px),
-    radial-gradient(circle at 40% 70%, rgb(255 255 255 / 10%) 0 1px, transparent 1.5px),
-    linear-gradient(180deg, rgb(17 39 30 / 10%) 0%, rgb(17 39 30 / 55%) 45%, rgb(17 39 30 / 90%) 100%);
-  background-size: 90px 90px, 130px 130px, 60px 60px, auto; }
-.xmas-hero-holly { position: absolute; top: clamp(16px, 4vw, 34px); right: clamp(16px, 4vw, 40px); width: clamp(64px, 10vw, 112px); opacity: .95; }
-.xmas-hero-h em { font-style: italic; color: #f1dca6; }
-.xmas-deadline strong { color: #f1dca6; }
-
-.xmas-trust { list-style: none; margin: 14px 0 0; padding: 12px 14px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 22px;
-  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: .84rem; font-weight: 600; color: var(--ink); }
-.xmas-trust li span { color: var(--gold-text); margin-right: 4px; }
-
-.xmas-chips { position: sticky; top: 0; z-index: 20; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
-  margin: 26px calc(-1 * var(--chip-bleed, 0px)) 0; padding: 10px 2px; background: var(--cream); border-bottom: 1px solid var(--line); }
-.xmas-chips::-webkit-scrollbar { display: none; }
-.xmas-chips a { flex: 0 0 auto; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff;
-  color: var(--ink); font-size: .85rem; font-weight: 700; text-decoration: none; white-space: nowrap; }
-.xmas-chips a:hover, .xmas-chips a:focus-visible { border-color: var(--brick); color: var(--brick); }
-.xmas-section { scroll-margin-top: 70px; }
-
-.xmas-card-media { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: pointer; font: inherit; text-align: left; }
-.xmas-card-media .product-art { display: block; width: 100%; height: auto; aspect-ratio: 4/3; }
-.xmas-badge { position: absolute; top: 10px; left: 10px; background: var(--brick); color: #fff; font-size: .66rem; font-weight: 800;
-  letter-spacing: .1em; text-transform: uppercase; padding: 5px 9px; border-radius: 999px; }
-.xmas-card { transition: transform var(--dur-std) var(--ease-enter), box-shadow var(--dur-std) var(--ease-enter); }
-@media (hover: hover) { .xmas-card:hover { transform: translateY(-3px); box-shadow: 0 14px 32px rgb(27 58 45 / 12%); } }
-.btn.is-added { background: var(--good); border-color: var(--good); }
+.xmas-page .board-grid { gap: 40px 28px; }
 @media (min-width: 700px) { .xmas-page .board-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (min-width: 1040px) { .xmas-page .board-grid { grid-template-columns: repeat(3, 1fr); } }
+.xmas-card { background: transparent; border: 0; box-shadow: none; text-align: center; transition: none; }
+.xmas-card.is-closed { opacity: .55; }
+.xmas-card-media { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: pointer; overflow: hidden; }
+.xmas-card-media .product-art, .xmas-card-media .board-card-img { transition: transform var(--dur-reveal) var(--ease-enter); }
+@media (hover: hover) { .xmas-card-media:hover .product-art, .xmas-card-media:hover .board-card-img { transform: scale(1.03); } }
+.xmas-card .board-card-body { padding: 18px 6px 0; align-items: center; gap: 6px; }
+.xmas-card .board-card-name { font-size: 1.55rem; font-weight: 500; line-height: 1.15; }
+.xmas-card-title { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.xmas-card-title:hover { color: var(--green); }
+.xmas-card .board-card-price { font-family: var(--font); font-weight: 400; color: var(--ink); font-size: .9rem; letter-spacing: .04em; }
+.xmas-card .board-card-desc { font-size: .88rem; line-height: 1.65; max-width: 34ch; margin-inline: auto; }
+.xmas-orderby { display: inline-block; margin: 4px 0 2px; font-size: .6rem; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; color: var(--berry, var(--gold-text)); }
+.xmas-orderby.closed { color: var(--ink-soft); }
+.xmas-card .board-card-actions { width: 100%; justify-content: center; margin-top: 12px; }
+.xmas-card .board-card-actions .btn { background: transparent; color: var(--green); width: 100%; }
+.xmas-card .board-card-actions .btn:hover { background: var(--green); color: var(--ivory); }
+.xmas-card .board-card-actions .btn.is-added { background: var(--olive); color: #fff; border-color: var(--olive); }
+.xmas-empty { text-align: center; padding: 40px 20px; margin: 30px 0; background: var(--paper); border: 1px solid var(--hairline); }
 
-.xmas-band { position: relative; overflow: hidden; }
-.xmas-band-art { display: block; width: calc(100% + 52px); margin: -26px -26px 18px; height: auto; aspect-ratio: 16/7; }
+.xmas-bands { display: grid; gap: 24px; margin: 80px 0 40px; }
+.xmas-band { position: relative; overflow: hidden; background: var(--paper); border: 1px solid var(--hairline); padding: 0 0 34px; text-align: center; }
+.xmas-band .xmas-eyebrow { margin: 0 0 8px; }
+.xmas-band h2 { margin: 0 24px 10px; font-size: 2rem; }
+.xmas-band p { color: var(--ink-soft); margin: 0 auto 22px; max-width: 40ch; padding: 0 24px; line-height: 1.7; }
+.xmas-band .btn { width: auto; min-width: 230px; }
+.xmas-band-art { display: block; width: 100%; height: auto; aspect-ratio: 16/7; margin: 0 0 28px; }
+@media (min-width: 760px) { .xmas-bands { grid-template-columns: 1fr 1fr; } }
 
+.xmas-page .faq { max-width: 760px; margin: 70px auto 40px; }
+.xmas-page .faq .choice-h { text-align: center; font-size: var(--heading); font-weight: 500; }
+
+/* ---------- Homepage (Christmas) ---------- */
+.deli-hero-photo:has(.deli-hero-art) { background: #f3ecdf; }
+.deli-hero-photo .deli-hero-art { display: block; position: absolute; inset: 0; width: 100%; height: 100%; padding: 6% 6% 18%; background: transparent; }
+.deli-hero h1 { font-weight: 500; letter-spacing: -.01em; }
+.deli-hero h1 em { font-weight: 400; color: var(--green); }
+.deli-hero-photo figcaption { background: var(--green); letter-spacing: .22em; text-transform: uppercase; font-size: .6rem; }
+.deli-hero-photo figcaption span:last-child { text-transform: none; letter-spacing: 0; }
+.deli-primary.xmas-cta { background: var(--green); border-color: var(--green); color: var(--ivory); }
+.deli-primary.xmas-cta:hover { background: var(--green-deep); }
+.xmas-shelf { margin-top: 10px; }
+.xmas-shelf .xmas-card-media img, .xmas-shelf .xmas-card-media .product-art { display: block; width: 100%; aspect-ratio: 4/3; height: auto; object-fit: cover; }
+.xmas-shelf .xmas-card { text-align: left; }
+.xmas-shelf .xmas-card .board-card-body { align-items: flex-start; padding-inline: 0; }
+@media (min-width: 700px) { .xmas-shelf-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1040px) { .xmas-shelf-grid { grid-template-columns: repeat(3, 1fr); } }
+
+/* ---------- Product page ---------- */
+.preorder-how { margin: 22px 0; padding: 20px; background: var(--paper); border: 1px solid var(--hairline); }
+.preorder-how h2 { font-size: 1.3rem; margin: 0 0 10px; }
+.preorder-how ol { margin: 0; padding-left: 20px; color: var(--ink-soft); font-size: .92rem; line-height: 1.7; }
+.pairs { margin: 32px 0 8px; }
+.pairs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.pairs-card { display: flex; flex-direction: column; gap: 4px; padding: 0 0 10px; text-decoration: none; color: var(--ink); font-size: .95rem; }
+.pairs-card .product-art, .pairs-card .pairs-img { width: 100%; aspect-ratio: 4/3; height: auto; display: block; background-size: cover; background-position: center; }
+.pairs-card span { font-family: var(--serif); font-size: 1.1rem; line-height: 1.2; }
+.pairs-card .muted { font-family: var(--font); font-size: .8rem; }
+@media (max-width: 420px) { .pairs-grid { grid-template-columns: repeat(2, 1fr); } .pairs-card:nth-child(3) { display: none; } }
+
+/* ---------- Phone basket bar ---------- */
 .basket-bar { display: none; }
 @media (max-width: 760px) {
   .basket-bar { position: fixed; z-index: 45; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom));
-    display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 16px; border-radius: 14px;
-    background: var(--navy); color: #fff; box-shadow: 0 10px 30px rgb(0 0 0 / 25%); }
-  .basket-bar-view { flex: 1; background: none; border: 0; color: #fff; font: inherit; font-weight: 600; text-align: left; padding: 8px 0; cursor: pointer; }
-  .basket-bar-count { display: inline-grid; place-items: center; min-width: 26px; height: 26px; margin-right: 6px; border-radius: 999px; background: var(--berry, #9b2232); font-weight: 800; }
-  .basket-bar-go { background: #fff; color: var(--navy); border-color: #fff; min-height: 44px; }
+    display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 16px; background: var(--green); color: var(--ivory); box-shadow: 0 12px 30px rgb(0 0 0 / 25%); }
+  .basket-bar-view { flex: 1; background: none; border: 0; color: var(--ivory); font: inherit; font-size: .7rem; letter-spacing: .18em; text-transform: uppercase; text-align: left; padding: 8px 0; cursor: pointer; }
+  .basket-bar-count { display: inline-grid; place-items: center; min-width: 24px; height: 24px; margin-right: 8px; background: var(--gold); color: var(--green-deep); font-weight: 600; letter-spacing: 0; }
+  .basket-bar-go { width: auto; min-height: 44px; background: var(--ivory); color: var(--green); border-color: var(--ivory); padding-inline: 16px; }
   .xmas-page { padding-bottom: 90px; }
 }
 
-/* Product page: drawn art in place of a missing photo, and the pre-order explainer. */
-.detail-art { display: block; width: 100%; height: auto; aspect-ratio: 4/3; border-radius: var(--radius); box-shadow: var(--shadow-sm); }
-.preorder-how { margin: 18px 0; padding: 16px; border-radius: var(--radius-sm); background: var(--card); border: 1px solid var(--line); }
-.preorder-how h2 { font-size: 1.05rem; margin: 0 0 8px; }
-.preorder-how ol { margin: 0; padding-left: 20px; color: var(--ink-soft); font-size: .92rem; }
-.preorder-how li + li { margin-top: 4px; }
-.pairs { margin: 28px 0 8px; }
-.pairs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.pairs-card { display: flex; flex-direction: column; gap: 4px; padding: 0 0 10px; border: 1px solid var(--line); border-radius: var(--radius-sm);
-  background: #fff; overflow: hidden; text-decoration: none; color: var(--ink); font-size: .82rem; font-weight: 600; }
-.pairs-card .product-art, .pairs-card .pairs-img { width: 100%; aspect-ratio: 4/3; height: auto; display: block; background-size: cover; background-position: center; }
-.pairs-card span { padding: 0 8px; }
-.pairs-card .muted { font-weight: 500; }
-@media (max-width: 420px) { .pairs-grid { grid-template-columns: repeat(2, 1fr); } .pairs-card:nth-child(3) { display: none; } }
-.xmas-shelf { margin-top: 10px; }
-.xmas-shelf .xmas-card-media img, .xmas-shelf .xmas-card-media .product-art { display: block; width: 100%; aspect-ratio: 4/3; height: auto; object-fit: cover; }
-@media (min-width: 700px) { .xmas-shelf-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (min-width: 1040px) { .xmas-shelf-grid { grid-template-columns: repeat(3, 1fr); } }
-.xmas-hero-art { display: none; }
-.xmas-hero-copy { display: flex; flex-direction: column; gap: 10px; }
-@media (min-width: 900px) {
-  .xmas-hero-scrim { flex-direction: row; align-items: flex-end; justify-content: space-between; gap: 40px; }
-  .xmas-hero-copy { flex: 1 1 auto; }
-  .xmas-hero-art { display: block; order: 2; flex: 0 0 min(38%, 420px); height: auto; aspect-ratio: 4/3; border-radius: 18px;
-    box-shadow: 0 20px 50px rgb(0 0 0 / 35%); outline: 6px solid rgb(241 220 166 / 25%); align-self: center; }
-  .xmas-hero-actions .xmas-cta { width: auto; padding-inline: 34px; }
-  .xmas-hero-holly { display: none; } /* the framed illustration carries the holly on desktop */
+@media (max-width: 600px) {
+  .xmas-trust { flex-direction: column; align-items: center; gap: 8px; }
+  .xmas-trust li + li { border-left: 0; }
 }
-.deli-hero-photo .deli-hero-art { display: block; position: absolute; inset: 0; width: 100%; height: 100%; }
-/* Links styled as buttons read as buttons, like the site's own .deli-primary. */
-a.btn, a.btn-secondary, a.btn-ghost { text-decoration: none; }
-.deli-hero-photo:has(.deli-hero-art) { background: #efe4cd; }
-.deli-hero-photo .deli-hero-art { padding: 6% 6% 18%; }
+/* Homepage trust strip in the same small-capital voice. */
+.trust-strip { background: transparent; border-block: 1px solid var(--hairline); font-size: .62rem; letter-spacing: .22em; text-transform: uppercase; color: var(--ink-soft); }
+.detail-buy .price strong { font-family: var(--serif); font-weight: 500; font-size: 1.9rem; color: var(--green); }
+.detail-buy h1 { font-weight: 500; }
+@media (max-width: 560px) { .xmas-hero-actions .btn { width: 100%; min-width: 0; } }

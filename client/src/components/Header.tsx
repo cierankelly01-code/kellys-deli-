@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { boardCount, loadCart } from "../lib/cart";
 import { CART_CHANGED_EVENT, openCartDrawer } from "./CartDrawer";
 import { useSeason } from "../lib/season";
+import { Crest } from "./BrandMark";
 
 const ANNOUNCEMENTS = [
   "Local British produce, styled beautifully",
@@ -42,16 +43,19 @@ export function Header() {
       {/* The skip link lives in the layout (App.tsx), outside <main> — from in here
           it would only ever skip to the element containing it. */}
       {xmas ? (
-        <Link to="/christmas" className="deli-announcement season-banner">{banner} <span className="season-banner-cta">Order now →</span></Link>
+        <Link to="/christmas" className="deli-announcement season-banner">
+          <span className="season-banner-text">{banner}</span> <span className="season-banner-cta">Order now</span>
+        </Link>
       ) : (
         <div className="deli-announcement">Good food, close to home <span aria-hidden="true">·</span> Your neighbourhood deli in Bentley Heath</div>
       )}
       <header className="hdr deli-header">
         <details className="deli-mobile-menu"><summary>Menu <span aria-hidden="true">+</span></summary><nav aria-label="Mobile navigation" onClick={(e) => { if ((e.target as HTMLElement).closest("a")) e.currentTarget.closest("details")?.removeAttribute("open"); }}>{xmas && <Link to="/christmas" className="nav-season">Christmas</Link>}<Link to="/shop">Shop the deli</Link><Link to="/platters">Boards &amp; platters</Link><Link to="/bread">Fresh bread</Link><Link to="/plan">Gatherings &amp; events</Link><a href="/#our-shops">Visit your local deli</a></nav></details>
-        <span className="deli-header-note">INDEPENDENT.<br />ALWAYS WELCOMING.</span>
-        <Link to="/" className="brand">
-          <span className="brand-mark">Kelly&apos;s Deli</span>
-          <span className="brand-sub">Your neighbourhood delicatessen</span>
+        <span className="deli-header-note">Purveyors of fine food<br />Independent &amp; family-run</span>
+        <Link to="/" className="brand" aria-label="Kelly's Deli — home">
+          <Crest className="brand-crest" />
+          <span className="brand-mark">Kelly&apos;s</span>
+          <span className="brand-sub">Delicatessen · Bentley Heath</span>
         </Link>
         <nav className="hdr-nav" aria-label="Main">
           {xmas && <Link className="u-link nav-season" to="/christmas">Christmas</Link>}
