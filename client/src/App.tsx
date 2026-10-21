@@ -15,6 +15,7 @@ import Christmas from "./pages/Christmas";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import { Footer } from "./components/Footer";
+import { Header } from "./components/Header";
 import { CartDrawer } from "./components/CartDrawer";
 import NotFound from "./pages/NotFound";
 const AdminLayout = lazy(() => import("./pages/admin/AdminLayout"));
@@ -53,6 +54,7 @@ function CustomerLayout() {
       {/* Lives here, not in Header: the Header renders inside <main>, so a skip link
           in there targets its own container and does nothing. */}
       <a className="skip-link" href="#main">Skip to content</a>
+      <Header />
       <main id="main" tabIndex={-1}>
         <Outlet />
       </main>

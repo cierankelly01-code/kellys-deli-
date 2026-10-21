@@ -7,7 +7,6 @@ import { openCartDrawer } from "../components/CartDrawer";
 import { gbp } from "../lib/format";
 import { usePageTitle } from "../lib/title";
 import { StickyCta } from "../components/StickyCta";
-import { Header } from "../components/Header";
 import { Faq } from "../components/Faq";
 import { DeadlineChip, Stars } from "../components/Trust";
 import { morphNavigate } from "../lib/motion";
@@ -47,8 +46,7 @@ export default function Platters() {
 
   return (
     <div className="app app-wide platters-page">
-      <Header />
-      <h1 className="page-h">Order a board</h1>
+            <h1 className="page-h">Order a board</h1>
       {counts?.reviewRating && <Stars rating={counts.reviewRating} count={counts.reviewCount} />}
       <DeadlineChip />
 

@@ -5,7 +5,6 @@ import { addBoard } from "../lib/cart";
 import { openCartDrawer } from "../components/CartDrawer";
 import { gbp } from "../lib/format";
 import { usePageTitle } from "../lib/title";
-import { Header } from "../components/Header";
 import { StickyCta } from "../components/StickyCta";
 import { Faq } from "../components/Faq";
 import { DeadlineChip, Stars } from "../components/Trust";
@@ -112,14 +111,13 @@ export default function ShopCategory() {
   if (notFound) {
     return (
       <div className="app">
-        <Header />
-        <div className="notice">We couldn&apos;t find that section.</div>
+                <div className="notice">We couldn&apos;t find that section.</div>
         <Link className="btn btn-secondary" to="/shop">Back to the shop</Link>
       </div>
     );
   }
   if (!cat) {
-    return <div className="app"><Header /><p className="muted center">Loading…</p></div>;
+    return <div className="app"><p className="muted center">Loading…</p></div>;
   }
 
   const boards = cat.boards ?? [];
@@ -127,8 +125,7 @@ export default function ShopCategory() {
 
   return (
     <div className="app app-wide shop-cat-page">
-      <Header />
-      <Link to="/shop" className="btn-ghost back">← All occasions</Link>
+            <Link to="/shop" className="btn-ghost back">← All occasions</Link>
 
       <header className="cat-hero" style={{ backgroundImage: cat.heroImageUrl ? `url(${cat.heroImageUrl})` : undefined }}>
         <div className="cat-hero-scrim">

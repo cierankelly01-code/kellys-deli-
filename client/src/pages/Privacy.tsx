@@ -1,4 +1,3 @@
-import { Header } from "../components/Header";
 
 /**
  * UK GDPR / Data Protection Act 2018 privacy notice. Plain-English, email-contact
@@ -8,8 +7,7 @@ import { Header } from "../components/Header";
 export default function Privacy() {
   return (
     <div className="app">
-      <Header />
-      <article className="legal">
+            <article className="legal">
         <h1>Privacy Policy</h1>
         <p className="muted">Last updated: 6 September 2026</p>
 

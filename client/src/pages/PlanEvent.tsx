@@ -5,7 +5,6 @@ import { feedsCapacity, feedsRange, roundTo5p } from "../lib/addOnPricing";
 import { saveCart } from "../lib/cart";
 import { gbp } from "../lib/format";
 import { usePageTitle } from "../lib/title";
-import { Header } from "../components/Header";
 
 /** Headcounts people actually type, with the occasion each one usually is. */
 const CHIPS: Array<{ n: number; label: string }> = [
@@ -195,8 +194,7 @@ export default function PlanEvent() {
 
   return (
     <div className="app app-wide plan-event">
-      <Header />
-      <button className="link-back" onClick={() => (step === "combo" ? setStep("count") : navigate("/"))}>← Back</button>
+            <button className="link-back" onClick={() => (step === "combo" ? setStep("count") : navigate("/"))}>← Back</button>
 
       {step === "count" && (
         <section className="plan-count pl-grid">

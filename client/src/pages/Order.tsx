@@ -16,7 +16,6 @@ import { computeTotals, feedsMid, roundTo5p } from "../lib/addOnPricing";
 import { gbp, formatDate } from "../lib/format";
 import { CapacityCalendar, daysInMonth, monthStart } from "../components/CapacityCalendar";
 import { AddOnsStep } from "../components/AddOnsStep";
-import { Header } from "../components/Header";
 import { SubscribeSave } from "../components/SubscribeSave";
 import { usePageTitle } from "../lib/title";
 import { trackOrderRequest } from "../lib/consent";
@@ -296,8 +295,7 @@ export default function Order() {
 
   return (
     <div className="app order-page">
-      <Header />
-      <button className="link-back" onClick={() => navigate(isPreorder ? "/christmas" : "/platters")}>← Keep shopping</button>
+            <button className="link-back" onClick={() => navigate(isPreorder ? "/christmas" : "/platters")}>← Keep shopping</button>
       <h1 className="page-h">Your order</h1>
 
       {/* progress */}

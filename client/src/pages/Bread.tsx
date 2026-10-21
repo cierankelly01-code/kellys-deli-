@@ -4,7 +4,6 @@ import { api, type BreadAvailabilityResponse, type BreadOrderDTO, type BreadProd
 import { gbp, formatDate, formatDateLong } from "../lib/format";
 import { BreadCalendar, unavailableReason } from "../components/BreadCalendar";
 import { monthStart, daysInMonth } from "../components/CapacityCalendar";
-import { Header } from "../components/Header";
 import { usePageTitle } from "../lib/title";
 
 const NOTES_LIMIT = 200;
@@ -120,8 +119,7 @@ export default function Bread() {
   if (confirmed) {
     return (
       <div className="app">
-        <Header />
-        <div className="confirm-hero center">
+                <div className="confirm-hero center">
           <div className="tick">✓</div>
           <h1>Your bread&apos;s booked in!</h1>
           <p className="confirm-copy">
@@ -150,8 +148,7 @@ export default function Bread() {
 
   return (
     <div className="app order-page">
-      <Header />
-      <h1 className="page-h">Order bread for collection</h1>
+            <h1 className="page-h">Order bread for collection</h1>
       <p className="muted">Pre-order your bread and collect it from your local shop — pay when you pick it up.</p>
 
       {loadError && <div className="notice danger">{loadError}</div>}

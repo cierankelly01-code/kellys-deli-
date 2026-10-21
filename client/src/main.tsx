@@ -9,6 +9,11 @@ import "./styles/admin.css";
 import "./styles/tokens.css";
 import "./styles/editorial.css";
 import "./styles/season.css";
+import "./styles/site.css";
+import "./styles/pages/home.css";
+import "./styles/pages/collection.css";
+import "./styles/pages/product.css";
+import "./styles/pages/checkout.css";
 import { startMotion } from "./lib/motion";
 
 startMotion();

@@ -1,4 +1,3 @@
-import { Header } from "../components/Header";
 
 /**
  * Customer terms for ordering. Covers deposits, allergens (UK food law), collection/
@@ -7,8 +6,7 @@ import { Header } from "../components/Header";
 export default function Terms() {
   return (
     <div className="app">
-      <Header />
-      <article className="legal">
+            <article className="legal">
         <h1>Terms &amp; Conditions</h1>
         <p className="muted">Last updated: 7 July 2026</p>
 

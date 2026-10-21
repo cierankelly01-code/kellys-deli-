@@ -4,7 +4,6 @@ import { api, type CategoryCounts, type OpeningHours, type Platter, type ShopCat
 import { addBoard } from "../lib/cart";
 import { openCartDrawer } from "../components/CartDrawer";
 import { gbp } from "../lib/format";
-import { Header } from "../components/Header";
 import { StickyCta } from "../components/StickyCta";
 import { Faq } from "../components/Faq";
 import { DeadlineChip, Stars, TrustChips } from "../components/Trust";
@@ -110,8 +109,7 @@ export default function Choice() {
 
   return (
     <div className="choice">
-      <Header />
-      <header className="deli-hero">
+            <header className="deli-hero">
         <div className="deli-hero-copy">
           {xmas ? (
             <>

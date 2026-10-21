@@ -5,7 +5,6 @@ import { api, type Platter, type PlatterWithVariants, type CategoryCounts, type 
 import { addBoard, loadCart, saveCart, emptyCart } from "../lib/cart";
 import { openCartDrawer } from "../components/CartDrawer";
 import { gbp } from "../lib/format";
-import { Header } from "../components/Header";
 import { usePageTitle } from "../lib/title";
 import { DeadlineChip, TrustChips } from "../components/Trust";
 import { SubscribeSave } from "../components/SubscribeSave";
@@ -121,14 +120,13 @@ export default function PlatterDetail() {
   if (error) {
     return (
       <div className="app">
-        <Header />
-        <div className="notice danger">{error}</div>
+                <div className="notice danger">{error}</div>
         <Link className="btn btn-secondary" to="/platters">Back to boards</Link>
       </div>
     );
   }
   if (!platter) {
-    return <div className="app"><Header /><p className="muted center">Loading…</p></div>;
+    return <div className="app"><p className="muted center">Loading…</p></div>;
   }
 
   const cleanDesc = platter.description.replace(/\s*\[CHECK PRICE.*?\]\s*$/i, "");
@@ -136,8 +134,7 @@ export default function PlatterDetail() {
 
   return (
     <div className="app app-wide">
-      <Header />
-      {platter.category === "shop"
+            {platter.category === "shop"
         ? <Link to="/christmas" className="btn-ghost back">← Christmas menu</Link>
         : <Link to="/platters" className="btn-ghost back">← Back to boards</Link>}
 

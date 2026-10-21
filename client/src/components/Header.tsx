@@ -1,78 +1,194 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { boardCount, loadCart } from "../lib/cart";
 import { CART_CHANGED_EVENT, openCartDrawer } from "./CartDrawer";
-import { useSeason } from "../lib/season";
+import { useSeason, loadSiteContent } from "../lib/season";
 import { Crest } from "./BrandMark";
+import { openStatus, parseHours } from "../lib/hours";
 
-const ANNOUNCEMENTS = [
-  "Local British produce, styled beautifully",
-  "48 hours' notice for collection orders",
-  "A 25% deposit confirms your order",
-  "Catering for a group? Plan your event online",
+/* The site header: a slim utility bar (live opening hours + the seasonal message), the
+ * crest lockup, and the department nav with a "Shop" mega-menu. On phones the nav moves
+ * into a full-screen menu. Rendered by each page (not the layout), as before. */
+
+type NavLink = { to: string; label: string };
+type Column = { title: string; links: NavLink[] };
+
+const SHOP_COLUMNS: Column[] = [
+  {
+    title: "The Christmas Collection",
+    links: [
+      { to: "/christmas", label: "Shop all Christmas" },
+      { to: "/christmas#xs-hams-and-joints", label: "Hams & joints" },
+      { to: "/christmas#xs-turkey-and-trimmings", label: "Turkey & trimmings" },
+      { to: "/christmas#xs-party-food", label: "Party food" },
+      { to: "/christmas#xs-cheese", label: "Cheese" },
+      { to: "/christmas#xs-hampers-and-gifts", label: "Hampers & gifts" },
+    ],
+  },
+  {
+    title: "From the deli",
+    links: [
+      { to: "/platters", label: "Boards & platters" },
+      { to: "/shop", label: "Shop by occasion" },
+      { to: "/shop/at-home", label: "Boards for a night in" },
+      { to: "/bread", label: "Fresh bread" },
+    ],
+  },
+  {
+    title: "Catering",
+    links: [
+      { to: "/plan", label: "Plan an event" },
+      { to: "/shop/hosting", label: "Hosting a crowd" },
+      { to: "/shop/office-corporate", label: "Office & corporate" },
+    ],
+  },
 ];
 
-export function Ticker() {
-  return (
-    <div className="ticker" aria-hidden="true">
-      <div className="ticker-track">
-        {[...ANNOUNCEMENTS, ...ANNOUNCEMENTS].map((t, i) => (
-          <span className="ticker-item" key={i}>{t}</span>
-        ))}
-      </div>
-    </div>
-  );
-}
+// Kept short and stable: the e2e audit expects these routes reachable from every page.
+const PRIMARY: NavLink[] = [
+  { to: "/platters", label: "Boards & Platters" },
+  { to: "/plan", label: "Catering" },
+  { to: "/bread", label: "Fresh Bread" },
+];
 
-export function Header() {
-  const location = useLocation();
+/** The basket count, kept in step with every add/remove anywhere on the page. */
+function useBasketCount(): number {
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const bump = () => setTick((t) => t + 1);
     window.addEventListener(CART_CHANGED_EVENT, bump);
-    return () => window.removeEventListener(CART_CHANGED_EVENT, bump);
+    window.addEventListener("focus", bump);
+    return () => {
+      window.removeEventListener(CART_CHANGED_EVENT, bump);
+      window.removeEventListener("focus", bump);
+    };
   }, []);
   void tick;
   const cart = loadCart();
-  const count = cart ? boardCount(cart) : 0;
+  return cart ? boardCount(cart) : 0;
+}
+
+export function Header() {
+  const location = useLocation();
+  const count = useBasketCount();
   const { season, banner } = useSeason();
   const xmas = season === "christmas";
+  const [hoursText, setHoursText] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    loadSiteContent().then((c) => {
+      const h = parseHours(c?.openingHours);
+      if (h) setHoursText(openStatus(h).text);
+    });
+  }, []);
+
+  // Close the phone menu on navigation; lock scroll + Escape while it's open.
+  useEffect(() => setMenuOpen(false), [location.pathname, location.hash]);
+  useEffect(() => {
+    if (!menuOpen) return;
+    document.body.style.overflow = "hidden";
+    menuRef.current?.querySelector<HTMLElement>("a, button")?.focus();
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMenuOpen(false); };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  const basketLabel = `Your basket, ${count} board${count === 1 ? "" : "s"}`;
 
   return (
     <>
-      {/* The skip link lives in the layout (App.tsx), outside <main> — from in here
-          it would only ever skip to the element containing it. */}
-      {xmas ? (
-        <Link to="/christmas" className="deli-announcement season-banner">
-          <span className="season-banner-text">{banner}</span> <span className="season-banner-cta">Order now</span>
-        </Link>
-      ) : (
-        <div className="deli-announcement">Good food, close to home <span aria-hidden="true">·</span> Your neighbourhood deli in Bentley Heath</div>
-      )}
-      <header className="hdr deli-header">
-        <details className="deli-mobile-menu"><summary>Menu <span aria-hidden="true">+</span></summary><nav aria-label="Mobile navigation" onClick={(e) => { if ((e.target as HTMLElement).closest("a")) e.currentTarget.closest("details")?.removeAttribute("open"); }}>{xmas && <Link to="/christmas" className="nav-season">Christmas</Link>}<Link to="/shop">Shop the deli</Link><Link to="/platters">Boards &amp; platters</Link><Link to="/bread">Fresh bread</Link><Link to="/plan">Gatherings &amp; events</Link><a href="/#our-shops">Visit your local deli</a></nav></details>
-        <span className="deli-header-note">Purveyors of fine food<br />Independent &amp; family-run</span>
-        <Link to="/" className="brand" aria-label="Kelly's Deli — home">
-          <Crest className="brand-crest" />
-          <span className="brand-mark">Kelly&apos;s</span>
-          <span className="brand-sub">Delicatessen · Bentley Heath</span>
-        </Link>
-        <nav className="hdr-nav" aria-label="Main">
-          {xmas && <Link className="u-link nav-season" to="/christmas">Christmas</Link>}
-          <Link className="u-link" to="/shop">Shop the deli</Link>
-          <Link className="u-link" to="/platters">Boards &amp; platters</Link>
-          <Link className="u-link" to="/bread">Fresh bread</Link>
-          <Link className="u-link" to="/plan">Gatherings &amp; events</Link>
-          <a className="u-link" href="/#our-shops">Visit us</a>
-        </nav>
-        <div className="deli-header-basket">
-          {location.pathname !== "/order" && (
-            <button type="button" className="basket-pill" onClick={openCartDrawer} aria-label={`Your basket, ${count} board${count === 1 ? "" : "s"}`}>
-              Basket ({count})
-            </button>
-          )}
+      <div className="utility-bar">
+        <span className="utility-left">Bentley Heath{hoursText ? ` · ${hoursText}` : ""}</span>
+        {xmas ? (
+          <Link to="/christmas" className="utility-centre season-banner">
+            <span className="season-banner-text">{banner}</span> <span className="season-banner-cta">Order now</span>
+          </Link>
+        ) : (
+          <span className="utility-centre">Made in Bentley Heath · Collect in store</span>
+        )}
+        <a className="utility-right" href="#our-shops">Visit the shop</a>
+      </div>
+
+      <header className="site-header">
+        <div className="site-header-row">
+          <button
+            type="button"
+            className="header-menu-btn"
+            aria-expanded={menuOpen}
+            aria-controls="site-menu"
+            onClick={() => setMenuOpen(true)}
+          >
+            <span className="header-menu-icon" aria-hidden="true"><i /><i /><i /></span>
+            Menu
+          </button>
+          <span className="header-note">Purveyors of fine food<br />Independent &amp; family-run</span>
+
+          <Link to="/" className="brand" aria-label="Kelly's Deli — home">
+            <Crest className="brand-crest" />
+            <span className="brand-mark">Kelly&apos;s</span>
+            <span className="brand-sub">Delicatessen · Bentley Heath</span>
+          </Link>
+
+          <div className="header-actions">
+            {location.pathname !== "/order" && (
+              <button type="button" className="basket-pill" onClick={openCartDrawer} aria-label={basketLabel}>
+                <span className="basket-pill-text">Basket</span>
+                <span className="basket-pill-count">{count}</span>
+              </button>
+            )}
+          </div>
         </div>
+
+        <nav className="site-nav" aria-label="Main">
+          {xmas && <Link className="site-nav-link nav-season" to="/christmas">Christmas</Link>}
+          <div className="site-nav-item has-mega">
+            <Link className="site-nav-link" to="/shop" aria-haspopup="true">Shop</Link>
+            <div className="mega" role="group" aria-label="Shop departments">
+              <div className="mega-inner">
+                {SHOP_COLUMNS.filter((c) => xmas || !c.title.includes("Christmas")).map((col) => (
+                  <div className="mega-col" key={col.title}>
+                    <p className="mega-title">{col.title}</p>
+                    {col.links.map((l) => <Link key={l.to} to={l.to}>{l.label}</Link>)}
+                  </div>
+                ))}
+                <div className="mega-feature">
+                  <Crest className="mega-crest" />
+                  <p className="mega-feature-h">Feeding a crowd?</p>
+                  <p>Tell us how many and we&apos;ll put the spread together.</p>
+                  <Link className="mega-feature-link" to="/plan">Plan an event</Link>
+                </div>
+              </div>
+            </div>
+          </div>
+          {PRIMARY.map((l) => <Link key={l.to} className="site-nav-link" to={l.to}>{l.label}</Link>)}
+          <a className="site-nav-link" href="#our-shops">Visit Us</a>
+        </nav>
       </header>
+
+      {menuOpen && (
+        <div className="site-menu" id="site-menu" role="dialog" aria-modal="true" aria-label="Menu" ref={menuRef}>
+          <div className="site-menu-head">
+            <Crest className="site-menu-crest" />
+            <button type="button" className="site-menu-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">Close</button>
+          </div>
+          <nav className="site-menu-nav" aria-label="Mobile navigation">
+            {xmas && <Link className="site-menu-big nav-season" to="/christmas">Christmas</Link>}
+            {SHOP_COLUMNS.filter((c) => xmas || !c.title.includes("Christmas")).map((col) => (
+              <details key={col.title} className="site-menu-group" open={col.title === "From the deli"}>
+                <summary>{col.title}</summary>
+                {col.links.map((l) => <Link key={l.to} to={l.to}>{l.label}</Link>)}
+              </details>
+            ))}
+            <a className="site-menu-big" href="#our-shops" onClick={() => setMenuOpen(false)}>Visit the shop</a>
+          </nav>
+          {hoursText && <p className="site-menu-hours">Bentley Heath · {hoursText}</p>}
+        </div>
+      )}
     </>
   );
 }

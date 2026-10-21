@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, type ShopCategory } from "../lib/api";
 import { usePageTitle } from "../lib/title";
-import { Header } from "../components/Header";
 import { StickyCta } from "../components/StickyCta";
 import { Faq } from "../components/Faq";
 import { ReminderCapture } from "../components/ReminderCapture";
@@ -24,8 +23,7 @@ export default function Shop() {
 
   return (
     <div className="app app-wide shop-page">
-      <Header />
-      <h1 className="page-h">What&apos;s the occasion?</h1>
+            <h1 className="page-h">What&apos;s the occasion?</h1>
       <p className="shop-intro muted">
         Pick the moment and we&apos;ll show you the boards built for it — feeding a crowd, a night in,
         or lunch for the office.

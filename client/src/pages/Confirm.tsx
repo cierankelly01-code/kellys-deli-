@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, type OrderDTO } from "../lib/api";
 import { gbp, formatDateLong } from "../lib/format";
-import { Header } from "../components/Header";
 import { usePageTitle } from "../lib/title";
 
 function ReferralShare({ code }: { code: string }) {
@@ -121,14 +120,13 @@ export default function Confirm() {
   if (error) {
     return (
       <div className="app">
-        <Header />
-        <div className="notice danger">We couldn&apos;t find that order ({error}).</div>
+                <div className="notice danger">We couldn&apos;t find that order ({error}).</div>
         <Link className="btn btn-secondary" to="/">Back to menu</Link>
       </div>
     );
   }
   if (!order) {
-    return <div className="app"><Header /><p className="muted center">Loading your order…</p></div>;
+    return <div className="app"><p className="muted center">Loading your order…</p></div>;
   }
 
   // v2 orders itemise boards + add-ons; fall back to the primary board for legacy rows.
@@ -145,8 +143,7 @@ export default function Confirm() {
 
   return (
     <div className="app">
-      <Header />
-      <div className="confirm-hero center">
+            <div className="confirm-hero center">
         <div className="tick">{awaitingPayment ? "!" : "✓"}</div>
         <h1>{paid ? "You're all sorted!" : awaitingPayment ? "Your order isn't paid yet" : "Your order request is in!"}</h1>
         <p className="confirm-copy">

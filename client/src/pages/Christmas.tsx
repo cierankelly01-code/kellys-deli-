@@ -5,7 +5,6 @@ import { addBoard } from "../lib/cart";
 import { openCartDrawer } from "../components/CartDrawer";
 import { gbp } from "../lib/format";
 import { usePageTitle } from "../lib/title";
-import { Header } from "../components/Header";
 import { ReminderCapture } from "../components/ReminderCapture";
 import { morphNavigate } from "../lib/motion";
 import { groupVariants, type ProductGroup } from "../lib/variants";
@@ -140,8 +139,7 @@ export default function Christmas() {
 
   return (
     <div className="app app-wide xmas-page">
-      <Header />
-
+      
       <header className="xmas-hero">
         {cat?.heroImageUrl && <img className="xmas-hero-img" src={cat.heroImageUrl} alt="" aria-hidden="true" onError={(e) => { e.currentTarget.style.display = "none"; }} />}
         <div className="xmas-hero-scrim">
