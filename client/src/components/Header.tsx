@@ -40,18 +40,18 @@ export function Header() {
           it would only ever skip to the element containing it. */}
       <div className="deli-announcement">Good food, close to home <span aria-hidden="true">·</span> Your neighbourhood deli in Bentley Heath</div>
       <header className="hdr deli-header">
-        <details className="deli-mobile-menu"><summary>Menu <span aria-hidden="true">+</span></summary><nav aria-label="Mobile navigation" onClick={(e) => { if ((e.target as HTMLElement).closest("a")) e.currentTarget.closest("details")?.removeAttribute("open"); }}><Link to="/shop">Shop the deli</Link><Link to="/platters">Boards &amp; platters</Link><Link to="/bread">Fresh bread</Link><Link to="/plan">Gatherings &amp; events</Link><a href="/#our-shops">Visit your local deli</a></nav></details>
+        <details className="deli-mobile-menu"><summary>Menu <span aria-hidden="true">+</span></summary><nav aria-label="Mobile navigation" onClick={(e) => { if ((e.target as HTMLElement).closest("a")) e.currentTarget.closest("details")?.removeAttribute("open"); }}><Link className="is-primary-link" to="/shop">Boards &amp; platters</Link><Link className="is-primary-link" to="/office-catering">Office catering</Link><Link className="is-primary-link" to="/bread">Bread pre-orders</Link><Link to="/plan">Plan an event</Link><a href="/#our-shops">Visit &amp; contact</a></nav></details>
         <span className="deli-header-note">INDEPENDENT.<br />ALWAYS WELCOMING.</span>
         <Link to="/" className="brand">
           <span className="brand-mark">Kelly&apos;s Deli</span>
           <span className="brand-sub">Your neighbourhood delicatessen</span>
         </Link>
         <nav className="hdr-nav" aria-label="Main">
-          <Link className="u-link" to="/shop">Shop the deli</Link>
-          <Link className="u-link" to="/platters">Boards &amp; platters</Link>
-          <Link className="u-link" to="/bread">Fresh bread</Link>
-          <Link className="u-link" to="/plan">Gatherings &amp; events</Link>
-          <a className="u-link" href="/#our-shops">Visit us</a>
+          <Link className="u-link" to="/shop">Boards &amp; platters</Link>
+          <Link className="u-link" to="/office-catering">Office catering</Link>
+          <Link className="u-link" to="/bread">Bread pre-orders</Link>
+          <Link className="u-link" to="/plan">Plan an event</Link>
+          <a className="u-link" href="/#our-shops">Visit &amp; contact</a>
         </nav>
         <div className="deli-header-basket">
           {location.pathname !== "/order" && (

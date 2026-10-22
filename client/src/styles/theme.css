@@ -83,6 +83,7 @@ button { font-family: inherit; }
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  text-decoration: none;
   border: none;
   border-radius: var(--radius-sm);
   background: var(--brick);
@@ -93,7 +94,7 @@ button { font-family: inherit; }
 .btn:hover { background: var(--brick-dark); }
 .btn:active { transform: translateY(1px); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn-secondary { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
+.btn-secondary { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); text-decoration: none; }
 .btn-secondary:hover { background: var(--ink); color: #fff; }
 .btn-ghost {
   background: transparent; color: var(--ink-soft); border: none; cursor: pointer;
@@ -182,7 +183,8 @@ p { text-wrap: pretty; }
 *::-webkit-scrollbar-track { background: transparent; }
 
 /* Focus ring in-brand — never the default blue, never removed. */
-:focus-visible { outline: 2px solid var(--mustard); outline-offset: 2px; border-radius: 4px; }
+:focus-visible { outline: 3px solid var(--navy); outline-offset: 3px; border-radius: 4px; }
+.site-footer :focus-visible, .deli-mobile-menu nav :focus-visible, .plan-banner:focus-visible { outline-color: var(--cream); }
 
 /* Animated link underline (left-to-right on hover). */
 /* Buttons styled as links are still buttons: keep a 44px tap target. */

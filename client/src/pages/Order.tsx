@@ -26,8 +26,11 @@ import type { Bundle } from "../lib/api";
 const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 type Step = "extras" | "details" | "review";
-const STEPS: Step[] = ["extras", "details", "review"];
-const STEP_LABELS: Record<Step, string> = { extras: "Extras", details: "Your details", review: "Review" };
+// Collection date first: the basket promises "choose your collection date" next, so
+// opening on an upsell screen instead broke that promise. Extras stay available, just
+// after the customer knows their date is bookable.
+const STEPS: Step[] = ["details", "extras", "review"];
+const STEP_LABELS: Record<Step, string> = { extras: "Extras", details: "Collection", review: "Review" };
 
 const emailOk = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
@@ -45,7 +48,7 @@ export default function Order() {
   const [calMonth, setCalMonth] = useState(() => monthStart(new Date().toISOString().slice(0, 10)));
   const [counts, setCounts] = useState<CategoryCounts | null>(null);
   const [bundles, setBundles] = useState<Bundle[]>([]);
-  const [step, setStep] = useState<Step>("extras");
+  const [step, setStep] = useState<Step>("details");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -279,7 +282,8 @@ export default function Order() {
           <AddOnsStep addOns={addOns} headcount={headcount} value={cart?.addOns ?? []} onChange={(next) => update({ addOns: next })} />
           <RunningTotal total={finalTotal} deposit={finalDeposit} subDiscount={subDiscount} />
           <div className="step-actions">
-            <button className="btn" onClick={() => setStep("details")}>Continue to details</button>
+            <button className="btn-ghost" onClick={() => setStep("details")}>Back</button>
+            <button className="btn" onClick={() => setStep("review")}>Review order</button>
           </div>
         </>
       )}
@@ -366,8 +370,7 @@ export default function Order() {
 
           <RunningTotal total={finalTotal} deposit={finalDeposit} subDiscount={subDiscount} />
           <div className="step-actions">
-            <button className="btn-ghost" onClick={() => setStep("extras")}>Back</button>
-            <button className="btn" disabled={!detailsValid} onClick={() => setStep("review")}>Review order</button>
+            <button className="btn" disabled={!detailsValid} onClick={() => setStep("extras")}>Continue — add extras</button>
           </div>
         </section>
       )}
@@ -410,7 +413,7 @@ export default function Order() {
 
           {error && <p className="form-error" role="alert">{error}</p>}
           <div className="step-actions">
-            <button className="btn-ghost" onClick={() => setStep("details")}>Back</button>
+            <button className="btn-ghost" onClick={() => setStep("extras")}>Back</button>
             <button className="btn" disabled={submitting} onClick={submit}>
               {submitting ? "Placing…" : "Place order request"}
             </button>

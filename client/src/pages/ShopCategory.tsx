@@ -12,14 +12,14 @@ import { DeadlineChip, Stars } from "../components/Trust";
 import { CorporateEnquiryForm } from "../components/CorporateEnquiryForm";
 import { ReminderCapture } from "../components/ReminderCapture";
 import { morphNavigate } from "../lib/motion";
-import { groupVariants, groupServes, type ProductGroup } from "../lib/variants";
+import { groupVariants, cheapestVariant, type ProductGroup } from "../lib/variants";
 
 const SITE = "https://www.kellysdeli.co.uk";
 
 function priceFeeds(g: ProductGroup): string {
-  const price = g.hasChoice ? `From ${gbp(g.fromPrice)}` : gbp(g.lead.fixedPrice ?? g.lead.fromPrice ?? 0);
-  const serves = groupServes(g.variants);
-  return serves ? `${price} · feeds ${serves}` : price;
+  const target = g.hasChoice ? cheapestVariant(g) : g.lead;
+  const price = g.hasChoice ? `From ${gbp(g.fromPrice)}` : gbp(target.fixedPrice ?? target.fromPrice ?? 0);
+  return target.serves ? `${price} · feeds ${target.serves}` : price;
 }
 
 export default function ShopCategory() {

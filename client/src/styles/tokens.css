@@ -18,6 +18,7 @@
   --space-section: clamp(64px, 8vw, 120px);
   --space-gutter: clamp(20px, 5vw, 80px);
   --space-grid: clamp(18px, 2.5vw, 36px);
-  --display: clamp(3rem, 5.3vw, 5.6rem);
-  --heading: clamp(2rem, 3vw, 3.2rem);
+  --display: clamp(3rem, 6.2vw, 6.6rem);
+  --heading: clamp(2rem, 3.4vw, 3.4rem);
+  --statement: clamp(1.7rem, 3.6vw, 2.7rem);
 }

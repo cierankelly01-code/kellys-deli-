@@ -7,6 +7,8 @@ import Platters from "./pages/Platters";
 import Shop from "./pages/Shop";
 import ShopCategory from "./pages/ShopCategory";
 import PlanEvent from "./pages/PlanEvent";
+import OfficeCatering from "./pages/OfficeCatering";
+import OurStory from "./pages/OurStory";
 import PlatterDetail from "./pages/PlatterDetail";
 import Order from "./pages/Order";
 import Confirm from "./pages/Confirm";
@@ -71,6 +73,8 @@ export default function App() {
         <Route path="/shop" element={<Shop />} />
         <Route path="/shop/:slug" element={<ShopCategory />} />
         <Route path="/plan" element={<PlanEvent />} />
+        <Route path="/office-catering" element={<OfficeCatering />} />
+        <Route path="/our-story" element={<OurStory />} />
         <Route path="/platter/:id" element={<PlatterDetail />} />
         <Route path="/order" element={<Order />} />
         <Route path="/confirm/:ref" element={<Confirm />} />

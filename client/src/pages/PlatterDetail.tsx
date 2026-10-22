@@ -162,7 +162,7 @@ export default function PlatterDetail() {
           <p className="buy-reassure">
             {subFreq
               ? "No card taken now — we'll set your schedule up with you and confirm each board."
-              : "Only 25% today · balance on collection · fully refundable up to 48 hrs before"}
+              : "25% deposit confirms your order · balance on collection · fully refundable up to 48 hrs before"}
           </p>
 
           <p className="prebook-hint muted">

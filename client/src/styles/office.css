@@ -1,0 +1,167 @@
+/* Office catering — a proper destination page, not a bolted-on form.
+   Reuses the navy/cream/Fraunces system from editorial.css; adds only what's unique here. */
+
+/* Home-page signpost — position 2, right after the hero, ahead of featured boards. */
+.office-signpost {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 20px var(--space-gutter);
+  background: var(--navy);
+  color: var(--cream);
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.office-signpost-eyebrow {
+  display: block;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--mustard);
+  margin-bottom: 4px;
+}
+.office-signpost-title { display: block; font-size: 1.05rem; font-weight: 600; }
+.office-signpost-cta {
+  flex-shrink: 0;
+  font-size: .98rem;
+  font-weight: 700;
+  border-bottom: 1px solid var(--cream);
+  padding-bottom: 2px;
+  white-space: nowrap;
+}
+@media (max-width: 560px) {
+  .office-signpost { flex-direction: column; align-items: flex-start; gap: 10px; padding: 18px 20px; }
+}
+
+.office-page { padding-top: 0; }
+
+.office-hero {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: clamp(36px, 6vw, 64px) var(--space-gutter) 0;
+  text-align: left;
+}
+.office-h1 {
+  font-family: var(--serif);
+  font-size: clamp(2.4rem, 6vw, 3.6rem);
+  font-weight: 400;
+  letter-spacing: -.03em;
+  line-height: 1.05;
+  margin: 6px 0 14px;
+}
+.office-lede {
+  font-size: 1.15rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  max-width: 56ch;
+  margin: 0 0 28px;
+}
+
+/* Six quick answers — the whole "can we use this?" decision in one scan, above the fold. */
+.office-quick-answers {
+  list-style: none;
+  margin: 0 0 30px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+.office-quick-answers li {
+  background: var(--card);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.oqa-label {
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--gold-text);
+}
+.oqa-value { font-size: .98rem; line-height: 1.4; color: var(--ink); }
+
+.office-paths {
+  display: grid;
+  gap: 8px;
+  max-width: 420px;
+  margin-bottom: 28px;
+}
+.office-path-primary, .office-path-secondary {
+  min-height: 56px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  width: 100%;
+  justify-content: center;
+  text-decoration: none;
+}
+.office-path-note {
+  margin: 0 0 14px;
+  font-size: .92rem;
+  color: var(--ink-soft);
+}
+.office-path-note:last-of-type { margin-bottom: 0; }
+
+.office-photo {
+  margin: 40px 0 0;
+  background: var(--line);
+}
+.office-photo img { display: block; width: 100%; aspect-ratio: 16/8; object-fit: cover; }
+
+.office-boards { margin: var(--space-section) 0; }
+
+.office-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-grid);
+  margin: var(--space-section) 0;
+  padding: 36px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.office-info-card p { color: var(--ink-soft); line-height: 1.6; margin-top: 8px; }
+
+.office-enquiry {
+  max-width: 720px;
+  margin: var(--space-section) auto;
+  scroll-margin-top: 24px;
+}
+.office-enquiry-intro { text-align: center; margin-bottom: 24px; }
+.office-enquiry-h {
+  font-family: var(--serif);
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  font-weight: 400;
+  margin: 0 0 8px;
+}
+.office-enquiry-h:focus { outline: none; }
+
+.office-faq { max-width: 720px; margin: var(--space-section) auto; }
+
+.office-contact {
+  max-width: 720px;
+  margin: 0 auto var(--space-section);
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 10px;
+  font-size: 1rem;
+}
+.office-contact a { color: var(--navy); font-weight: 600; }
+
+@media (max-width: 800px) {
+  .office-info-grid { grid-template-columns: 1fr; gap: 28px; }
+}
+@media (max-width: 560px) {
+  .office-quick-answers { grid-template-columns: 1fr; }
+  .office-hero { padding-inline: 20px; }
+}

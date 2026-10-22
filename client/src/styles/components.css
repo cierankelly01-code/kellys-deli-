@@ -48,7 +48,7 @@
 .platter-body { padding: 16px; }
 .platter .price { font-size: 1.25rem; color: var(--brick); white-space: nowrap; }
 .platter .price .muted { font-size: 0.85rem; margin-left: 2px; }
-.serves { font-size: 0.85rem; color: var(--gold-text); font-weight: 700; margin: 2px 0 8px; }
+.serves { font-size: 1rem; color: var(--gold-text); font-weight: 700; margin: 2px 0 8px; }
 .items { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; margin: 8px 0 16px; }
 .items li {
   font-size: 0.8rem; background: var(--cream); border: 1px solid var(--line);
@@ -89,9 +89,9 @@
 }
 .cal-nav:hover:not(:disabled) { border-color: var(--brick); }
 .cal-nav:disabled { opacity: 0.35; cursor: not-allowed; }
-.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
 .cal-wd {
-  text-align: center; font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  text-align: center; font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.04em; color: var(--ink-soft); padding-bottom: 2px;
 }
 .cal-blank { visibility: hidden; }
@@ -343,7 +343,7 @@
 .buy-bar-qty button { background: none; border: none; font-size: 1.2rem; color: var(--ink); cursor: pointer; padding: 4px; line-height: 1; }
 .buy-bar-qty span { min-width: 14px; text-align: center; font-weight: 700; }
 .buy-bar-add.btn { flex: 1; width: auto; white-space: nowrap; }
-.buy-reassure { text-align: center; font-size: 0.78rem; color: var(--ink-soft); margin-top: 8px; }
+.buy-reassure { text-align: center; font-size: 0.95rem; color: var(--ink-soft); margin-top: 8px; }
 .scarcity-note { text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--mustard-dark, var(--mustard)); margin-top: 10px; }
 
 /* Skip rendering below-fold sections until scrolled near (perf). */
@@ -396,7 +396,7 @@
 /* Hidden without display:none, so it stays focusable and announced. */
 .size-option input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
 .size-option-label { font-weight: 700; color: var(--ink); }
-.size-option-serves { font-size: 0.8rem; color: var(--ink-soft); }
+.size-option-serves { font-size: 0.95rem; color: var(--ink-soft); }
 .size-option-price { font-weight: 800; color: var(--gold-text); }
 .size-option.is-selected .size-option-price { color: var(--brick); }
 @media (prefers-reduced-motion: reduce) { .size-option { transition: none; } }
@@ -450,7 +450,7 @@
 .footer-links { display: flex; flex-wrap: wrap; gap: 18px; }
 .footer-links a { color: var(--ink-soft); text-decoration: none; font-size: 0.92rem; }
 .footer-links a:hover { color: var(--ink); text-decoration: underline; }
-.footer-copy { color: var(--ink-soft); font-size: 0.82rem; }
+.footer-copy { color: var(--ink-soft); font-size: 0.95rem; }
 
 /* --- Legal pages (privacy / terms) --- */
 .legal { max-width: 760px; margin: 0 auto; padding: 8px 4px 16px; line-height: 1.6; }
@@ -462,7 +462,7 @@
 .legal a { color: var(--navy); }
 
 /* =====================  v2: boards, add-ons, event planner  ===================== */
-.page-h { font-family: var(--serif); font-size: 1.8rem; color: var(--ink); margin: 8px 0 14px; }
+.page-h { font-family: var(--serif); font-weight: 400; font-size: var(--heading, 1.8rem); letter-spacing: -0.02em; color: var(--ink); margin: 12px 0 14px; text-wrap: balance; }
 .section-h { font-family: var(--serif); font-size: 1.3rem; color: var(--ink); margin: 20px 0 12px; }
 .step-h { font-size: 1.1rem; color: var(--ink); margin: 14px 0 8px; }
 .link-back {
@@ -553,7 +553,7 @@
 /* Running total + totals */
 .running-total { display: flex; flex-direction: column; gap: 2px; padding: 12px 0; }
 .running-total strong { color: var(--brick); font-size: 1.15rem; }
-.deposit-policy { font-size: 0.85rem; color: var(--ink-soft); background: var(--cream); border-radius: var(--radius-sm); padding: 10px 12px; }
+.deposit-policy { font-size: 1rem; color: var(--ink-soft); background: var(--cream); border-radius: var(--radius-sm); padding: 10px 12px; }
 .form-error { color: var(--danger); font-weight: 600; margin: 8px 0; }
 .step-actions { display: flex; gap: 10px; margin: 16px 0; }
 .step-actions .btn { flex: 1; }
@@ -663,11 +663,11 @@
 }
 .footer-cols { display: grid; gap: 22px; margin-bottom: 28px; }
 @media (min-width: 560px) { .footer-cols { grid-template-columns: repeat(3, 1fr); } }
-.footer-col { display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; }
+.footer-col { display: flex; flex-direction: column; gap: 8px; font-size: 1rem; }
 .footer-col a { color: rgba(255,255,255,0.85); width: fit-content; }
-.footer-col span { color: rgba(255,255,255,0.6); }
+.footer-col span { color: rgba(255,255,255,0.75); }
 .footer-col-h { margin: 0 0 2px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: #d9a75a; }
-.site-footer .footer-copy { color: rgba(255,255,255,0.45); font-size: 0.8rem; }
+.site-footer .footer-copy { color: rgba(255,255,255,0.6); font-size: 0.9rem; }
 /* "Cookie settings" is a <button> (it re-opens the consent bar) but must read as a footer
    link. Reset native chrome and match the sibling links. */
 .footer-linkbtn {

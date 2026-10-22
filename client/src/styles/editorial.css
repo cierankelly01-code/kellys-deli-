@@ -10,25 +10,54 @@
 .choice .bundle-grid > :only-child .bundle-body { display: flex; flex-direction: column; justify-content: center; padding: 36px; }
 .deli-reassurance { padding-block: 24px; border-block: 1px solid var(--line); margin-block: 36px; }
 .deli-reassurance .trust-chips { justify-content: center; margin: 0; }
-.choice .board-card-actions .btn { font-size: .8rem; }
+.choice .board-card-actions .btn { font-size: 1rem; }
 .hdr.deli-header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 0; padding: 28px 0 0; background: var(--cream); border-bottom: 1px solid var(--line); }
 .deli-header .brand { flex-direction: column; align-items: center; gap: 7px; grid-column: 2; grid-row: 1; padding: 0 10px 25px; }
 .deli-header .brand-mark { font-size: clamp(2.2rem, 4vw, 3.5rem); line-height: 1; color: var(--navy); letter-spacing: -.055em; }
 .deli-header .brand-sub { display: block; font-size: .6rem; letter-spacing: .18em; color: var(--ink-soft); text-align: center; }
 .deli-header-note { font-size: .62rem; letter-spacing: .15em; line-height: 1.8; padding-left: var(--space-gutter); align-self: start; padding-top: 8px; }
 .deli-header-basket { grid-row: 1; grid-column: 3; justify-self: end; padding-right: var(--space-gutter); padding-bottom: 20px; }
-.deli-header .basket-pill { background: transparent; border: 1px solid var(--line); color: var(--navy); font-size: .75rem; font-weight: 500; border-radius: 0; }
+.deli-header .basket-pill { background: transparent; border: 1px solid var(--line); color: var(--navy); font-size: 1rem; font-weight: 600; border-radius: 0; min-height: 44px; padding-inline: 16px; }
 .deli-header .hdr-nav { grid-column: 1 / -1; justify-content: center; gap: clamp(16px, 3vw, 48px); border-top: 1px solid var(--line); padding: 5px 12px; flex-wrap: wrap; }
-.deli-header .hdr-nav a { font-size: .75rem; font-weight: 500; }
-.deli-hero { display: grid; grid-template-columns: 1fr 1fr; min-height: 660px; }
+.deli-header .hdr-nav a { font-size: 1rem; font-weight: 600; }
+.deli-hero { display: grid; grid-template-columns: 0.92fr 1.08fr; min-height: 660px; }
+@media (min-width: 1000px) { .deli-hero { min-height: min(84vh, 820px); grid-template-columns: 0.82fr 1.18fr; } }
 .deli-hero-copy { padding: clamp(42px, 6vw, 92px) var(--space-gutter); align-self: center; }
 .deli-eyebrow { font-size: .66rem; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--gold-text); margin: 0 0 24px; }
 .deli-hero h1 { font-size: var(--display); line-height: 1.04; font-weight: 400; letter-spacing: -.045em; margin: 0 0 28px; }
 .deli-hero h1 em { font-weight: 400; }
-.deli-hero-intro { max-width: 40ch; font-size: .95rem; line-height: 1.8; color: var(--ink-soft); margin-bottom: 30px; }
-.deli-primary { width: auto; min-width: 230px; justify-content: space-between; gap: 30px; font-size: .72rem; text-decoration: none; }
-.deli-hero-note { font-size: .7rem; color: var(--ink-soft); margin: 18px 0 0; }
-.deli-hero-copy .stars-widget { margin-top: 22px; font-size: .75rem; }
+.deli-hero-intro { max-width: 42ch; font-size: 1.125rem; line-height: 1.65; color: var(--ink-soft); margin-bottom: 30px; }
+.deli-primary { width: auto; min-width: 230px; justify-content: space-between; gap: 30px; font-size: 1.05rem; font-weight: 700; text-decoration: none; min-height: 56px; }
+.deli-hero-note { font-size: 1rem; color: var(--ink-soft); margin: 18px 0 0; }
+.deli-hero-copy .stars-widget { margin-top: 22px; font-size: 1rem; }
+
+/* Hero occasion picker — the whole "birthday? baby shower? office?" decision in one tap,
+   right where a visitor lands, instead of a scroll-and-hunt further down the page. */
+.hero-occasion-picker { margin-top: 28px; }
+.hero-occasion-label {
+  display: block;
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 10px;
+}
+.hero-occasion-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.occasion-chip {
+  font-family: inherit;
+  font-size: .95rem;
+  font-weight: 600;
+  color: var(--navy);
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  padding: 10px 18px;
+  min-height: 44px;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+}
+.occasion-chip:hover, .occasion-chip:focus-visible { border-color: var(--navy); background: #fff; }
 .choice .family-promise .trust-chips li { color: var(--navy); background: var(--cream); border: 1px solid var(--line); }
 .choice .family-promise .trust-chips svg { width: 15px; height: 15px; }
 .js [data-reveal] { opacity: 1; translate: none; }
@@ -38,7 +67,18 @@
 .deli-hero-photo img { display: block; width: 100%; height: 100%; position: absolute; inset: 0; object-fit: cover; }
 .deli-hero-photo figcaption { position: absolute; bottom: 0; left: 0; right: 0; display: flex; justify-content: space-between; gap: 16px; padding: 22px 30px; color: var(--cream); background: var(--navy); font-size: .65rem; letter-spacing: .08em; }
 .deli-hero-photo figcaption span:last-child { font-family: var(--serif); font-style: italic; font-size: .9rem; letter-spacing: 0; }
-.choice .trust-strip { margin: 0; padding: 22px var(--space-gutter); background: var(--card); border-bottom: 1px solid var(--line); font-size: .7rem; color: var(--ink-soft); }
+.choice .trust-strip {
+  display: block; margin: 0; padding: var(--space-section) var(--space-gutter) clamp(32px, 5vw, 56px);
+  background: var(--card); border-bottom: 1px solid var(--line); text-align: center;
+}
+.choice .trust-strip .statement-line {
+  display: block; max-width: 20ch; margin: 0 auto 22px; font-family: var(--serif);
+  font-style: italic; font-weight: 400; font-size: var(--statement); line-height: 1.12;
+  letter-spacing: -0.015em; color: var(--navy);
+}
+.choice .trust-strip .stars-widget { justify-content: center; margin: 0; font-size: 1rem; }
+.choice .trust-strip .stars-widget .stars { font-size: 1rem; }
+.choice .trust-strip span:not(.statement-line) { display: none; }
 .choice .app-wide { max-width: 1440px; padding-inline: var(--space-gutter); }
 .choice .occasion-section, .choice .board-section { margin: var(--space-section) 0; }
 .choice .shelf-head { align-items: end; gap: 24px; margin-bottom: 36px; }
@@ -54,8 +94,8 @@
 .choice .board-card-body { padding: 22px 0 0; }
 .choice .board-card-name { font-size: 1.4rem; overflow-wrap: anywhere; }
 .choice .board-card-name a { text-decoration: none; }
-.choice .board-card-price { font-size: .83rem; margin-top: 12px; }
-.choice .board-card-actions .btn { font-size: .65rem; min-height: 46px; }
+.choice .board-card-price { font-size: 1.1rem; font-weight: 600; color: var(--ink); margin-top: 12px; }
+.choice .board-card-actions .btn { font-size: .95rem; min-height: 50px; }
 .choice .occasion-card { border: 0; box-shadow: none; background: transparent; }
 .choice .occasion-img { border-radius: 0; aspect-ratio: 4/3; }
 .choice .occasion-body { padding: 20px 0; border-bottom: 1px solid var(--line); }
@@ -63,7 +103,7 @@
 .deli-story { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-gutter); padding: var(--space-section) 0; border-block: 1px solid var(--line); }
 .deli-story h2 { font-size: var(--heading); font-weight: 400; }
 .deli-story p:not(.deli-eyebrow) { margin-top: 0; line-height: 1.85; color: var(--ink-soft); max-width: 50ch; }
-.deli-text-link { display: inline-flex; gap: 32px; min-height: 44px; align-items: center; text-decoration: none; border-bottom: 1px solid var(--navy); font-size: .8rem; }
+.deli-text-link { display: inline-flex; gap: 32px; min-height: 44px; align-items: center; text-decoration: none; border-bottom: 1px solid var(--navy); font-size: 1rem; font-weight: 600; }
 .choice .how-it-works { margin: var(--space-section) 0; }
 .choice .hiw-steps li { border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; padding: 28px 0; }
 .choice .hiw-num { background: transparent; color: var(--gold-text); border: 1px solid var(--line); }
@@ -103,11 +143,11 @@
   .deli-header-note { display: none; }
   .hdr.deli-header { grid-template-columns: 1fr auto; padding-top: 22px; }
   .deli-header .brand { grid-column: 1; align-items: start; padding-left: 20px; }
-  .deli-header .brand-sub { font-size: .5rem; }
+  .deli-header .brand-sub { font-size: .58rem; }
   .deli-header-basket { grid-column: 2; padding-right: 20px; }
   .deli-header .hdr-nav { gap: 6px 18px; }
-  .deli-header .hdr-nav a { font-size: .68rem; }
-  .deli-announcement { font-size: .58rem; }
+  .deli-header .hdr-nav a { font-size: .92rem; }
+  .deli-announcement { font-size: .68rem; }
   .deli-hero { min-height: 540px; }
   .deli-hero-copy { padding-inline: 24px; }
   .deli-hero h1 { font-size: clamp(2.5rem, 5.4vw, 4rem); }
@@ -123,29 +163,30 @@
   .deli-header-basket { grid-column: 3; padding: 0; }
   .deli-header .basket-pill { min-height: 44px; padding-inline: 8px; }
   .deli-mobile-menu { display: block; grid-column: 1; grid-row: 1; }
-  .deli-mobile-menu summary { display: flex; align-items: center; gap: 6px; list-style: none; min-height: 44px; cursor: pointer; font-size: .8rem; }
+  .deli-mobile-menu summary { display: flex; align-items: center; gap: 6px; list-style: none; min-height: 44px; cursor: pointer; font-size: 1rem; font-weight: 600; }
   .deli-mobile-menu summary::-webkit-details-marker { display: none; }
   .deli-mobile-menu nav { position: absolute; top: 100%; left: 0; right: 0; z-index: 50; display: grid; padding: 16px 24px; background: var(--navy); box-shadow: var(--shadow); }
-  .deli-mobile-menu nav a { color: var(--cream); min-height: 48px; display: flex; align-items: center; font-size: .9rem; text-decoration: none; border-bottom: 1px solid rgb(255 255 255 / 15%); }
+  .deli-mobile-menu nav a { color: var(--cream); min-height: 50px; display: flex; align-items: center; font-size: 1.05rem; font-weight: 500; text-decoration: none; border-bottom: 1px solid rgb(255 255 255 / 15%); }
+  .deli-mobile-menu nav a.is-primary-link { font-weight: 700; }
   .choice .bundle-grid > :only-child { grid-template-columns: 1fr; }
   .choice .bundle-grid > :only-child .bundle-img { max-height: 260px; }
   .deli-announcement { padding: 7px 28px; }
-  .deli-header .basket-pill { font-size: .75rem; cursor: pointer; }
+  .deli-header .basket-pill { font-size: .95rem; cursor: pointer; }
   .deli-hero { grid-template-columns: 1fr; }
   .deli-hero-copy { padding: 48px 24px 38px; }
   .deli-hero h1 { font-size: clamp(2.9rem, 11vw, 4.4rem); }
-  .deli-hero-intro { font-size: .9rem; }
+  .deli-hero-intro { font-size: 1.05rem; }
   .deli-hero-photo { min-height: 340px; }
   .deli-hero-photo figcaption { flex-direction: row; }
-  .choice .trust-strip { flex-wrap: wrap; gap: 8px 14px; font-size: .65rem; }
+  .choice .trust-strip { flex-wrap: wrap; gap: 8px 14px; font-size: .85rem; }
   .choice .shelf-head { align-items: start; flex-direction: column; gap: 12px; }
   .deli-story { grid-template-columns: 1fr; }
   .choice .board-grid { grid-template-columns: 1fr; }
-  .choice .occasion-grid { display: flex; overflow-x: auto; gap: 18px; scroll-snap-type: x mandatory; padding-bottom: 12px; }
-  .choice .occasion-card { flex: 0 0 76%; scroll-snap-align: start; }
-  .choice .occasion-name { font-size: 1.25rem; }
-  .choice .occasion-tag { font-size: .75rem; }
-  .choice .occasion-go { font-size: .65rem; }
+  .choice .occasion-grid { display: grid; grid-template-columns: 1fr; gap: 14px; overflow-x: visible; padding-bottom: 0; }
+  .choice .occasion-card { flex: initial; }
+  .choice .occasion-name { font-size: 1.3rem; }
+  .choice .occasion-tag { font-size: .95rem; }
+  .choice .occasion-go { font-size: .85rem; }
   .choice .family-promise { padding: 28px 20px; }
 }
 

@@ -17,7 +17,15 @@ export interface ProductGroup {
   hasChoice: boolean;
 }
 
-const priceOf = (p: Platter): number => p.fixedPrice ?? p.fromPrice ?? 0;
+export const priceOf = (p: Platter): number => p.fixedPrice ?? p.fromPrice ?? 0;
+
+/** The variant that "From £x" actually refers to — so the price on a card is always
+ * paired with THAT variant's own serving guide, never a combined range across sizes
+ * (pairing the cheapest price with the widest range implies the smallest board feeds
+ * the most people, which isn't true). */
+export function cheapestVariant(g: ProductGroup): Platter {
+  return g.variants.reduce((a, b) => (priceOf(b) < priceOf(a) ? b : a));
+}
 
 /**
  * Collapse a board list into product groups, preserving the incoming order: a group appears

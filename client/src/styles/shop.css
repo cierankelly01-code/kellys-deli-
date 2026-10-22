@@ -20,21 +20,23 @@
   text-align: left;
   padding: 0;
   overflow: hidden;
-  border: 1px solid var(--line);
-  background: var(--card);
-  border-radius: var(--radius);
+  border: 0;
+  background: transparent;
+  border-radius: 0;
   cursor: pointer;
-  transition: transform var(--dur-std) var(--ease-enter), box-shadow var(--dur-std) var(--ease-enter);
+  transition: opacity var(--dur-std) var(--ease-enter);
 }
-.occasion-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+@media (hover: hover) { .occasion-card:hover .occasion-img { transform: scale(1.03); } }
 .occasion-img {
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 4 / 3;
   background-size: cover;
   background-position: center;
   background-color: #ece4d5;
+  overflow: hidden;
+  transition: transform var(--dur-reveal) var(--ease-enter);
 }
-.occasion-body { padding: 14px 16px 18px; }
-.occasion-name { font-size: 1.3rem; margin: 0 0 4px; }
+.occasion-body { padding: 20px 0; border-bottom: 1px solid var(--line); }
+.occasion-name { font-family: var(--serif); font-weight: 400; font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -0.01em; }
 .occasion-tag { color: var(--ink-soft); margin: 0 0 10px; font-size: 0.95rem; }
 .occasion-go {
   display: inline-block;
@@ -42,7 +44,7 @@
   font-size: 0.82rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--gold-text);
+  color: var(--navy);
 }
 
 /* ---------- Category landing page ---------- */

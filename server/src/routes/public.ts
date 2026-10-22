@@ -466,9 +466,18 @@ publicRouter.get("/categories/browse", async (_req, res) => {
   const cats = await prisma.category.findMany({
     where: { active: true },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-    include: { _count: { select: { platters: true } } },
+    include: { platters: { include: { platter: { select: { id: true, active: true, variantGroup: true } } } } },
   });
-  res.json(cats.map((c) => categoryDTO(c, { boardCount: c._count.platters })));
+  res.json(
+    cats.map((c) => {
+      // Count active, distinct products — not raw assignment rows. A row for an inactive
+      // board, or a second size of the same board, must not inflate "N boards" on the tile
+      // beyond what actually appears once the customer opens the category.
+      const active = c.platters.filter((pc) => pc.platter.active);
+      const distinctGroups = new Set(active.map((pc) => pc.platter.variantGroup || pc.platter.id));
+      return categoryDTO({ ...c, platters: undefined }, { boardCount: distinctGroups.size });
+    }),
+  );
 });
 
 // One category + its assigned, active boards (in assignment order) for the landing page.

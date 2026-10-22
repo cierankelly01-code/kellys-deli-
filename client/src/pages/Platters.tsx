@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, type CategoryCounts, type Platter } from "../lib/api";
-import { groupVariants, groupServes, type ProductGroup } from "../lib/variants";
+import { groupVariants, cheapestVariant, type ProductGroup } from "../lib/variants";
 import { addBoard } from "../lib/cart";
 import { openCartDrawer } from "../components/CartDrawer";
 import { gbp } from "../lib/format";
@@ -12,12 +12,14 @@ import { Faq } from "../components/Faq";
 import { DeadlineChip, Stars } from "../components/Trust";
 import { morphNavigate } from "../lib/motion";
 
-/** Price + feeds line, e.g. "£60 · feeds 8–10", or "From £22.50 · feeds 2–4 – 10–15" for a
- *  board sold in several sizes. "From" quotes the cheapest size, which is the honest anchor. */
+/** Price + feeds line, e.g. "£60 · feeds 8–10", or "From £22.50 · feeds 2–4" for a board sold
+ *  in several sizes. The "From" price is always paired with THAT size's own serving guide —
+ *  never a combined range across every size, which would wrongly imply the cheapest board
+ *  feeds as many as the largest one. */
 function priceFeeds(g: ProductGroup): string {
-  const price = g.hasChoice ? `From ${gbp(g.fromPrice)}` : gbp(g.lead.fixedPrice ?? g.lead.fromPrice ?? 0);
-  const serves = groupServes(g.variants);
-  return serves ? `${price} · feeds ${serves}` : price;
+  const target = g.hasChoice ? cheapestVariant(g) : g.lead;
+  const price = g.hasChoice ? `From ${gbp(g.fromPrice)}` : gbp(target.fixedPrice ?? target.fromPrice ?? 0);
+  return target.serves ? `${price} · feeds ${target.serves}` : price;
 }
 
 export default function Platters() {

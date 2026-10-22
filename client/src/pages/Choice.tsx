@@ -9,7 +9,7 @@ import { StickyCta } from "../components/StickyCta";
 import { Faq } from "../components/Faq";
 import { DeadlineChip, Stars, TrustChips } from "../components/Trust";
 import { morphNavigate } from "../lib/motion";
-import { groupVariants, groupServes, type ProductGroup } from "../lib/variants";
+import { groupVariants, cheapestVariant, type ProductGroup } from "../lib/variants";
 import { Bundles } from "../components/Bundles";
 import { ReminderCapture } from "../components/ReminderCapture";
 import { DeliVideos } from "../components/DeliVideos";
@@ -59,9 +59,9 @@ function computeOpenStatus(hours: OpeningHours): { open: boolean; text: string }
 }
 
 function priceFeeds(g: ProductGroup): string {
-  const price = g.hasChoice ? `From ${gbp(g.fromPrice)}` : gbp(g.lead.fixedPrice ?? g.lead.fromPrice ?? 0);
-  const serves = groupServes(g.variants);
-  return serves ? `${price} · feeds ${serves}` : price;
+  const target = g.hasChoice ? cheapestVariant(g) : g.lead;
+  const price = g.hasChoice ? `From ${gbp(g.fromPrice)}` : gbp(target.fixedPrice ?? target.fromPrice ?? 0);
+  return target.serves ? `${price} · feeds ${target.serves}` : price;
 }
 
 export default function Choice() {
@@ -91,6 +91,16 @@ export default function Choice() {
   // One tile per board, not one per size (see lib/variants).
   const signature = groupVariants(boards ?? []).slice(0, 6);
 
+  // The one-tap answer to "what am I actually planning?" — right in the hero, so a
+  // birthday or baby-shower search doesn't have to scroll to find its category.
+  const OCCASION_CHIPS: Array<{ label: string; to: string }> = [
+    { label: "Birthday", to: "/shop/hosting" },
+    { label: "Baby shower", to: "/shop/hosting" },
+    { label: "Office lunch", to: "/office-catering" },
+    { label: "Night in", to: "/shop/at-home" },
+    { label: "Bread", to: "/bread" },
+  ];
+
   return (
     <div className="choice">
       <Header />
@@ -101,21 +111,26 @@ export default function Choice() {
           <p className="deli-hero-intro">Hand-prepared boards, generous platters and deli favourites. For a table full of friends, or simply something lovely for the weekend.</p>
           <Link className="btn deli-primary" to={`/platters${suffix}`}>Explore our boards <span aria-hidden="true">↗</span></Link>
           <p className="deli-hero-note">Made to order. Collected from your local deli.</p>
-          {counts?.reviewRating && <Stars rating={counts.reviewRating} count={counts.reviewCount} />}
+
+          <div className="hero-occasion-picker">
+            <span className="hero-occasion-label">What are you planning?</span>
+            <div className="hero-occasion-chips">
+              {OCCASION_CHIPS.map((c) => (
+                <button key={c.label} className="occasion-chip" onClick={() => go(c.to)}>{c.label}</button>
+              ))}
+            </div>
+          </div>
         </div>
         <figure className="deli-hero-photo">
-          <img src={counts?.heroImageUrl || DEFAULT_HERO_IMG} alt="A generous spread of cheese, charcuterie and accompaniments" width="1000" height="1100" {...{ fetchpriority: "high" }} />
+          <img src={counts?.heroImageUrl || DEFAULT_HERO_IMG} alt="A grazing board of cheese, charcuterie and accompaniments from Kelly's Deli, Bentley Heath, Solihull" width="1000" height="1100" {...{ fetchpriority: "high" }} />
           <figcaption><span>THE KELLY’S TABLE</span><span>Something for everyone.</span></figcaption>
         </figure>
       </header>
 
-      {/* Trust strip (build spec §5.3) */}
+      {/* Statement band — the brand promise in one line, with the social proof beneath it. */}
       <div className="trust-strip">
-        <span>Independent &amp; family-run</span>
-        <span aria-hidden="true">·</span>
-        <span>Made in Bentley Heath</span>
-        <span aria-hidden="true">·</span>
-        <span>Prepared for your occasion</span>
+        <span className="statement-line">Independent, family-run, and prepared for your occasion.</span>
+        {counts?.reviewRating && <Stars rating={counts.reviewRating} count={counts.reviewCount} />}
       </div>
 
       {counts?.firstOrderHook && counts.firstOrderHookText && (
@@ -124,6 +139,12 @@ export default function Choice() {
           <span><b>First order?</b> {counts.firstOrderHookText} — on us.</span>
         </div>
       )}
+
+      <button className="office-signpost" onClick={() => go("/office-catering")} data-reveal>
+        <span className="office-signpost-eyebrow">Lunch for the office?</span>
+        <span className="office-signpost-title">Platters for meetings and team lunches.</span>
+        <span className="office-signpost-cta">Office catering <span aria-hidden="true">→</span></span>
+      </button>
 
       <div className="app app-wide">
         <section className="board-section">
@@ -255,11 +276,6 @@ export default function Choice() {
             </div>
           </div>
         )}
-
-        <div className="referral-teaser">
-          <span className="referral-teaser-title">Refer a friend, you both get £15 off</span>
-          <span className="muted">Every order gives you a code to share — turns up on your confirmation page.</span>
-        </div>
 
         <ReminderCapture />
         <Faq />

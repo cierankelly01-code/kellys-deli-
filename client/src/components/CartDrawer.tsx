@@ -297,7 +297,7 @@ export function CartDrawer() {
             {bundleSaving.amount > 0 && <div className="spread bundle-saving" role="status"><span>{bundleSaving.name} saving</span><span>−{gbp(bundleSaving.amount)}</span></div>}
             {subscriptionSaving > 0 && <div className="spread"><span>Subscribe &amp; save ({subscriptionPct}%)</span><span>−{gbp(subscriptionSaving)}</span></div>}
             <div className="spread"><span className="muted">{subscriptionSaving > 0 ? "Total per delivery" : "Total"}</span><strong>{gbp(basketTotal)}</strong></div>
-            <div className="spread small"><span>Pay today · 25% deposit</span><strong>{gbp(deposit)}</strong></div>
+            <div className="spread small"><span>25% deposit to confirm</span><strong>{gbp(deposit)}</strong></div>
             <div className="spread small muted"><span>Balance on collection</span><span>{gbp(balance)}</span></div>
             <button className="btn" onClick={checkout}>Continue — choose collection day</button>
             <p className="drawer-reassure">Deposit is fully refundable up to 48 hours before collection.</p>

@@ -8,6 +8,8 @@ import "./styles/shop.css";
 import "./styles/admin.css";
 import "./styles/tokens.css";
 import "./styles/editorial.css";
+import "./styles/office.css";
+import "./styles/our-story.css";
 import { startMotion } from "./lib/motion";
 
 startMotion();
