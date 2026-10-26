@@ -31,6 +31,11 @@ model Location {
   breadProducts     BreadProductLocation[]
   breadShopSetting  BreadShopSetting?
   breadClosures     BreadClosure[]
+  // Groceries click & collect (separate subsystem — see models below).
+  groceryOrders     GroceryOrder[]
+  groceryProducts   GroceryProductLocation[]
+  groceryShopSetting GroceryShopSetting?
+  groceryClosures   GroceryClosure[]
 }
 
 model Platter {
@@ -541,4 +546,115 @@ model BreadSettings {
   minOrderQty      Int      @default(1) // minimum total items per order
   maxItemQty       Int      @default(20) // maximum quantity per line item
   updatedAt        DateTime @updatedAt
+}
+
+// --- Groceries click & collect (deli counter: sandwiches, salads, pies, bakery...) ---
+// Deliberately a SEPARATE catalogue from Bread, not a shared "shop item" abstraction: the
+// two were kept apart because a future divergence (grocery needs photos-per-item, bread
+// doesn't; grocery may want per-department sort order) is more likely than a merge, and
+// splitting later is harder than two small siblings now. Same reasoning as Bread for NOT
+// reusing the catering Order/weeklyCapacity flow: that cap (3-5/day) exists to throttle
+// big event bookings and would badly throttle normal grocery footfall.
+
+// A deli-counter item available for click & collect. Fully admin-managed.
+model GroceryProduct {
+  id          String                   @id @default(cuid())
+  // Display grouping on the shop page, e.g. "sandwiches" | "salads" | "salami" | "meats" |
+  // "quiches" | "cheese" | "pies" | "tubs" | "savoury" | "pantry" | "cakes". Free text,
+  // admin-managed — not a hardcoded enum (same convention as Platter.category).
+  department  String
+  name        String
+  description String?
+  price       Decimal                  @db.Decimal(10, 2)
+  unitLabel   String? // display, e.g. "each" | "pack of 4" | "per sheet"
+  imageUrl    String?
+  active      Boolean                  @default(true)
+  sortOrder   Int                      @default(0)
+  locations   GroceryProductLocation[] // which shops sell this item
+  orderItems  GroceryOrderItem[]
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  @@index([active, department, sortOrder])
+}
+
+// Per-shop availability join (a product can be sold at some shops, not others).
+model GroceryProductLocation {
+  id         String         @id @default(cuid())
+  productId  String
+  product    GroceryProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  locationId String
+  location   Location       @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  createdAt  DateTime       @default(now())
+
+  @@unique([productId, locationId])
+  @@index([locationId])
+}
+
+model GroceryOrder {
+  id             String             @id @default(cuid())
+  ref            String             @unique // e.g. "KDS-7F3K9Q" — distinct prefix (platters: KD-, bread: KDB-)
+  locationId     String
+  location       Location           @relation(fields: [locationId], references: [id])
+  collectionDate DateTime           @db.Date
+  customerName   String
+  phone          String
+  email          String?
+  notes          String?
+  status         String             @default("pending") // pending | confirmed | collected | cancelled
+  items          GroceryOrderItem[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([locationId, collectionDate])
+  @@index([status])
+}
+
+// A product line on a grocery order. name + unitPrice are snapshots at order time — a
+// later admin price edit must not rewrite history (mirrors BreadOrderItem).
+model GroceryOrderItem {
+  id        String         @id @default(cuid())
+  orderId   String
+  order     GroceryOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   GroceryProduct @relation(fields: [productId], references: [id])
+  name      String
+  unitPrice Decimal        @db.Decimal(10, 2)
+  quantity  Int
+}
+
+// Per-shop click & collect rules (unlimited by default — dailyCapacity null).
+model GroceryShopSetting {
+  id            String   @id @default(cuid())
+  locationId    String   @unique
+  location      Location @relation(fields: [locationId], references: [id])
+  dailyCapacity Int? // max total item quantity per day; null = unlimited
+  closedWeekdays Int[] // 0=Sun..6=Sat, recurring closures
+  notifyEmail   String? // where this shop's new-order emails go; unset = no shop email sent
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// One-off closed dates per shop (bank holidays, unplanned closures).
+model GroceryClosure {
+  id         String   @id @default(cuid())
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  date       DateTime @db.Date
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  @@unique([locationId, date])
+  @@index([locationId])
+}
+
+// Singleton row: global ordering rules. Default leadTimeHours 24 — "minimum 24 hours,
+// can't do same day" (the owner's rule), simpler than Bread's cutoff-clock mode since
+// groceries don't hinge on a bakery call time.
+model GrocerySettings {
+  id            String   @id @default("singleton")
+  leadTimeHours Int      @default(24)
+  minOrderQty   Int      @default(1)
+  maxItemQty    Int      @default(20)
+  updatedAt     DateTime @updatedAt
 }

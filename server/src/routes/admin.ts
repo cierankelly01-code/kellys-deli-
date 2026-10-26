@@ -1,6 +1,7 @@
 import { asyncRouter } from "../lib/async-router";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
+import { Prisma } from "@prisma/client";
 import { env } from "../lib/env";
 import {
   orderDTO,
@@ -489,7 +490,13 @@ adminRouter.patch("/locations/:id", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "Invalid location update" });
   const exists = await prisma.location.findUnique({ where: { id: req.params.id } });
   if (!exists) return res.status(404).json({ error: "Location not found" });
-  const updated = await prisma.location.update({ where: { id: req.params.id }, data: parsed.data });
+  // Prisma's JSON column needs the explicit Prisma.JsonNull sentinel to clear a value —
+  // a plain `null` here is typed as "field not provided", not "set it to null".
+  const { openingHours, ...rest } = parsed.data;
+  const updated = await prisma.location.update({
+    where: { id: req.params.id },
+    data: { ...rest, ...(openingHours !== undefined && { openingHours: openingHours ?? Prisma.JsonNull }) },
+  });
   res.json(locationDTO(updated));
 });
 

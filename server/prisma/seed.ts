@@ -555,13 +555,21 @@ async function main() {
   // description/photo — never invent a customer-facing price. The owner sets a real price,
   // description and photo in admin (Bread Settings) and flips each item active. Available
   // at every shop by default; the owner narrows that per-shop in admin if needed.
+  // Real range given by the owner 2026-10-26 (replaces the earlier 6-item placeholder list).
   const breadProducts = [
     { id: "bread-crusty-cobs", name: "Crusty Cobs" },
-    { id: "bread-bloomer", name: "Bloomer" },
-    { id: "bread-sourdough", name: "Sourdough" },
-    { id: "bread-seeded-loaf", name: "Seeded Loaf" },
-    { id: "bread-baguette", name: "Baguette" },
-    { id: "bread-rolls", name: "Bread Rolls" },
+    { id: "bread-soft-cobs-6", name: "Soft Cobs (Pack of 6)" },
+    { id: "bread-soft-seeded-cobs-4", name: "Soft Seeded Cobs (Pack of 4)" },
+    { id: "bread-brioche-buns-4", name: "Brioche Buns (Pack of 4)" },
+    { id: "bread-white-coburg", name: "White Coburg" },
+    { id: "bread-granary-coburg", name: "Granary Coburg" },
+    { id: "bread-white-tin-loaf", name: "White Tin Loaf" },
+    { id: "bread-granary-tin-loaf", name: "Granary Tin Loaf" },
+    { id: "bread-white-sourdough-large", name: "White Sourdough — Large" },
+    { id: "bread-white-sourdough-small", name: "White Sourdough — Small" },
+    { id: "bread-seeded-sourdough-large", name: "Seeded Sourdough — Large" },
+    { id: "bread-seeded-sourdough-small", name: "Seeded Sourdough — Small" },
+    { id: "bread-french-stick", name: "French Stick" },
   ];
   // Guarded: the bread tables ship via their own migrations (bread_preordering,
   // bread_shop_notify_email), which may not be deployed everywhere the rest of this
@@ -600,6 +608,108 @@ async function main() {
     }
   }
 
+  // --- Groceries click & collect (sensible defaults; all editable in admin) ---
+  // Real list given by the owner 2026-10-26 — walked through his shop's actual counter,
+  // department by department. Seeded INACTIVE, price 0 placeholder, no photo — same
+  // "never invent a customer-facing price" convention as bread. Salads are deliberately
+  // NOT seeded here: the owner said 5-8 but hasn't named them yet — don't invent flavours.
+  const groceryProducts = [
+    // sandwiches
+    { id: "grocery-sandwich-ham-salad", department: "sandwiches", name: "Ham Salad Sandwich" },
+    { id: "grocery-sandwich-ham-cheese", department: "sandwiches", name: "Ham & Cheese Sandwich" },
+    { id: "grocery-sandwich-cheese-onion", department: "sandwiches", name: "Cheese & Onion Sandwich" },
+    { id: "grocery-sandwich-turkey-salad", department: "sandwiches", name: "Turkey Salad Sandwich" },
+    { id: "grocery-sandwich-daily-special", department: "sandwiches", name: "Daily Special Sandwich", description: "Rotating special (often Italian) — changes day to day, ask in store." },
+    // salami
+    { id: "grocery-salami-mixed-sheet", department: "salami", name: "Mixed Salami Sheet", unitLabel: "per sheet" },
+    // meats (deli counter, sliced)
+    { id: "grocery-meat-ham", department: "meats", name: "Ham" },
+    { id: "grocery-meat-turkey", department: "meats", name: "Turkey" },
+    { id: "grocery-meat-pork-stuffing", department: "meats", name: "Pork & Stuffing" },
+    { id: "grocery-meat-honey-roast-ham", department: "meats", name: "Honey Roast Ham" },
+    // quiches
+    { id: "grocery-quiche-mixed-pepper", department: "quiches", name: "Mixed Pepper Quiche" },
+    { id: "grocery-quiche-cheese-onion", department: "quiches", name: "Cheese & Onion Quiche" },
+    { id: "grocery-quiche-lorraine", department: "quiches", name: "Quiche Lorraine" },
+    { id: "grocery-quiche-cheese-broccoli", department: "quiches", name: "Cheese & Broccoli Quiche" },
+    // cheese (owner will expand this list once photos are in)
+    { id: "grocery-cheese-blue", department: "cheese", name: "Blue Cheese" },
+    { id: "grocery-cheese-brie", department: "cheese", name: "Brie" },
+    // pies
+    { id: "grocery-pie-steak-kidney", department: "pies", name: "Steak & Kidney Pie" },
+    { id: "grocery-pie-steak", department: "pies", name: "Steak Pie" },
+    { id: "grocery-pie-chicken-mushroom", department: "pies", name: "Chicken & Mushroom Pie" },
+    // tubs
+    { id: "grocery-tub-stuffed-red-peppers", department: "tubs", name: "Stuffed Red Peppers" },
+    { id: "grocery-tub-balsamic-onions", department: "tubs", name: "Balsamic Onions" },
+    { id: "grocery-tub-mixed-olives", department: "tubs", name: "Mixed Olives" },
+    // savoury grab-and-go
+    { id: "grocery-savoury-pasty", department: "savoury", name: "Pasty" },
+    { id: "grocery-savoury-sausage-roll", department: "savoury", name: "Sausage Roll" },
+    { id: "grocery-savoury-pork-pie-small", department: "savoury", name: "Small Pork Pie" },
+    { id: "grocery-savoury-pork-pie-large", department: "savoury", name: "Large Pork Pie" },
+    { id: "grocery-savoury-scotch-egg", department: "savoury", name: "Scotch Egg" },
+    { id: "grocery-savoury-chicken-pakora", department: "savoury", name: "Chicken Pakora" },
+    { id: "grocery-savoury-veg-pakora", department: "savoury", name: "Vegetable Pakora" },
+    { id: "grocery-savoury-chicken-samosa", department: "savoury", name: "Chicken Samosa" },
+    { id: "grocery-savoury-veg-samosa", department: "savoury", name: "Vegetable Samosa" },
+    // pantry
+    { id: "grocery-pantry-crackers", department: "pantry", name: "Crackers" },
+    { id: "grocery-pantry-chutney", department: "pantry", name: "Chutney" },
+    { id: "grocery-pantry-jam", department: "pantry", name: "Jam" },
+    { id: "grocery-pantry-italian-pasta", department: "pantry", name: "Italian Pasta" },
+    { id: "grocery-pantry-crisps", department: "pantry", name: "Crisps" },
+    // cakes & sweet
+    { id: "grocery-cake-old-school-slice", department: "cakes", name: "Old School Slice" },
+    { id: "grocery-cake-cream-slice", department: "cakes", name: "Cream Slice" },
+    { id: "grocery-cake-scone", department: "cakes", name: "Scone" },
+    { id: "grocery-cake-cornflake", department: "cakes", name: "Cornflake Cake" },
+    { id: "grocery-cake-brownie", department: "cakes", name: "Brownie" },
+    { id: "grocery-cake-cannoli-lemon", department: "cakes", name: "Cannoli — Lemon" },
+    { id: "grocery-cake-cannoli-salted-caramel", department: "cakes", name: "Cannoli — Salted Caramel" },
+    { id: "grocery-cake-cannoli-pistachio", department: "cakes", name: "Cannoli — Pistachio" },
+    { id: "grocery-cake-cannoli-hazelnut", department: "cakes", name: "Cannoli — Hazelnut" },
+    { id: "grocery-cake-italian-seasonal", department: "cakes", name: "Seasonal Italian Cake", description: "E.g. rhubarba — only when available from the supplier." },
+  ];
+  // Guarded the same way as bread: the grocery tables ship via their own migration,
+  // which may not be deployed everywhere the rest of this catalogue is seeded from.
+  const groceryTablesReady = await prisma.$queryRaw<{ ready: boolean }[]>`SELECT to_regclass('public."GroceryProduct"') IS NOT NULL AS ready`;
+  if (!groceryTablesReady[0]?.ready) {
+    console.log("Skipping grocery catalogue seed — GroceryProduct table not found (pending migration).");
+  } else {
+    await prisma.grocerySettings.upsert({
+      where: { id: "singleton" },
+      update: {},
+      create: { id: "singleton" }, // leadTimeHours 24, minOrderQty 1, maxItemQty 20
+    });
+    for (const loc of locations) {
+      await prisma.groceryShopSetting.upsert({
+        where: { locationId: loc.id },
+        update: {},
+        create: { locationId: loc.id, dailyCapacity: null, closedWeekdays: [] }, // unlimited, no recurring closures
+      });
+    }
+    for (let i = 0; i < groceryProducts.length; i++) {
+      const g = groceryProducts[i];
+      await prisma.groceryProduct.upsert({
+        where: { id: g.id },
+        update: {},
+        create: {
+          id: g.id, department: g.department, name: g.name,
+          description: g.description ?? null, unitLabel: g.unitLabel ?? null,
+          price: 0, active: false, sortOrder: i,
+        },
+      });
+      for (const loc of locations) {
+        await prisma.groceryProductLocation.upsert({
+          where: { productId_locationId: { productId: g.id, locationId: loc.id } },
+          update: {},
+          create: { productId: g.id, locationId: loc.id },
+        });
+      }
+    }
+  }
+
   // --- Users (staff) ---
   const target = process.env.DATABASE_URL ?? "";
   // Gate on the DATABASE we're pointed at, NOT on NODE_ENV. A dev shell routinely
@@ -631,7 +741,7 @@ async function main() {
     create: { name: "Demo Customer", phone: "07700900123", email: "demo@example.com", referralCode: randomReferralCode() },
   });
 
-  console.log(`Seeded ${locations.length} locations, ${boards.length + atHomeBoards.length + draftPlatters.length} boards/pots/desserts/sandwiches (${draftPlatters.length} draft, inactive), ${categories.length} categories, ${addOns.length} add-ons, ${breadProducts.length} bread products (draft, inactive), ${settings.length} settings, admin <${email}>.`);
+  console.log(`Seeded ${locations.length} locations, ${boards.length + atHomeBoards.length + draftPlatters.length} boards/pots/desserts/sandwiches (${draftPlatters.length} draft, inactive), ${categories.length} categories, ${addOns.length} add-ons, ${breadProducts.length} bread products (draft, inactive), ${groceryProducts.length} grocery products (draft, inactive), ${settings.length} settings, admin <${email}>.`);
 }
 
 main()
