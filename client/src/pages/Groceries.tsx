@@ -13,6 +13,7 @@ const NOTES_LIMIT = 200;
 // same convention as Platter.category), mapped here for presentation only.
 const DEPARTMENT_LABELS: Record<string, string> = {
   sandwiches: "Sandwiches",
+  "open-sandwiches": "Open Sandwiches",
   salads: "Salads",
   salami: "Salami",
   meats: "Deli Meats",

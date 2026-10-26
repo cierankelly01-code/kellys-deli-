@@ -23,7 +23,7 @@ const WEEKDAY_OPTIONS = [
 // The departments the seed catalogue uses today — a free-text field underneath, so a new
 // department (e.g. "salads") can still be typed in without a code change.
 const KNOWN_DEPARTMENTS = [
-  "sandwiches", "salami", "meats", "quiches", "cheese", "pies", "tubs", "savoury", "pantry", "cakes",
+  "sandwiches", "open-sandwiches", "salads", "salami", "meats", "quiches", "cheese", "pies", "tubs", "savoury", "pantry", "cakes",
 ];
 
 // Drops any locationId the admin can't see/toggle here (e.g. a shop later made inactive) —
