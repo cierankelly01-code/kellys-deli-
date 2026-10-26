@@ -55,6 +55,9 @@ html, body {
   overflow-x: hidden;
 }
 
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
 h1, h2, h3 { font-family: var(--serif); color: var(--ink); line-height: 1.1; margin: 0 0 0.4em; font-weight: 500; letter-spacing: -0.01em; }
 h1 { font-size: 2rem; }
 h2 { font-size: 1.4rem; }

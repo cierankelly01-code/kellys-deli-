@@ -124,6 +124,7 @@ export default function Bread() {
         <div className="confirm-hero center">
           <div className="tick">✓</div>
           <h1>Your bread&apos;s booked in!</h1>
+          <p className="confirm-collection">Collection <strong>{formatDateLong(confirmed.collectionDate)}</strong> — {confirmed.locationName}</p>
           <p className="confirm-copy">
             Pay on collection — we&apos;ll text you if anything changes.
             {confirmed.email && " We've also emailed you a confirmation."}

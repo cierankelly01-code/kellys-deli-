@@ -531,6 +531,30 @@
 .stepper input { width: 56px; text-align: center; font-size: 1rem; padding: 6px; border: 1px solid var(--line); border-radius: 8px; }
 .stepper .stepper-val { min-width: 24px; text-align: center; font-weight: 700; }
 
+/* Department quick-nav (Groceries) — a sticky row of chips so a customer who knows what
+   they want can jump straight there in one tap, without the full catalogue being hidden
+   or filtered out: they still scroll past (and get tempted by) everything else on the way,
+   which is the point — this is upsell surface, not just a shortcut. */
+.dept-nav {
+  position: sticky; top: 0; z-index: 5; display: flex; gap: 8px; overflow-x: auto;
+  padding: 12px 0; margin: 16px 0; background: var(--cream);
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.dept-nav::-webkit-scrollbar { display: none; }
+.dept-nav-chip {
+  flex: 0 0 auto; padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px;
+  background: #fff; color: var(--ink); font-weight: 700; font-size: 0.9rem; text-decoration: none;
+  white-space: nowrap;
+}
+.dept-nav-chip:hover { border-color: var(--brick); color: var(--brick); }
+.dept-section { scroll-margin-top: 64px; }
+
+/* A browsing page that goes wide (app-wide, multi-column grid) still wants its checkout
+   form/calendar at a focused, readable width, not stretched to the full grid — same width
+   as Bread's single-column order page, just centered instead of edge-aligned. */
+.checkout-panel { max-width: var(--maxw); margin-inline: auto; }
+
 /* Order line summary */
 .order-boards { padding: 14px; }
 .order-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
@@ -580,6 +604,7 @@
 .combo-add select { flex: 1; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); font: inherit; }
 .combo-totals { padding: 12px 14px; margin: 12px 0; }
 .undercater-warning { color: var(--warn, #a6761d); background: var(--warn-bg, #fdf6e3); border-radius: var(--radius-sm); padding: 10px 12px; font-weight: 600; }
+.confirm-collection { font-weight: 700; font-size: 1.05rem; color: var(--ink); margin: 2px 0 8px; }
 .confirm-copy { max-width: 34ch; margin: 6px auto 14px; color: var(--ink-soft); }
 
 /* =====================  The Family Table — v3 conversion layer  ===================== */

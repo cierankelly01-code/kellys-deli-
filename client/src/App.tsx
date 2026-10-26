@@ -50,6 +50,14 @@ function CustomerLayout() {
     trackPageView(location.pathname);
   }, [location.pathname]);
 
+  // React Router doesn't reset scroll position on navigation the way a full page load
+  // does — without this, clicking a link from partway down one page lands you partway
+  // down the next. Skip it for an in-page anchor (e.g. "#dept-sandwiches"), which should
+  // scroll TO that anchor, not past it back to the top.
+  useEffect(() => {
+    if (!location.hash) window.scrollTo(0, 0);
+  }, [location.pathname, location.hash]);
+
   return (
     <>
       {/* Lives here, not in Header: the Header renders inside <main>, so a skip link

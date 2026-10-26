@@ -155,6 +155,7 @@ export default function Groceries() {
         <div className="confirm-hero center">
           <div className="tick">✓</div>
           <h1>Your order&apos;s ready to collect!</h1>
+          <p className="confirm-collection">Collection <strong>{formatDateLong(confirmed.collectionDate)}</strong> — {confirmed.locationName}</p>
           <p className="confirm-copy">
             Pay on collection — we&apos;ll text you if anything changes.
             {confirmed.email && " We've also emailed you a confirmation."}
@@ -215,8 +216,16 @@ export default function Groceries() {
         </p>
       )}
 
+      {grouped.length > 1 && (
+        <nav className="dept-nav" aria-label="Jump to department">
+          {grouped.map(([department]) => (
+            <a key={department} href={`#dept-${department}`} className="dept-nav-chip">{departmentLabel(department)}</a>
+          ))}
+        </nav>
+      )}
+
       {grouped.map(([department, items]) => (
-        <section key={department} className="board-section" style={{ marginTop: 24 }}>
+        <section key={department} id={`dept-${department}`} className="board-section dept-section" style={{ marginTop: 24 }}>
           <h2 className="section-h">{departmentLabel(department)}</h2>
           <div className="board-grid">
             {items.map((p) => (
@@ -243,7 +252,7 @@ export default function Groceries() {
       ))}
 
       {grouped.length > 0 && (
-        <>
+        <div className="checkout-panel">
           {lines.length > 0 && (
             <div className="running-total" style={{ marginTop: 24 }}>
               <div><span className="muted">Basket ({totalQty} item{totalQty === 1 ? "" : "s"})</span> <strong>{gbp(total)}</strong></div>
@@ -292,7 +301,7 @@ export default function Groceries() {
               <p className="muted small">Collection {formatDate(date)} — pay in shop, no card needed now.</p>
             )}
           </section>
-        </>
+        </div>
       )}
     </div>
   );
