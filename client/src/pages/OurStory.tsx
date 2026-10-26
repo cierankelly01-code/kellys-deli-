@@ -103,7 +103,7 @@ export default function OurStory() {
 
       <section className="os-note" data-reveal>
         <p className="os-note-text">&ldquo;{counts?.founderNote || DEFAULT_NOTE}&rdquo;</p>
-        <p className="os-note-attr">— Kelly&apos;s Deli, Bentley Heath</p>
+        <p className="os-note-attr">— Kelly&apos;s Deli</p>
       </section>
 
       <section className="os-about" data-reveal>

@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 
-const DEFAULT = "Kelly's Deli Bentley Heath — Grazing Boards & Platters, Solihull";
+const DEFAULT = "Kelly's Deli — Grazing Boards & Platters, Solihull & Stratford-upon-Avon";
 const DEFAULT_DESC =
-  "Family-run deli in Bentley Heath, Solihull. Order charcuterie, cheese and grazing boards and catering platters for collection, made fresh. A 25% deposit secures your order.";
+  "Family-run deli in Bentley Heath, Solihull and Stratford-upon-Avon. Order charcuterie, cheese and grazing boards and catering platters for collection, made fresh. A 25% deposit secures your order.";
 const SITE = "https://www.kellysdeli.co.uk";
 
 function setMeta(name: string, content: string) {
@@ -36,7 +36,7 @@ function setCanonical(href: string) {
  */
 export function usePageTitle(title?: string, description?: string, exact = false): void {
   useEffect(() => {
-    document.title = title ? (exact ? title : `${title} — Kelly's Deli Bentley Heath`) : DEFAULT;
+    document.title = title ? (exact ? title : `${title} — Kelly's Deli`) : DEFAULT;
     setMeta("description", description || DEFAULT_DESC);
     // pathname only (no query/hash) so /order?x=1 doesn't fragment the canonical.
     setCanonical(SITE + window.location.pathname);

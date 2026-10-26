@@ -180,6 +180,10 @@ export function createApp(): Express {
       { loc: "/platters", changefreq: "weekly", priority: "0.9" },
       { loc: "/shop", changefreq: "weekly", priority: "0.8" },
       { loc: "/plan", changefreq: "monthly", priority: "0.8" },
+      { loc: "/our-story", changefreq: "monthly", priority: "0.6" },
+      { loc: "/office-catering", changefreq: "monthly", priority: "0.7" },
+      { loc: "/groceries", changefreq: "weekly", priority: "0.7" },
+      { loc: "/bread", changefreq: "weekly", priority: "0.6" },
       { loc: "/privacy", changefreq: "yearly", priority: "0.2" },
       { loc: "/terms", changefreq: "yearly", priority: "0.2" },
     ];
