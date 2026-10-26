@@ -19,7 +19,6 @@ const DAY_LABELS: Array<{ key: keyof OpeningHours; label: string }> = [
   { key: "thu", label: "Thu" }, { key: "fri", label: "Fri" }, { key: "sat", label: "Sat" }, { key: "sun", label: "Sun" },
 ];
 
-const DEFAULT_HERO_IMG = "https://images.unsplash.com/photo-1695606392727-d8b959879721?auto=format&fit=crop&w=1400&q=70";
 const DEFAULT_MISSION = "The deli your grandparents would recognise — local produce, no shortcuts, boards built the same way every time.";
 
 function parseHours(raw: string | null): OpeningHours | null {
@@ -100,41 +99,38 @@ export default function Choice() {
   // One tile per board, not one per size (see lib/variants).
   const signature = groupVariants(boards ?? []).slice(0, 6);
 
-  // The one-tap answer to "what am I actually planning?" — right in the hero, so a
-  // birthday or baby-shower search doesn't have to scroll to find its category.
-  const OCCASION_CHIPS: Array<{ label: string; to: string }> = [
-    { label: "Birthday", to: "/shop/hosting" },
-    { label: "Baby shower", to: "/shop/hosting" },
-    { label: "Office lunch", to: "/office-catering" },
-    { label: "Night in", to: "/shop/at-home" },
-    { label: "Bread", to: "/bread" },
+  const catImage = (slug: string, fallback: string) => shopCats.find((c) => c.slug === slug)?.heroImageUrl || fallback;
+
+  // The six doors into the shop — the first thing on the page, so "what can I actually
+  // get here?" never needs a scroll to answer. Replaces the old boards-first hero.
+  const MAIN_CATEGORIES: Array<{ label: string; eyebrow: string; to: string; image: string }> = [
+    { label: "Lunch", eyebrow: "Order for tomorrow", to: "/lunch", image: "/images/grocery-ham-cheese.webp" },
+    { label: "Groceries", eyebrow: "Click & collect", to: "/groceries", image: "/images/groceries-counter.webp" },
+    { label: "At Home Dining", eyebrow: "A night in, sorted", to: "/shop/at-home", image: catImage("at-home", "/images/board-grazing-table.webp") },
+    { label: "Events", eyebrow: "Birthdays & celebrations", to: "/shop/hosting", image: catImage("hosting", "/images/board-ultimate.webp") },
+    { label: "Office & Catering", eyebrow: "Meetings & team lunches", to: "/office-catering", image: catImage("office-corporate", "/images/board-antipasti.webp") },
+    { label: "Boards & Catering", eyebrow: "Any occasion", to: "/platters", image: "/images/catering-counter.webp" },
   ];
 
   return (
     <div className="choice">
       <Header />
-      <header className="deli-hero">
-        <div className="deli-hero-copy">
-          <p className="deli-eyebrow">A little something worth sharing</p>
-          <h1>The deli counter.<br /><em>At your table.</em></h1>
-          <p className="deli-hero-intro">Hand-prepared boards, generous platters and deli favourites. For a table full of friends, or simply something lovely for the weekend.</p>
-          <Link className="btn deli-primary" to={`/platters${suffix}`}>Explore our boards <span aria-hidden="true">↗</span></Link>
-          <p className="deli-hero-note">Made to order. Collected from your local deli.</p>
 
-          <div className="hero-occasion-picker">
-            <span className="hero-occasion-label">What are you planning?</span>
-            <div className="hero-occasion-chips">
-              {OCCASION_CHIPS.map((c) => (
-                <button key={c.label} className="occasion-chip" onClick={() => go(c.to)}>{c.label}</button>
-              ))}
-            </div>
-          </div>
+      <section className="main-cats-section" data-reveal>
+        <p className="deli-eyebrow main-cats-eyebrow">A little something worth sharing</p>
+        <h1 className="main-cats-h">What can we get you?</h1>
+        <div className="main-cats-grid">
+          {MAIN_CATEGORIES.map((c, i) => (
+            <button key={c.label} className="main-cat-card" data-reveal data-reveal-delay={String(i % 3)} onClick={() => go(c.to)}>
+              <img src={c.image} alt="" loading={i < 3 ? "eager" : "lazy"} />
+              <span className="main-cat-caption">
+                <span className="main-cat-eyebrow">{c.eyebrow}</span>
+                <span className="main-cat-name">{c.label}</span>
+              </span>
+            </button>
+          ))}
         </div>
-        <figure className="deli-hero-photo">
-          <img src={counts?.heroImageUrl || DEFAULT_HERO_IMG} alt="Fresh bread arriving at Kelly's Deli, Bentley Heath, Solihull" width="1000" height="1100" {...{ fetchpriority: "high" }} />
-          <figcaption><span>THE KELLY’S TABLE</span><span>Something for everyone.</span></figcaption>
-        </figure>
-      </header>
+      </section>
 
       {/* Statement band — the brand promise in one line, with the social proof beneath it. */}
       <div className="trust-strip">
@@ -142,47 +138,12 @@ export default function Choice() {
         {counts?.reviewRating && <Stars rating={counts.reviewRating} count={counts.reviewCount} />}
       </div>
 
-      {/* Panzer's-style department trio — full-bleed photo tiles with a navy caption bar,
-          the three doors into the shop, right under the hero. No icons, no cards-in-a-box —
-          photography carries it, same as the hero and occasion tiles below. */}
-      <section className="dept-trio-section" data-reveal>
-        <div className="dept-trio">
-          <button className="dept-trio-card" onClick={() => go("/groceries")}>
-            <img src="/images/groceries-counter.webp" alt="" loading="lazy" />
-            <span className="dept-trio-caption">
-              <span className="dept-trio-eyebrow">Click &amp; collect</span>
-              <span className="dept-trio-name">Groceries</span>
-            </span>
-          </button>
-          <button className="dept-trio-card" onClick={() => go("/bread")}>
-            <img src="https://images.unsplash.com/photo-1549413468-cd78edb7e75c?auto=format&fit=crop&w=900&q=70" alt="" loading="lazy" />
-            <span className="dept-trio-caption">
-              <span className="dept-trio-eyebrow">Next-day collection</span>
-              <span className="dept-trio-name">Bread</span>
-            </span>
-          </button>
-          <button className="dept-trio-card" onClick={() => go("/platters")}>
-            <img src="/images/catering-counter.webp" alt="" loading="lazy" />
-            <span className="dept-trio-caption">
-              <span className="dept-trio-eyebrow">Any occasion</span>
-              <span className="dept-trio-name">Catering</span>
-            </span>
-          </button>
-        </div>
-      </section>
-
       {counts?.firstOrderHook && counts.firstOrderHookText && (
         <div className="firstorder-band">
           <span className="fob-gift" aria-hidden="true">🎁</span>
           <span><b>First order?</b> {counts.firstOrderHookText} — on us.</span>
         </div>
       )}
-
-      <button className="office-signpost" onClick={() => go("/office-catering")} data-reveal>
-        <span className="office-signpost-eyebrow">Lunch for the office?</span>
-        <span className="office-signpost-title">Platters for meetings and team lunches.</span>
-        <span className="office-signpost-cta">Office catering <span aria-hidden="true">→</span></span>
-      </button>
 
       <div className="app app-wide">
         <section className="board-section">
@@ -230,35 +191,6 @@ export default function Choice() {
           )}
           <div data-reveal><DeadlineChip /></div>
         </section>
-
-        {shopCats.length > 0 && (
-          <section className="occasion-section" data-reveal>
-            <div className="spread shelf-head">
-              <div><p className="deli-eyebrow">Bring something lovely</p><h2 className="section-h" style={{ margin: 0 }}>Every occasion, well fed.</h2></div>
-              <button className="btn-ghost" onClick={() => go("/shop")}>See all →</button>
-            </div>
-            <div className="occasion-grid">
-              {shopCats.map((c, i) => (
-                <button
-                  key={c.id}
-                  className="occasion-card card"
-                  data-reveal
-                  data-reveal-delay={String(i % 2)}
-                  onClick={(e) =>
-                    morphNavigate(navigate, `/shop/${c.slug}${suffix}`, e.currentTarget.querySelector(".occasion-img") as HTMLElement | null)
-                  }
-                >
-                  <div className="occasion-img" style={{ backgroundImage: c.heroImageUrl ? `url(${c.heroImageUrl})` : undefined }} role="img" aria-label={c.name} />
-                  <div className="occasion-body">
-                    <h3 className="occasion-name">{c.name}</h3>
-                    {c.tagline && <p className="occasion-tag">{c.tagline}</p>}
-                    <span className="occasion-go">{c.boardCount} board{c.boardCount === 1 ? "" : "s"} →</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
 
         <Bundles />
         <DeliVideos />

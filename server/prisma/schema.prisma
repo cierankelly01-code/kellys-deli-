@@ -143,6 +143,7 @@ model Subscription {
   stripeSubscriptionId String?
   stripePriceId        String?
   orders               Order[]
+  groceryOrders        GroceryOrder[]
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -604,6 +605,13 @@ model GroceryOrder {
   notes          String?
   status         String             @default("pending") // pending | confirmed | collected | cancelled
   items          GroceryOrderItem[]
+  // Subscribe & Save recurring intent (payment-ready, not payment-live — mirrors Order).
+  // Item unitPrice snapshots stay at full price; this is subtracted from the total at serialize time.
+  isSubscription       Boolean       @default(false)
+  subscriptionFrequency String?
+  subscriptionDiscount Decimal       @db.Decimal(10, 2) @default(0)
+  subscriptionId       String?
+  subscription         Subscription? @relation(fields: [subscriptionId], references: [id])
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 

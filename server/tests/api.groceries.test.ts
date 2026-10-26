@@ -73,6 +73,105 @@ suite("groceries click & collect — browse (local database only)", () => {
   });
 });
 
+// Subscribe & Save for grocery orders (the Lunch page's "standing weekly order"). Self-contained,
+// no admin auth needed — same direct-Prisma-fixture pattern as the browse suite above.
+suite("groceries click & collect — subscribe & save (local database only)", () => {
+  const app = createApp();
+  let locationId = "";
+  const productIds: string[] = [];
+  const orderIds: string[] = [];
+
+  function farDate(): string {
+    const days = 40 + Math.floor(Math.random() * 180);
+    return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+  }
+  const uniqMobile = () => `07${Math.floor(700000000 + Math.random() * 99999999)}`;
+
+  beforeAll(async () => {
+    const location = await prisma.location.findFirst({ where: { active: true } });
+    locationId = location!.id;
+
+    const sandwich = await prisma.groceryProduct.create({
+      data: { department: "sandwiches", name: `Test Sub-Sandwich ${Date.now()}`, price: 5, active: true, sortOrder: 0 },
+    });
+    productIds.push(sandwich.id);
+    await prisma.groceryProductLocation.create({ data: { productId: sandwich.id, locationId } });
+
+    const crispsP = await prisma.groceryProduct.create({
+      data: { department: "pantry", name: `Test Sub-Crisps ${Date.now()}`, price: 1.5, active: true, sortOrder: 1 },
+    });
+    productIds.push(crispsP.id);
+    await prisma.groceryProductLocation.create({ data: { productId: crispsP.id, locationId } });
+  });
+
+  afterAll(async () => {
+    await prisma.groceryOrderItem.deleteMany({ where: { orderId: { in: orderIds } } });
+    const orders = await prisma.groceryOrder.findMany({ where: { id: { in: orderIds } }, select: { subscriptionId: true } });
+    await prisma.groceryOrder.deleteMany({ where: { id: { in: orderIds } } });
+    const subIds = orders.map((o) => o.subscriptionId).filter((id): id is string => !!id);
+    if (subIds.length) await prisma.subscription.deleteMany({ where: { id: { in: subIds } } });
+    await prisma.groceryProductLocation.deleteMany({ where: { productId: { in: productIds } } });
+    await prisma.groceryProduct.deleteMany({ where: { id: { in: productIds } } });
+  });
+
+  it("applies the discount, stamps the order, and records a pending Subscription", async () => {
+    const res = await request(app)
+      .post("/api/groceries/orders")
+      .send({
+        locationId,
+        collectionDate: farDate(),
+        items: [{ productId: productIds[0], quantity: 1 }, { productId: productIds[1], quantity: 1 }],
+        customerName: "Lunch Subscriber",
+        phone: uniqMobile(),
+        isSubscription: true,
+        subscriptionFrequency: "weekly",
+      });
+    expect(res.status).toBe(201);
+    orderIds.push(res.body.order.id);
+
+    expect(res.body.order.isSubscription).toBe(true);
+    expect(res.body.order.subscriptionFrequency).toBe("weekly");
+    expect(res.body.order.subscriptionDiscount).toBeCloseTo(0.65, 2); // 10% of £6.50
+    expect(res.body.order.total).toBeCloseTo(5.85, 2);
+
+    const sub = await prisma.subscription.findFirst({ where: { frequency: "weekly", phone: res.body.order.phone } });
+    expect(sub).toBeTruthy();
+    expect(sub!.status).toBe("pending");
+  });
+
+  it("takes no discount, and creates no Subscription, for a normal one-off order", async () => {
+    const res = await request(app)
+      .post("/api/groceries/orders")
+      .send({
+        locationId,
+        collectionDate: farDate(),
+        items: [{ productId: productIds[0], quantity: 1 }],
+        customerName: "One-off Customer",
+        phone: uniqMobile(),
+      });
+    expect(res.status).toBe(201);
+    orderIds.push(res.body.order.id);
+
+    expect(res.body.order.isSubscription).toBe(false);
+    expect(res.body.order.subscriptionDiscount).toBeNull();
+    expect(res.body.order.total).toBeCloseTo(5, 2);
+  });
+
+  it("rejects isSubscription:true without a frequency", async () => {
+    const res = await request(app)
+      .post("/api/groceries/orders")
+      .send({
+        locationId,
+        collectionDate: farDate(),
+        items: [{ productId: productIds[0], quantity: 1 }],
+        customerName: "Missing Frequency",
+        phone: uniqMobile(),
+        isSubscription: true,
+      });
+    expect(res.status).toBe(400);
+  });
+});
+
 // Real-DB integration tests (groceries ordering + admin). Run with DATABASE_URL set, after `npm run db:seed`.
 const hasDb = !!process.env.DATABASE_URL;
 const d = hasDb ? describe : describe.skip;

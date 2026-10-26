@@ -452,6 +452,9 @@ export interface GroceryOrderDTO {
   notes: string | null;
   status: GroceryOrderStatus;
   items: GroceryOrderItemDTO[];
+  isSubscription: boolean;
+  subscriptionFrequency: SubscriptionFrequency | null;
+  subscriptionDiscount: number | null;
   total: number;
   createdAt: string;
 }
@@ -464,6 +467,8 @@ export interface CreateGroceryOrderInput {
   phone: string;
   email?: string;
   notes?: string;
+  isSubscription?: boolean;
+  subscriptionFrequency?: SubscriptionFrequency;
 }
 
 export type BreadDayReason = "closed" | "too_soon" | "full" | null;

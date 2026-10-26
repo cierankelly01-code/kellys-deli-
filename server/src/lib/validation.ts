@@ -470,15 +470,25 @@ const groceryOrderItemInput = z.object({
   quantity: z.number().int().positive(),
 });
 
-export const createGroceryOrderSchema = z.object({
-  locationId: z.string().min(1),
-  collectionDate: dateString,
-  items: z.array(groceryOrderItemInput).min(1, "Add at least one item"),
-  customerName: z.string().min(1, "Name is required").max(120),
-  phone: ukMobile,
-  email: z.string().email("Enter a valid email").max(200).optional().or(z.literal("")),
-  notes: z.string().max(200).optional(),
-});
+export const createGroceryOrderSchema = z
+  .object({
+    locationId: z.string().min(1),
+    collectionDate: dateString,
+    items: z.array(groceryOrderItemInput).min(1, "Add at least one item"),
+    customerName: z.string().min(1, "Name is required").max(120),
+    phone: ukMobile,
+    email: z.string().email("Enter a valid email").max(200).optional().or(z.literal("")),
+    notes: z.string().max(200).optional(),
+    // Subscribe & Save recurring intent, same as boards: the server reprices with the
+    // discount and creates a Subscription record; no card is taken (payment-ready, not
+    // payment-live).
+    isSubscription: z.boolean().optional(),
+    subscriptionFrequency: z.enum(SUBSCRIPTION_FREQUENCIES).optional(),
+  })
+  .refine((d) => !d.isSubscription || !!d.subscriptionFrequency, {
+    message: "Choose how often you'd like this",
+    path: ["subscriptionFrequency"],
+  });
 export type CreateGroceryOrderInput = z.infer<typeof createGroceryOrderSchema>;
 
 export const groceryOrderStatusSchema = z.object({ status: z.enum(["pending", "confirmed", "collected", "cancelled"]) });

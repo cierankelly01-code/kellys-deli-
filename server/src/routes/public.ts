@@ -508,6 +508,15 @@ publicRouter.post("/groceries/orders", async (req, res) => {
   const closedWeekdays = shopSetting?.closedWeekdays ?? [];
   const dailyCapacity = shopSetting?.dailyCapacity ?? null;
 
+  // Subscribe & Save: same opt-in, same honesty as boards — no card taken here, just the
+  // recurring intent recorded so the owner can set the schedule up manually.
+  const wantsSub = !!input.isSubscription && !!input.subscriptionFrequency;
+  const subOn = (await getSetting("subscribeSave")) !== "off";
+  const subPctRaw = parseInt((await getSetting("subscribeSaveDiscountPct")) ?? "10", 10);
+  const subPct = wantsSub && subOn && Number.isFinite(subPctRaw) ? Math.max(0, Math.min(100, subPctRaw)) : 0;
+  const subtotal = input.items.reduce((sum, it) => sum + Number(productById.get(it.productId)!.price) * it.quantity, 0);
+  const subscriptionDiscount = subPct > 0 ? Math.round(subtotal * (subPct / 100) * 100) / 100 : 0;
+
   try {
     const order = await prisma.$transaction(async (tx) => {
       // Lock this shop's settings row so racing orders can't both take the last item of capacity.
@@ -537,6 +546,22 @@ publicRouter.post("/groceries/orders", async (req, res) => {
         unitPrice: productById.get(it.productId)!.price,
       }));
 
+      // Subscribe & Save: record the recurring plan so the owner sees the intent and can
+      // set the schedule up manually — same pattern as board orders.
+      const subscription =
+        subPct > 0
+          ? await tx.subscription.create({
+              data: {
+                status: "pending",
+                frequency: input.subscriptionFrequency!,
+                discountPct: subPct,
+                customerName: input.customerName,
+                email: input.email || "",
+                phone: input.phone,
+              },
+            })
+          : null;
+
       return tx.groceryOrder.create({
         data: {
           ref,
@@ -547,6 +572,10 @@ publicRouter.post("/groceries/orders", async (req, res) => {
           email: input.email || null,
           notes: input.notes || null,
           items: { create: itemLines },
+          isSubscription: subPct > 0,
+          subscriptionFrequency: subPct > 0 ? input.subscriptionFrequency : null,
+          subscriptionDiscount: subPct > 0 ? subscriptionDiscount : 0,
+          subscriptionId: subscription?.id ?? null,
         },
         include: { location: true, items: true },
       });

@@ -494,6 +494,7 @@ export function groceryOrderDTO(
   o: GroceryOrder & { location?: Location | null; items?: GroceryOrderItem[] | null },
 ) {
   const items = o.items ? o.items.map(groceryOrderItemDTO) : [];
+  const subscriptionDiscount = o.subscriptionDiscount != null ? Number(o.subscriptionDiscount) : 0;
   return {
     id: o.id,
     ref: o.ref,
@@ -506,7 +507,11 @@ export function groceryOrderDTO(
     notes: o.notes,
     status: o.status,
     items,
-    total: toMoney(items.reduce((sum, i) => sum + i.lineTotal, 0)),
+    // Subscribe & Save snapshot — mirrors the board order DTO.
+    isSubscription: o.isSubscription,
+    subscriptionFrequency: o.subscriptionFrequency,
+    subscriptionDiscount: o.isSubscription ? subscriptionDiscount : null,
+    total: toMoney(items.reduce((sum, i) => sum + i.lineTotal, 0) - subscriptionDiscount),
     createdAt: o.createdAt.toISOString(),
   };
 }

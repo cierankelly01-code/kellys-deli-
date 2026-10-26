@@ -2,13 +2,16 @@
    Extends the Family Table system (tokens in theme.css). Reuses board-card/board-grid
    where possible; only genuinely new surfaces get styles here. */
 
-/* ---------- Department trio (Groceries / Bread / Catering) ----------
-   Panzer's pattern: full-bleed photo, navy caption bar pinned to the bottom —
-   same figcaption language as .deli-hero-photo. No icons, no flat-color boxes. */
-.dept-trio-section { margin: 28px auto; padding: 0 var(--space-gutter); max-width: 1180px; }
-.dept-trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-@media (max-width: 720px) { .dept-trio { grid-template-columns: 1fr; } }
-.dept-trio-card {
+/* ---------- Main categories (the six doors into the shop) ----------
+   The first thing on the homepage — no hero, no scroll, just the six places a visitor
+   might want to go. Same full-bleed photo + navy caption bar language as the old
+   department trio this replaces. No icons, no flat-color boxes. */
+.main-cats-section { margin: 0 auto; padding: 28px var(--space-gutter) 8px; max-width: 1180px; }
+.main-cats-eyebrow { margin-bottom: 8px; }
+.main-cats-h { font-family: var(--serif); font-weight: 400; font-size: clamp(1.8rem, 4vw, 2.6rem); letter-spacing: -0.01em; margin: 0 0 20px; }
+.main-cats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+@media (max-width: 720px) { .main-cats-grid { grid-template-columns: repeat(2, 1fr); } }
+.main-cat-card {
   position: relative;
   display: block;
   aspect-ratio: 5 / 4;
@@ -19,27 +22,49 @@
   cursor: pointer;
   background: var(--line);
 }
-.dept-trio-card img {
+.main-cat-card img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
   transition: transform var(--dur-reveal) var(--ease-enter);
 }
-@media (hover: hover) { .dept-trio-card:hover img { transform: scale(1.045); } }
-.dept-trio-caption {
+@media (hover: hover) { .main-cat-card:hover img { transform: scale(1.045); } }
+.main-cat-caption {
   position: absolute;
   inset: auto 0 0 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 16px 20px;
+  padding: 14px 16px;
   background: var(--navy);
   color: var(--cream);
   text-align: left;
 }
-.dept-trio-eyebrow { font-size: .65rem; letter-spacing: .08em; text-transform: uppercase; color: var(--mustard); }
-.dept-trio-name { font-family: var(--serif); font-weight: 400; font-style: italic; font-size: 1.3rem; letter-spacing: -0.01em; }
+.main-cat-eyebrow { font-size: .62rem; letter-spacing: .07em; text-transform: uppercase; color: var(--mustard); }
+.main-cat-name { font-family: var(--serif); font-weight: 400; font-style: italic; font-size: 1.1rem; letter-spacing: -0.01em; }
+@media (max-width: 480px) { .main-cat-name { font-size: 1rem; } }
+
+/* ---------- Lunch builder (sandwich / crisps / salad box picker) ---------- */
+.lunch-pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.lunch-pick-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color .15s ease, background .15s ease;
+}
+.lunch-pick-card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: calc(var(--radius) - 4px); }
+.lunch-pick-card.is-selected { border-color: var(--navy); background: #fff; box-shadow: 0 0 0 1px var(--navy); }
+.lunch-pick-card.is-disabled { cursor: default; opacity: .55; }
+.lunch-pick-name { font-weight: 600; }
+.lunch-pick-price { color: var(--ink-soft); font-size: .9rem; }
 
 /* ---------- Occasion index + homepage band ---------- */
 .shop-intro { max-width: 52ch; margin: -4px 0 22px; }
