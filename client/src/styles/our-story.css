@@ -55,6 +55,8 @@
 }
 .os-visit a { color: var(--navy); font-weight: 600; }
 .os-visit p { margin: 10px 0 0; }
+.os-visit-shop + .os-visit-shop { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line); }
+.os-visit-name { font-family: var(--serif); font-size: 1.15rem; color: var(--ink); margin: 0; }
 
 .os-close { text-align: center; margin-bottom: clamp(32px, 6vw, 56px); }
 .os-close-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 20px; }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, type CategoryCounts } from "../lib/api";
+import { api, type CategoryCounts, type LocationT } from "../lib/api";
 import { usePageTitle } from "../lib/title";
 import { Header } from "../components/Header";
 import { Stars } from "../components/Trust";
@@ -10,6 +10,42 @@ const SITE = "https://www.kellysdeli.co.uk";
 const DEFAULT_ABOUT = "Proper food from the people you know — grazing boards for collection, made fresh.";
 const DEFAULT_MISSION = "The deli your grandparents would recognise — local produce, no shortcuts, boards built the same way every time.";
 const DEFAULT_NOTE = "We've been doing this the same way for years — proper local produce, boards built by hand, nothing rushed. Every order that goes out the door is one we'd be happy to serve our own family.";
+
+const VISIT_DAYS = [
+  { key: "mon", short: "Mon" }, { key: "tue", short: "Tue" }, { key: "wed", short: "Wed" },
+  { key: "thu", short: "Thu" }, { key: "fri", short: "Fri" }, { key: "sat", short: "Sat" }, { key: "sun", short: "Sun" },
+];
+
+function fmtClock(t: string): string {
+  const m = t.trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return t.trim();
+  let h = parseInt(m[1], 10);
+  const min = m[2];
+  const ap = h >= 12 ? "pm" : "am";
+  h = h % 12 || 12;
+  return min === "00" ? `${h}${ap}` : `${h}:${min}${ap}`;
+}
+
+/** Collapses a shop's day-by-day opening hours into a readable line, e.g.
+ * "Closed Mon · Tue–Fri 8am–4pm · Sat 8am–3pm · Closed Sun" — same idea as the
+ * hand-written copy this replaces, but honest for whichever shop it's rendering. */
+function fmtHoursLine(hours: Record<string, string> | null): string | null {
+  if (!hours) return null;
+  const days = VISIT_DAYS.map((d) => ({ short: d.short, raw: (hours[d.key] || "Closed").trim() }));
+  const groups: Array<{ shorts: string[]; raw: string }> = [];
+  for (const d of days) {
+    const last = groups[groups.length - 1];
+    if (last && last.raw.toLowerCase() === d.raw.toLowerCase()) last.shorts.push(d.short);
+    else groups.push({ shorts: [d.short], raw: d.raw });
+  }
+  const parts = groups.map((g) => {
+    const label = g.shorts.length > 1 ? `${g.shorts[0]}–${g.shorts[g.shorts.length - 1]}` : g.shorts[0];
+    if (/closed/i.test(g.raw)) return `Closed ${label}`;
+    const [a, b] = g.raw.split("-").map((s) => s.trim());
+    return a && b ? `${label} ${fmtClock(a)}–${fmtClock(b)}` : `${label} ${g.raw}`;
+  });
+  return parts.join(" · ");
+}
 
 const VALUES = [
   { h: "Local, named suppliers", p: "We buy from people we know, not a catalogue — so we can tell you exactly where something came from, not just “local produce.”" },
@@ -25,9 +61,11 @@ const VALUES = [
  */
 export default function OurStory() {
   const [counts, setCounts] = useState<CategoryCounts | null>(null);
+  const [locations, setLocations] = useState<LocationT[]>([]);
 
   useEffect(() => {
     api.categories().then(setCounts).catch(() => setCounts(null));
+    api.locations().then(setLocations).catch(() => setLocations([]));
   }, []);
 
   usePageTitle(
@@ -83,12 +121,34 @@ export default function OurStory() {
 
       <section className="os-visit" data-reveal>
         <h2 className="section-h">Come and see us</h2>
-        <p>
-          <a href="https://www.google.com/maps/search/?api=1&query=Kelly%27s+Deli+1+Slater+Road+Solihull+B93+8AQ" target="_blank" rel="noreferrer">
-            1 Slater Road, Bentley Heath, Solihull B93 8AQ ↗
-          </a>
-        </p>
-        <p className="muted">Tuesday–Friday 8am–4pm · Saturday 8am–3pm · Closed Sunday &amp; Monday</p>
+        {locations.filter((l) => l.active).length === 0 ? (
+          <>
+            <p>
+              <a href="https://www.google.com/maps/search/?api=1&query=Kelly%27s+Deli+1+Slater+Road+Solihull+B93+8AQ" target="_blank" rel="noreferrer">
+                1 Slater Road, Bentley Heath, Solihull B93 8AQ ↗
+              </a>
+            </p>
+            <p className="muted">Tuesday–Friday 8am–4pm · Saturday 8am–3pm · Closed Sunday &amp; Monday</p>
+          </>
+        ) : (
+          locations.filter((l) => l.active).map((l) => {
+            const full = [l.address, l.postcode].filter(Boolean).join(", ");
+            const hoursLine = fmtHoursLine(l.openingHours);
+            return (
+              <div key={l.id} className="os-visit-shop">
+                <p className="os-visit-name">{l.name}</p>
+                {full && (
+                  <p>
+                    <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`Kelly's Deli ${full}`)}`} target="_blank" rel="noreferrer">
+                      {full} ↗
+                    </a>
+                  </p>
+                )}
+                {hoursLine && <p className="muted">{hoursLine}</p>}
+              </div>
+            );
+          })
+        )}
       </section>
 
       <section className="os-close" data-reveal>

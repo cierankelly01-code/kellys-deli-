@@ -62,10 +62,18 @@ export default function Groceries() {
   return (
     <div className="app app-wide">
       <Header />
-      <h1 className="page-h">Groceries</h1>
-      <p className="muted">
-        Everything from the deli counter — sandwiches, salads, pies, cheese and more — ready for click &amp; collect,
-        minimum 24 hours' notice.
+
+      <header
+        className="cat-hero"
+        style={{ backgroundImage: "url(https://images.unsplash.com/photo-1754391853150-561b59ad8e99?auto=format&fit=crop&w=1600&q=70)" }}
+      >
+        <div className="cat-hero-scrim">
+          <h1 className="cat-hero-h">Groceries</h1>
+          <p className="cat-hero-tag">Sandwiches, salads, pies, cheese and more — click &amp; collect</p>
+        </div>
+      </header>
+      <p className="cat-desc">
+        Everything from the deli counter, ready for click &amp; collect — minimum 24 hours' notice.
       </p>
 
       {loadError && <div className="notice danger">{loadError}</div>}
