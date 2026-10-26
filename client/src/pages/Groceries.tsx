@@ -186,7 +186,7 @@ export default function Groceries() {
 
       <header
         className="cat-hero"
-        style={{ backgroundImage: "url(https://images.unsplash.com/photo-1754391853150-561b59ad8e99?auto=format&fit=crop&w=1600&q=70)" }}
+        style={{ backgroundImage: "url(/images/groceries-counter.webp)" }}
       >
         <div className="cat-hero-scrim">
           <h1 className="cat-hero-h">Groceries</h1>

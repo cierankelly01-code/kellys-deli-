@@ -148,7 +148,7 @@ export default function Choice() {
       <section className="dept-trio-section" data-reveal>
         <div className="dept-trio">
           <button className="dept-trio-card" onClick={() => go("/groceries")}>
-            <img src="https://images.unsplash.com/photo-1754391853150-561b59ad8e99?auto=format&fit=crop&w=900&q=70" alt="" loading="lazy" />
+            <img src="/images/groceries-counter.webp" alt="" loading="lazy" />
             <span className="dept-trio-caption">
               <span className="dept-trio-eyebrow">Click &amp; collect</span>
               <span className="dept-trio-name">Groceries</span>
@@ -162,7 +162,7 @@ export default function Choice() {
             </span>
           </button>
           <button className="dept-trio-card" onClick={() => go("/platters")}>
-            <img src="https://images.unsplash.com/photo-1554998171-89445e31c52b?auto=format&fit=crop&w=900&q=70" alt="" loading="lazy" />
+            <img src="/images/catering-counter.webp" alt="" loading="lazy" />
             <span className="dept-trio-caption">
               <span className="dept-trio-eyebrow">Any occasion</span>
               <span className="dept-trio-name">Catering</span>
