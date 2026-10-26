@@ -263,6 +263,11 @@ export function locationDTO(l: Location) {
     slug: l.slug,
     weeklyCapacity: l.weeklyCapacity, // per-day capacity (see SPEC #2)
     active: l.active,
+    address: l.address,
+    postcode: l.postcode,
+    phone: l.phone,
+    // Falls back to the legacy global openingHours site setting on the client when null.
+    openingHours: l.openingHours as Record<string, string> | null,
   };
 }
 

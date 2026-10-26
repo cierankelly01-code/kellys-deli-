@@ -17,6 +17,13 @@ model Location {
   // Operative meaning: max catering orders per DAY at this location (see SPEC decision #2).
   weeklyCapacity Int      @default(5)
   active         Boolean  @default(true)
+  // Per-shop contact/visit details, admin-editable. Nullable — unset shops fall back to the
+  // legacy global "openingHours" site setting until an owner fills these in.
+  address        String?
+  postcode       String?
+  phone          String?
+  // { mon: "9:00 - 17:00", ... "Closed" } — same shape as the legacy global openingHours setting.
+  openingHours   Json?
   orders         Order[]
   createdAt      DateTime @default(now())
   // Bread pre-ordering (separate subsystem — see models below).

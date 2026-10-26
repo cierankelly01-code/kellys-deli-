@@ -216,6 +216,10 @@ export const locationUpdateSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   weeklyCapacity: z.number().int().min(0).optional(),
   active: z.boolean().optional(),
+  address: z.string().max(200).nullable().optional(),
+  postcode: z.string().max(20).nullable().optional(),
+  phone: z.string().max(40).nullable().optional(),
+  openingHours: z.record(z.string(), z.string().max(40)).nullable().optional(),
 });
 
 export const settingSchema = z.object({

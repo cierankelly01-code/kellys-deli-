@@ -19,13 +19,36 @@ const CHECK = "[CHECK PRICE & DETAILS]";
 async function main() {
   // --- Locations (multi-site from day one) ---
   // weeklyCapacity = max catering orders per DAY at this location (see SPEC decision #2).
+  // CREATE-ONLY (update: {}), same rationale as the catalogue below: the owner edits
+  // address/phone/hours in admin, and a reseed must never clobber those corrections.
+  // Stratford's Mon/Sun are assumed Closed (owner gave Tue-Fri + Sat only) — [CHECK] in admin.
   const locations = [
-    { id: "loc-bentley-heath", name: "Bentley Heath", slug: "bentley-heath", weeklyCapacity: 5, active: true },
+    {
+      id: "loc-bentley-heath", name: "Bentley Heath", slug: "bentley-heath", weeklyCapacity: 5, active: true,
+      // Address/phone pulled from the existing order-confirmation email template
+      // (server/src/lib/emailTemplate.ts) and PlanEvent.tsx — not newly invented.
+      address: "1 Slater Road, Bentley Heath, Solihull", postcode: "B93 8AQ", phone: "01564 703441",
+      // Hours pulled from the existing LocalBusiness structured data in client/index.html
+      // (already live/authoritative) — not newly invented.
+      openingHours: {
+        mon: "Closed", tue: "8:00 - 16:00", wed: "8:00 - 16:00", thu: "8:00 - 16:00", fri: "8:00 - 16:00",
+        sat: "8:00 - 15:00", sun: "Closed",
+      },
+    },
     { id: "loc-henley", name: "Henley-in-Arden", slug: "henley-in-arden", weeklyCapacity: 4, active: false },
-    { id: "loc-stratford", name: "Stratford-upon-Avon", slug: "stratford-upon-avon", weeklyCapacity: 3, active: false },
+    {
+      id: "loc-stratford", name: "Stratford-upon-Avon", slug: "stratford-upon-avon", weeklyCapacity: 3, active: true,
+      address: "13 Wood Street, Stratford-upon-Avon", postcode: "CV37 6JF",
+      openingHours: {
+        mon: "Closed", // [CHECK] not given — inferred from Tue-Fri/Sat-only hours
+        tue: "9:00 - 16:30", wed: "9:00 - 16:30", thu: "9:00 - 16:30", fri: "9:00 - 16:30",
+        sat: "9:00 - 16:00",
+        sun: "Closed", // [CHECK] not given — inferred
+      },
+    },
   ];
   for (const loc of locations) {
-    await prisma.location.upsert({ where: { id: loc.id }, update: loc, create: loc });
+    await prisma.location.upsert({ where: { id: loc.id }, update: {}, create: loc });
   }
 
   // --- v2 board catalogue: 5 signature + 4 gallery boards ---

@@ -166,6 +166,10 @@ export interface LocationT {
   slug: string;
   weeklyCapacity: number;
   active: boolean;
+  address: string | null;
+  postcode: string | null;
+  phone: string | null;
+  openingHours: Record<string, string> | null;
 }
 
 export interface CategoryCounts {

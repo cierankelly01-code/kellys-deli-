@@ -557,14 +557,38 @@ function ExperienceRow({ exp, onSaved }: { exp?: AdminExperience; onSaved: () =>
   );
 }
 
+const HOURS_DAYS: { key: string; label: string }[] = [
+  { key: "mon", label: "Mon" }, { key: "tue", label: "Tue" }, { key: "wed", label: "Wed" },
+  { key: "thu", label: "Thu" }, { key: "fri", label: "Fri" }, { key: "sat", label: "Sat" }, { key: "sun", label: "Sun" },
+];
+
 function LocationRow({ location, onSaved }: { location: LocationT; onSaved: () => void }) {
   const [capacity, setCapacity] = useState(String(location.weeklyCapacity));
   const [active, setActive] = useState(location.active);
+  const [address, setAddress] = useState(location.address ?? "");
+  const [postcode, setPostcode] = useState(location.postcode ?? "");
+  const [phone, setPhone] = useState(location.phone ?? "");
+  const [hours, setHours] = useState<Record<string, string>>(
+    location.openingHours ?? Object.fromEntries(HOURS_DAYS.map((d) => [d.key, ""])),
+  );
   const [saving, setSaving] = useState(false);
-  const dirty = capacity !== String(location.weeklyCapacity) || active !== location.active;
+  const dirty =
+    capacity !== String(location.weeklyCapacity) || active !== location.active ||
+    address !== (location.address ?? "") || postcode !== (location.postcode ?? "") || phone !== (location.phone ?? "") ||
+    JSON.stringify(hours) !== JSON.stringify(location.openingHours ?? Object.fromEntries(HOURS_DAYS.map((d) => [d.key, ""])));
   async function save() {
     setSaving(true);
-    try { await adminApi.updateLocation(location.id, { weeklyCapacity: parseInt(capacity, 10) || 0, active }); onSaved(); } finally { setSaving(false); }
+    try {
+      await adminApi.updateLocation(location.id, {
+        weeklyCapacity: parseInt(capacity, 10) || 0,
+        active,
+        address: address.trim() || null,
+        postcode: postcode.trim() || null,
+        phone: phone.trim() || null,
+        openingHours: Object.values(hours).some((v) => v.trim()) ? hours : null,
+      });
+      onSaved();
+    } finally { setSaving(false); }
   }
   return (
     <div className="card loc-row">
@@ -575,6 +599,34 @@ function LocationRow({ location, onSaved }: { location: LocationT; onSaved: () =
       <div className="row" style={{ marginTop: 10 }}>
         <label className="muted">Orders / day</label>
         <input className="input cap" inputMode="numeric" value={capacity} onChange={(e) => setCapacity(e.target.value)} />
+      </div>
+      <div className="row" style={{ marginTop: 10 }}>
+        <label className="muted">Address</label>
+        <input className="input" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="e.g. 13 Wood Street, Stratford-upon-Avon" />
+      </div>
+      <div className="row" style={{ marginTop: 10 }}>
+        <label className="muted">Postcode</label>
+        <input className="input cap" value={postcode} onChange={(e) => setPostcode(e.target.value)} placeholder="CV37 6JF" />
+        <label className="muted">Phone</label>
+        <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01789 …" />
+      </div>
+      <div style={{ marginTop: 10 }}>
+        <label className="muted">Opening hours</label>
+        <div className="loc-hours-grid">
+          {HOURS_DAYS.map((d) => (
+            <div key={d.key} className="row" style={{ marginTop: 4 }}>
+              <span className="muted" style={{ width: 36 }}>{d.label}</span>
+              <input
+                className="input"
+                value={hours[d.key] ?? ""}
+                onChange={(e) => setHours((h) => ({ ...h, [d.key]: e.target.value }))}
+                placeholder="9:00 - 17:00 or Closed"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="row" style={{ marginTop: 10 }}>
         <button className="btn" style={{ width: "auto" }} onClick={save} disabled={!dirty || saving}>{saving ? "…" : "Save"}</button>
       </div>
     </div>

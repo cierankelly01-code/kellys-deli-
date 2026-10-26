@@ -347,8 +347,14 @@ export const adminApi = {
     authedReq<AdminPlatter>(`/api/admin/platters/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
   deletePlatter: (id: string) => authedReq<{ ok: boolean }>(`/api/admin/platters/${id}`, { method: "DELETE" }),
   locations: () => authedReq<LocationT[]>(`/api/admin/locations`),
-  updateLocation: (id: string, patch: { name?: string; weeklyCapacity?: number; active?: boolean }) =>
-    authedReq<LocationT>(`/api/admin/locations/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  updateLocation: (
+    id: string,
+    patch: {
+      name?: string; weeklyCapacity?: number; active?: boolean;
+      address?: string | null; postcode?: string | null; phone?: string | null;
+      openingHours?: Record<string, string> | null;
+    },
+  ) => authedReq<LocationT>(`/api/admin/locations/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
 
   // Build-your-own board ingredients
   boardComponents: () => authedReq<BoardComponent[]>(`/api/admin/board-components`),
