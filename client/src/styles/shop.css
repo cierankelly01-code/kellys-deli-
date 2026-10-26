@@ -2,28 +2,44 @@
    Extends the Family Table system (tokens in theme.css). Reuses board-card/board-grid
    where possible; only genuinely new surfaces get styles here. */
 
-/* ---------- Department trio (Groceries / Bread / Catering) ---------- */
+/* ---------- Department trio (Groceries / Bread / Catering) ----------
+   Panzer's pattern: full-bleed photo, navy caption bar pinned to the bottom —
+   same figcaption language as .deli-hero-photo. No icons, no flat-color boxes. */
 .dept-trio-section { margin: 28px auto; padding: 0 var(--space-gutter); max-width: 1180px; }
 .dept-trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 @media (max-width: 720px) { .dept-trio { grid-template-columns: 1fr; } }
 .dept-trio-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  text-align: left;
-  padding: 24px 22px;
-  background: var(--navy);
-  color: var(--cream);
+  position: relative;
+  display: block;
+  aspect-ratio: 5 / 4;
+  overflow: hidden;
+  padding: 0;
   border: 0;
   border-radius: var(--radius);
   cursor: pointer;
-  transition: transform var(--dur-std) var(--ease-enter);
+  background: var(--line);
 }
-@media (hover: hover) { .dept-trio-card:hover { transform: translateY(-2px); } }
-.dept-trio-icon { font-size: 1.8rem; line-height: 1; margin-bottom: 6px; }
-.dept-trio-name { font-family: var(--serif); font-weight: 400; font-size: 1.4rem; }
-.dept-trio-tag { color: var(--mustard); font-size: 0.9rem; }
+.dept-trio-card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--dur-reveal) var(--ease-enter);
+}
+@media (hover: hover) { .dept-trio-card:hover img { transform: scale(1.045); } }
+.dept-trio-caption {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 20px;
+  background: var(--navy);
+  color: var(--cream);
+  text-align: left;
+}
+.dept-trio-eyebrow { font-size: .65rem; letter-spacing: .08em; text-transform: uppercase; color: var(--mustard); }
+.dept-trio-name { font-family: var(--serif); font-weight: 400; font-style: italic; font-size: 1.3rem; letter-spacing: -0.01em; }
 
 /* ---------- Occasion index + homepage band ---------- */
 .shop-intro { max-width: 52ch; margin: -4px 0 22px; }

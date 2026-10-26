@@ -141,23 +141,31 @@ export default function Choice() {
         {counts?.reviewRating && <Stars rating={counts.reviewRating} count={counts.reviewCount} />}
       </div>
 
-      {/* Panzer's-style department trio — the three doors into the shop, right under the hero. */}
+      {/* Panzer's-style department trio — full-bleed photo tiles with a navy caption bar,
+          the three doors into the shop, right under the hero. No icons, no cards-in-a-box —
+          photography carries it, same as the hero and occasion tiles below. */}
       <section className="dept-trio-section" data-reveal>
         <div className="dept-trio">
           <button className="dept-trio-card" onClick={() => go("/groceries")}>
-            <span className="dept-trio-icon" aria-hidden="true">🧺</span>
-            <span className="dept-trio-name">Groceries</span>
-            <span className="dept-trio-tag">Sandwiches, pies, cheese &amp; more — click &amp; collect</span>
+            <img src="https://images.unsplash.com/photo-1754391853150-561b59ad8e99?auto=format&fit=crop&w=900&q=70" alt="" loading="lazy" />
+            <span className="dept-trio-caption">
+              <span className="dept-trio-eyebrow">Click &amp; collect</span>
+              <span className="dept-trio-name">Groceries</span>
+            </span>
           </button>
           <button className="dept-trio-card" onClick={() => go("/bread")}>
-            <span className="dept-trio-icon" aria-hidden="true">🍞</span>
-            <span className="dept-trio-name">Bread</span>
-            <span className="dept-trio-tag">Fresh-baked, pre-ordered for next-day collection</span>
+            <img src="https://images.unsplash.com/photo-1549413468-cd78edb7e75c?auto=format&fit=crop&w=900&q=70" alt="" loading="lazy" />
+            <span className="dept-trio-caption">
+              <span className="dept-trio-eyebrow">Next-day collection</span>
+              <span className="dept-trio-name">Bread</span>
+            </span>
           </button>
           <button className="dept-trio-card" onClick={() => go("/platters")}>
-            <span className="dept-trio-icon" aria-hidden="true">🧀</span>
-            <span className="dept-trio-name">Catering</span>
-            <span className="dept-trio-tag">Boards, platters &amp; grazing tables for any occasion</span>
+            <img src="https://images.unsplash.com/photo-1554998171-89445e31c52b?auto=format&fit=crop&w=900&q=70" alt="" loading="lazy" />
+            <span className="dept-trio-caption">
+              <span className="dept-trio-eyebrow">Any occasion</span>
+              <span className="dept-trio-name">Catering</span>
+            </span>
           </button>
         </div>
       </section>
