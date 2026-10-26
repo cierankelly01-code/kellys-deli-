@@ -16,14 +16,6 @@ import { groupVariants, cheapestVariant, type ProductGroup } from "../lib/varian
 
 const SITE = "https://www.kellysdeli.co.uk";
 
-// Real shop-footage clips for the categories we have strong, well-matched raw video for.
-// Not every category has one — categories missing here keep their photo-only hero.
-const CATEGORY_HERO_VIDEO: Record<string, string> = {
-  hosting: "/videos/hero-hosting.mp4",
-  "at-home": "/videos/hero-athome.mp4",
-  "office-corporate": "/videos/hero-office.mp4",
-};
-
 function priceFeeds(g: ProductGroup): string {
   const target = g.hasChoice ? cheapestVariant(g) : g.lead;
   const price = g.hasChoice ? `From ${gbp(g.fromPrice)}` : gbp(target.fixedPrice ?? target.fromPrice ?? 0);
@@ -139,9 +131,6 @@ export default function ShopCategory() {
       <Link to="/shop" className="btn-ghost back">← All occasions</Link>
 
       <header className="cat-hero" style={{ backgroundImage: cat.heroImageUrl ? `url(${cat.heroImageUrl})` : undefined }}>
-        {CATEGORY_HERO_VIDEO[cat.slug] && (
-          <video src={CATEGORY_HERO_VIDEO[cat.slug]} autoPlay loop muted playsInline />
-        )}
         <div className="cat-hero-scrim">
           <h1 className="cat-hero-h">{cat.name}</h1>
           {cat.tagline && <p className="cat-hero-tag">{cat.tagline}</p>}
