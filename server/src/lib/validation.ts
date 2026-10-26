@@ -456,3 +456,29 @@ export const groceryClosureUpsertSchema = z.object({
   reason: z.string().max(120).nullable().optional(),
 });
 export type GroceryClosureUpsertInput = z.infer<typeof groceryClosureUpsertSchema>;
+
+// --- Groceries click & collect (public ordering) ---
+
+export const groceryAvailabilityQuerySchema = z.object({
+  locationId: z.string().min(1),
+  from: dateString.optional(),
+  days: z.coerce.number().int().min(1).max(120).optional(),
+});
+
+const groceryOrderItemInput = z.object({
+  productId: z.string().min(1),
+  quantity: z.number().int().positive(),
+});
+
+export const createGroceryOrderSchema = z.object({
+  locationId: z.string().min(1),
+  collectionDate: dateString,
+  items: z.array(groceryOrderItemInput).min(1, "Add at least one item"),
+  customerName: z.string().min(1, "Name is required").max(120),
+  phone: ukMobile,
+  email: z.string().email("Enter a valid email").max(200).optional().or(z.literal("")),
+  notes: z.string().max(200).optional(),
+});
+export type CreateGroceryOrderInput = z.infer<typeof createGroceryOrderSchema>;
+
+export const groceryOrderStatusSchema = z.object({ status: z.enum(["pending", "confirmed", "collected", "cancelled"]) });

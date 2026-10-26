@@ -1,5 +1,5 @@
 // Admin API client + JWT token storage.
-import { ApiError, type OrderDTO, type Platter, type PlatterItem, type LocationT, type Experience, type Category, type BoardComponent, type BoardComponentCategory, type BoardGroup, type BoardType, type BoardSize, type BoardTier, type AddOn, type AddOnUnitType, type ShopCategory, type SubscriptionFrequency, type Bundle, type BundleInput, type GiftVoucherRequestDTO, type BreadProduct, type BreadOrderDTO, type BreadOrderStatus, type GroceryProductT } from "./api";
+import { ApiError, type OrderDTO, type Platter, type PlatterItem, type LocationT, type Experience, type Category, type BoardComponent, type BoardComponentCategory, type BoardGroup, type BoardType, type BoardSize, type BoardTier, type AddOn, type AddOnUnitType, type ShopCategory, type SubscriptionFrequency, type Bundle, type BundleInput, type GiftVoucherRequestDTO, type BreadProduct, type BreadOrderDTO, type BreadOrderStatus, type GroceryProductT, type GroceryOrderDTO, type GroceryOrderStatus } from "./api";
 
 const BASE = import.meta.env.VITE_API_URL || "";
 const TOKEN_KEY = "kd_admin_token";
@@ -536,6 +536,19 @@ export const adminApi = {
 
   // Groceries click & collect
   groceries: {
+    orders: (filters: { locationId?: string; date?: string; status?: string; q?: string } = {}) => {
+      const q = new URLSearchParams();
+      if (filters.locationId) q.set("locationId", filters.locationId);
+      if (filters.date) q.set("date", filters.date);
+      if (filters.status) q.set("status", filters.status);
+      if (filters.q) q.set("q", filters.q);
+      const qs = q.toString();
+      return authedReq<GroceryOrderDTO[]>(`/api/admin/groceries/orders${qs ? `?${qs}` : ""}`);
+    },
+    setOrderStatus: (id: string, status: GroceryOrderStatus) =>
+      authedReq<GroceryOrderDTO>(`/api/admin/groceries/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+    deleteOrder: (id: string) => authedReq<{ ok: boolean }>(`/api/admin/groceries/orders/${id}`, { method: "DELETE" }),
+
     products: () => authedReq<GroceryProductT[]>(`/api/admin/groceries/products`),
     createProduct: (input: GroceryProductUpsertInput) =>
       authedReq<GroceryProductT>(`/api/admin/groceries/products`, { method: "POST", body: JSON.stringify(input) }),

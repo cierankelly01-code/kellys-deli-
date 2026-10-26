@@ -13,16 +13,21 @@ import {
   giftVoucherSchema,
   createBreadOrderSchema,
   breadAvailabilityQuerySchema,
+  createGroceryOrderSchema,
+  groceryAvailabilityQuerySchema,
 } from "../lib/validation";
 import { priceOrder, priceLineItemOrder, REFERRAL_DISCOUNT } from "../lib/money";
 import { buildAvailability, canBook, getDayAvailability, meetsNotice, meetsLeadTime, parseDate, formatDate } from "../lib/capacity";
 import { buildBreadAvailability, canBookBread, getBreadDayAvailability, type BreadOrderingSettings } from "../lib/bread-capacity";
 import { recommendBoards, capacity as boardCapacity, type RecBoard } from "../lib/recommender";
-import { genRef, genBreadRef, randomReferralCode } from "../lib/ref";
+import { genRef, genBreadRef, genGroceryRef, randomReferralCode } from "../lib/ref";
 import { captureDepositIntent } from "../lib/payments";
-import { notifyOrderReceived, notifyShopOfOrder, notifyBreadOrderReceived, notifyShopOfBreadOrder, type OrderNotifyInput } from "../lib/notify";
-import type { BreadEmailItem } from "../lib/emailTemplate";
-import { platterDTO, experienceDTO, locationDTO, orderDTO, publicOrderDTO, boardComponentDTO, boardGroupDTO, addOnDTO, categoryDTO, bundleDTO, breadProductDTO, breadOrderDTO, groceryProductDTO } from "../lib/serialize";
+import {
+  notifyOrderReceived, notifyShopOfOrder, notifyBreadOrderReceived, notifyShopOfBreadOrder,
+  notifyGroceryOrderReceived, notifyShopOfGroceryOrder, type OrderNotifyInput,
+} from "../lib/notify";
+import type { BreadEmailItem, GroceryEmailItem } from "../lib/emailTemplate";
+import { platterDTO, experienceDTO, locationDTO, orderDTO, publicOrderDTO, boardComponentDTO, boardGroupDTO, addOnDTO, categoryDTO, bundleDTO, breadProductDTO, breadOrderDTO, groceryProductDTO, groceryOrderDTO } from "../lib/serialize";
 
 export const publicRouter = asyncRouter();
 publicRouter.use("/occasion-reminders", occasionReminderRouter);
@@ -105,6 +110,36 @@ async function getBreadSettings(): Promise<{ ordering: BreadOrderingSettings; mi
       cutoffDaysBefore: s?.cutoffDaysBefore ?? null,
       cutoffTime: s?.cutoffTime ?? null,
     },
+    minOrderQty: s?.minOrderQty ?? 1,
+    maxItemQty: s?.maxItemQty ?? 20,
+  };
+}
+
+// Same pattern for a grocery order reference (KDS- prefix, separate table from Order/BreadOrder).
+async function uniqueGroceryRef(tx: { groceryOrder: { findUnique: (a: any) => Promise<unknown> } }): Promise<string> {
+  for (let i = 0; i < 6; i++) {
+    const ref = genGroceryRef();
+    if (!(await tx.groceryOrder.findUnique({ where: { ref } }))) return ref;
+  }
+  throw new Error("Could not generate a unique grocery order reference");
+}
+
+class GroceryCapacityError extends Error {
+  constructor(public reason: "closed" | "too_soon" | "full") {
+    super(reason);
+  }
+}
+
+/**
+ * Global grocery ordering rules. Groceries only has a flat lead time (no bread-style
+ * cutoff-day/cutoff-time mode) — reuses the bread capacity module's pure functions by
+ * shaping this as a "rolling" BreadOrderingSettings, since the day-availability math is
+ * identical once you have a single leadTimeHours number.
+ */
+async function getGrocerySettings(): Promise<{ ordering: BreadOrderingSettings; minOrderQty: number; maxItemQty: number }> {
+  const s = await prisma.grocerySettings.findUnique({ where: { id: "singleton" } });
+  return {
+    ordering: { leadTimeHours: s?.leadTimeHours ?? 24, cutoffMode: "rolling", cutoffDaysBefore: null, cutoffTime: null },
     minOrderQty: s?.minOrderQty ?? 1,
     maxItemQty: s?.maxItemQty ?? 20,
   };
@@ -215,9 +250,11 @@ publicRouter.get("/bread/products", async (req, res) => {
 });
 
 // --- Groceries click & collect ---
-// Browse-only for now (menu/price list) — ordering (cart, checkout, admin order
-// management) is the next increment, same shape as bread's but with a flat lead time
-// instead of a cutoff clock. Not wired into the homepage nav until it's real.
+publicRouter.get("/groceries/settings", async (_req, res) => {
+  const { minOrderQty, maxItemQty } = await getGrocerySettings();
+  res.json({ minOrderQty, maxItemQty });
+});
+
 publicRouter.get("/groceries/products", async (req, res) => {
   const locationId = typeof req.query.locationId === "string" ? req.query.locationId : undefined;
   const products = await prisma.groceryProduct.findMany({
@@ -382,6 +419,166 @@ publicRouter.post("/bread/orders", async (req, res) => {
       return res.status(409).json({ error: messages[err.reason] });
     }
     console.error("[bread orders] create failed", err);
+    res.status(500).json({ error: "Could not place order" });
+  }
+});
+
+// --- Groceries click & collect (ordering) ---
+
+publicRouter.get("/groceries/availability", async (req, res) => {
+  const parsed = groceryAvailabilityQuerySchema.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid query", details: parsed.error.flatten() });
+  const { locationId, from, days } = parsed.data;
+  const location = await prisma.location.findUnique({ where: { id: locationId } });
+  if (!location || !location.active) return res.status(404).json({ error: "Location not available" });
+
+  const now = new Date();
+  const fromDate = from ?? formatDate(now);
+  const span = days ?? 21;
+  const start = parseDate(fromDate);
+  const end = new Date(start.getTime() + span * 86_400_000);
+
+  const [{ ordering }, shopSetting, closures, items] = await Promise.all([
+    getGrocerySettings(),
+    prisma.groceryShopSetting.findUnique({ where: { locationId } }),
+    prisma.groceryClosure.findMany({ where: { locationId, date: { gte: start, lt: end } } }),
+    prisma.groceryOrderItem.findMany({
+      where: { order: { locationId, status: { not: "cancelled" }, collectionDate: { gte: start, lt: end } } },
+      select: { quantity: true, order: { select: { collectionDate: true } } },
+    }),
+  ]);
+
+  const bookedByDate: Record<string, number> = {};
+  for (const i of items) {
+    const key = formatDate(i.order.collectionDate);
+    bookedByDate[key] = (bookedByDate[key] ?? 0) + i.quantity;
+  }
+
+  const dailyCapacity = shopSetting?.dailyCapacity ?? null;
+  res.json({
+    locationId,
+    dailyCapacity,
+    days: buildBreadAvailability(
+      fromDate,
+      span,
+      now,
+      ordering,
+      shopSetting?.closedWeekdays ?? [],
+      closures.map((c) => formatDate(c.date)),
+      dailyCapacity,
+      bookedByDate,
+    ),
+  });
+});
+
+publicRouter.post("/groceries/orders", async (req, res) => {
+  const parsed = createGroceryOrderSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid order", details: parsed.error.flatten() });
+  const input = parsed.data;
+  const now = new Date();
+
+  if (Number.isNaN(parseDate(input.collectionDate).getTime())) {
+    return res.status(400).json({ error: "Invalid date" });
+  }
+
+  const location = await prisma.location.findUnique({ where: { id: input.locationId } });
+  if (!location || !location.active) return res.status(404).json({ error: "Location not available" });
+
+  // Items must exist, be active, and be sold at this shop.
+  const productIds = [...new Set(input.items.map((i) => i.productId))];
+  const products = await prisma.groceryProduct.findMany({
+    where: { id: { in: productIds }, active: true, locations: { some: { locationId: input.locationId } } },
+  });
+  const productById = new Map(products.map((p) => [p.id, p]));
+  for (const it of input.items) {
+    if (!productById.get(it.productId)) return res.status(404).json({ error: "A selected item is no longer available at this shop" });
+  }
+
+  // Never trust the client's min/max — re-check against the current admin-configured values.
+  const { ordering, minOrderQty, maxItemQty } = await getGrocerySettings();
+  const totalQty = input.items.reduce((sum, i) => sum + i.quantity, 0);
+  if (totalQty < minOrderQty) {
+    return res.status(400).json({ error: `Minimum order is ${minOrderQty} item${minOrderQty === 1 ? "" : "s"}` });
+  }
+  for (const it of input.items) {
+    if (it.quantity > maxItemQty) return res.status(400).json({ error: `Maximum quantity per item is ${maxItemQty}` });
+  }
+
+  const shopSetting = await prisma.groceryShopSetting.findUnique({ where: { locationId: input.locationId } });
+  const closedWeekdays = shopSetting?.closedWeekdays ?? [];
+  const dailyCapacity = shopSetting?.dailyCapacity ?? null;
+
+  try {
+    const order = await prisma.$transaction(async (tx) => {
+      // Lock this shop's settings row so racing orders can't both take the last item of capacity.
+      await tx.$queryRaw`SELECT 1 FROM "GroceryShopSetting" WHERE "locationId" = ${input.locationId} FOR UPDATE`;
+
+      const closureRow = await tx.groceryClosure.findUnique({
+        where: { locationId_date: { locationId: input.locationId, date: parseDate(input.collectionDate) } },
+      });
+      const closureDates = closureRow ? [input.collectionDate] : [];
+
+      const bookedAgg = await tx.groceryOrderItem.aggregate({
+        _sum: { quantity: true },
+        where: { order: { locationId: input.locationId, collectionDate: parseDate(input.collectionDate), status: { not: "cancelled" } } },
+      });
+      const bookedQty = bookedAgg._sum.quantity ?? 0;
+
+      if (!canBookBread(input.collectionDate, now, ordering, closedWeekdays, closureDates, dailyCapacity, bookedQty)) {
+        const avail = getBreadDayAvailability(input.collectionDate, now, ordering, closedWeekdays, closureDates, dailyCapacity, bookedQty);
+        throw new GroceryCapacityError(avail.reason ?? "full");
+      }
+
+      const ref = await uniqueGroceryRef(tx);
+      const itemLines = input.items.map((it) => ({
+        productId: it.productId,
+        name: productById.get(it.productId)!.name,
+        quantity: it.quantity,
+        unitPrice: productById.get(it.productId)!.price,
+      }));
+
+      return tx.groceryOrder.create({
+        data: {
+          ref,
+          locationId: input.locationId,
+          collectionDate: parseDate(input.collectionDate),
+          customerName: input.customerName,
+          phone: input.phone,
+          email: input.email || null,
+          notes: input.notes || null,
+          items: { create: itemLines },
+        },
+        include: { location: true, items: true },
+      });
+    });
+
+    const dto = groceryOrderDTO(order);
+    const emailItems: GroceryEmailItem[] = dto.items.map((i) => ({ name: i.name, quantity: i.quantity, unitPrice: i.unitPrice, lineTotal: i.lineTotal }));
+    const emailData = {
+      ref: dto.ref,
+      customerName: dto.customerName,
+      phone: dto.phone,
+      email: dto.email,
+      locationName: dto.locationName ?? location.name,
+      collectionDate: dto.collectionDate,
+      notes: dto.notes,
+      items: emailItems,
+      total: dto.total,
+    };
+    if (dto.email) await notifyGroceryOrderReceived(dto.email, emailData);
+    if (shopSetting?.notifyEmail) await notifyShopOfGroceryOrder(shopSetting.notifyEmail, emailData);
+
+    res.status(201).json({ order: dto });
+  } catch (err) {
+    if (err instanceof GroceryCapacityError) {
+      const messages: Record<string, string> = {
+        closed: "We're closed that day — please choose another date.",
+        too_soon: "That date no longer gives us enough notice — please choose a later date.",
+        full: "That date just filled up — please choose another date.",
+      };
+      return res.status(409).json({ error: messages[err.reason] });
+    }
+    console.error("[groceries orders] create failed", err);
     res.status(500).json({ error: "Could not place order" });
   }
 });

@@ -37,6 +37,7 @@ const BreadOrders = lazy(() => import("./pages/admin/BreadOrders"));
 const BreadBakeSheet = lazy(() => import("./pages/admin/BreadBakeSheet"));
 const BreadSettings = lazy(() => import("./pages/admin/BreadSettings"));
 const GroceriesSettings = lazy(() => import("./pages/admin/GroceriesSettings"));
+const GroceryOrders = lazy(() => import("./pages/admin/GroceryOrders"));
 
 /** Wraps customer-facing pages so every one ends with the site footer + legal links. */
 function CustomerLayout() {
@@ -105,6 +106,7 @@ export default function App() {
         <Route path="bread" element={<BreadOrders />} />
         <Route path="bread/bake-sheet" element={<BreadBakeSheet />} />
         <Route path="bread/settings" element={<BreadSettings />} />
+        <Route path="groceries" element={<GroceryOrders />} />
         <Route path="groceries/settings" element={<GroceriesSettings />} />
       </Route>
 

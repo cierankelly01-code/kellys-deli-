@@ -29,6 +29,15 @@ export function genBreadRef(): string {
   return `KDB-${randomChars(6)}`;
 }
 
+/**
+ * Grocery click & collect order reference, e.g. "KDS-7F3K9Q". Distinct prefix so it's
+ * never confusable with a platter (KD-) or bread (KDB-) order ref when staff search by ref.
+ * Collision-checked by the caller (against GroceryOrder.ref, a separate table).
+ */
+export function genGroceryRef(): string {
+  return `KDS-${randomChars(6)}`;
+}
+
 /** A customer's shareable referral code, e.g. "KELLY-4QF9KP". */
 export function randomReferralCode(): string {
   return `KELLY-${randomChars(6)}`;

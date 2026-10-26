@@ -25,6 +25,7 @@ import {
   groceryShopSettingDTO,
   groceryClosureDTO,
   grocerySettingsDTO,
+  groceryOrderDTO,
   type PlatterItem,
 } from "../lib/serialize";
 import {
@@ -51,6 +52,7 @@ import {
   grocerySettingsUpdateSchema,
   groceryShopSettingUpdateSchema,
   groceryClosureUpsertSchema,
+  groceryOrderStatusSchema,
 } from "../lib/validation";
 import { calcMargin } from "../lib/money";
 import { parseDate, formatDate } from "../lib/capacity";
@@ -852,6 +854,52 @@ adminRouter.delete("/groceries/closures/:id", async (req, res) => {
   const exists = await prisma.groceryClosure.findUnique({ where: { id: req.params.id } });
   if (!exists) return res.status(404).json({ error: "Closure not found" });
   await prisma.groceryClosure.delete({ where: { id: req.params.id } });
+  res.json({ ok: true });
+});
+
+// --- Orders (list, status, delete) ---
+const GROCERY_ORDER_INCLUDE = { location: true, items: true } as const;
+
+adminRouter.get("/groceries/orders", async (req, res) => {
+  const { locationId, date, status, q } = req.query as Record<string, string | undefined>;
+  const where: any = {};
+  if (locationId) where.locationId = locationId;
+  if (status) where.status = status;
+  if (date) where.collectionDate = parseDate(date);
+  if (q?.trim()) {
+    const term = q.trim();
+    where.OR = [
+      { ref: { contains: term, mode: "insensitive" } },
+      { customerName: { contains: term, mode: "insensitive" } },
+      { phone: { contains: term } },
+    ];
+  }
+  const orders = await prisma.groceryOrder.findMany({
+    where,
+    include: GROCERY_ORDER_INCLUDE,
+    orderBy: [{ collectionDate: "asc" }, { createdAt: "asc" }],
+  });
+  res.json(orders.map(groceryOrderDTO));
+});
+
+adminRouter.patch("/groceries/orders/:id/status", async (req, res) => {
+  const parsed = groceryOrderStatusSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid status" });
+  const exists = await prisma.groceryOrder.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Order not found" });
+  const updated = await prisma.groceryOrder.update({
+    where: { id: req.params.id },
+    data: { status: parsed.data.status },
+    include: GROCERY_ORDER_INCLUDE,
+  });
+  res.json(groceryOrderDTO(updated));
+});
+
+// Privacy: a real delete, not a soft one — see build spec §5.
+adminRouter.delete("/groceries/orders/:id", async (req, res) => {
+  const exists = await prisma.groceryOrder.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Order not found" });
+  await prisma.groceryOrder.delete({ where: { id: req.params.id } }); // items cascade
   res.json({ ok: true });
 });
 

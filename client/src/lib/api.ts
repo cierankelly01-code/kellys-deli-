@@ -426,6 +426,46 @@ export interface GroceryProductT {
   locationIds: string[];
 }
 
+// Same shape as bread's day-availability — reused directly rather than redeclared.
+export type GroceryAvailabilityResponse = BreadAvailabilityResponse;
+
+export interface GroceryOrderItemDTO {
+  id: string;
+  productId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+export type GroceryOrderStatus = "pending" | "confirmed" | "collected" | "cancelled";
+
+export interface GroceryOrderDTO {
+  id: string;
+  ref: string;
+  locationId: string;
+  locationName: string | null;
+  collectionDate: string;
+  customerName: string;
+  phone: string;
+  email: string | null;
+  notes: string | null;
+  status: GroceryOrderStatus;
+  items: GroceryOrderItemDTO[];
+  total: number;
+  createdAt: string;
+}
+
+export interface CreateGroceryOrderInput {
+  locationId: string;
+  collectionDate: string;
+  items: { productId: string; quantity: number }[];
+  customerName: string;
+  phone: string;
+  email?: string;
+  notes?: string;
+}
+
 export type BreadDayReason = "closed" | "too_soon" | "full" | null;
 
 export interface BreadDayAvailability {
@@ -572,8 +612,15 @@ export const api = {
   },
 
   groceries: {
-    // Browse-only for now — ordering is the next increment.
+    orderLimits: () => req<{ minOrderQty: number; maxItemQty: number }>("/api/groceries/settings"),
     products: (locationId?: string) =>
       req<GroceryProductT[]>(`/api/groceries/products${locationId ? `?locationId=${locationId}` : ""}`),
+    availability: (locationId: string, from?: string, days = 21) => {
+      const q = new URLSearchParams({ locationId, days: String(days) });
+      if (from) q.set("from", from);
+      return req<GroceryAvailabilityResponse>(`/api/groceries/availability?${q.toString()}`);
+    },
+    createOrder: (body: CreateGroceryOrderInput) =>
+      req<{ order: GroceryOrderDTO }>("/api/groceries/orders", { method: "POST", body: JSON.stringify(body) }),
   },
 };

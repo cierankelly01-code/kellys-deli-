@@ -407,6 +407,154 @@ export function breadShopAlertHtml(d: BreadOrderEmailData): string {
   return layout(inner, `New bread order ${d.ref} for ${d.collectionDate}`);
 }
 
+// --- Groceries click & collect ---
+// Same shape as bread's (a flat line-item order, pay on collection) so these mirror the
+// bread templates above almost exactly — only the customer-facing copy differs.
+
+export type GroceryEmailItem = BreadEmailItem;
+export type GroceryOrderEmailData = BreadOrderEmailData;
+
+function groceryLineRow(l: GroceryEmailItem): string {
+  return `
+  <tr>
+    <td style="padding:8px 0;font-family:${SANS};font-size:15px;color:${C.ink};">
+      <strong style="font-weight:600;">${esc(l.name)}</strong>
+      ${l.quantity > 1 ? `<br><span style="font-size:13px;color:${C.inkSoft};">Quantity: ${l.quantity}</span>` : ""}
+    </td>
+    <td align="right" style="padding:8px 0;vertical-align:top;font-family:${SANS};font-size:15px;color:${C.ink};white-space:nowrap;">
+      ${money(l.lineTotal)}
+    </td>
+  </tr>`;
+}
+
+/** Customer-facing confirmation for a grocery click & collect order — pay in shop on collection. */
+export function groceryOrderReceivedHtml(d: GroceryOrderEmailData): string {
+  const inner = `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr><td style="padding:28px 28px 0;">
+      <h1 style="margin:0 0 6px;font-family:${SERIF};font-size:26px;line-height:1.2;font-weight:normal;color:${C.ink};">
+        Thanks ${esc(d.customerName)} — your order&#39;s ready to collect.
+      </h1>
+      <p style="margin:0 0 18px;font-family:${SANS};font-size:15px;line-height:1.6;color:${C.inkSoft};">
+        Pay on collection — we&#39;ll text you if anything changes.
+      </p>
+
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px;">
+        <tr><td style="border:2px dashed ${C.gold};border-radius:10px;padding:12px 22px;font-family:${SANS};text-align:center;">
+          <span style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:${C.inkSoft};">Your reference</span><br>
+          <strong style="font-family:${SERIF};font-size:24px;letter-spacing:1px;color:${C.green};">${esc(d.ref)}</strong>
+        </td></tr>
+      </table>
+    </td></tr>
+
+    <tr><td style="padding:0 28px;">
+      <div style="border-top:1px solid ${C.line};padding-top:8px;"></div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${d.items.map(groceryLineRow).join("")}</table>
+    </td></tr>
+
+    <tr><td style="padding:14px 28px 0;">
+      <div style="border-top:1px solid ${C.line};padding-top:10px;"></div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        ${totalsRow("Total — pay on collection", money(d.total), { strong: true })}
+      </table>
+    </td></tr>
+
+    <tr><td style="padding:22px 28px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.cream};border-radius:10px;">
+        <tr><td style="padding:16px 18px;font-family:${SANS};font-size:15px;line-height:1.7;color:${C.ink};">
+          <strong style="font-weight:600;">Collection</strong><br>
+          ${esc(d.collectionDate)} — ${esc(d.locationName)}
+          ${d.notes ? `<br><br><strong style="font-weight:600;">Notes</strong><br>${esc(d.notes)}` : ""}
+        </td></tr>
+      </table>
+    </td></tr>
+
+    <tr><td style="padding:22px 28px 30px;">
+      <p style="margin:0;font-family:${SANS};font-size:15px;line-height:1.7;color:${C.inkSoft};">
+        Anything to change — just reply to this email or ring us. We&#39;d rather sort it now than on the day.
+      </p>
+    </td></tr>
+  </table>`;
+
+  return layout(inner, `Order ${d.ref} — collection ${d.collectionDate} at ${d.locationName}`);
+}
+
+export function groceryOrderReceivedText(d: GroceryOrderEmailData): string {
+  const lines = d.items.map((l) => `  - ${l.name}${l.quantity > 1 ? ` x${l.quantity}` : ""}  ${money(l.lineTotal)}`).join("\n");
+  return [
+    `Thanks ${d.customerName} — your order's ready to collect.`,
+    `Pay on collection — we'll text you if anything changes.`,
+    ``,
+    `Your reference: ${d.ref}`,
+    ``,
+    `Your order:`,
+    lines,
+    ``,
+    `Total — pay on collection: ${money(d.total)}`,
+    ``,
+    `Collection: ${d.collectionDate} — ${d.locationName}`,
+    d.notes ? `Notes: ${d.notes}` : "",
+    ``,
+    `Anything to change — just reply to this email or ring us.`,
+    ``,
+    `Kelly's Deli — 1 Slater Road, Bentley Heath, Solihull B93 8AQ`,
+    `kellysdeli.co.uk · hello@kellysdeli.co.uk`,
+  ].filter((l) => l !== "").join("\n");
+}
+
+/**
+ * Internal new-order alert sent to the shop's own inbox (GroceryShopSetting.notifyEmail).
+ * Plain and dense on purpose — this gets glanced at on a phone, not admired.
+ */
+export function groceryShopAlertText(d: GroceryOrderEmailData): string {
+  const lines = d.items.map((l) => `  - ${l.name} x${l.quantity}`).join("\n");
+  return [
+    `NEW GROCERY ORDER — ${d.ref}`,
+    ``,
+    `Collection: ${d.collectionDate} — ${d.locationName}`,
+    ``,
+    `Customer: ${d.customerName}`,
+    `Phone: ${d.phone}`,
+    d.email ? `Email: ${d.email}` : `Email: (not given)`,
+    ``,
+    `Items:`,
+    lines,
+    ``,
+    `Total: ${money(d.total)}`,
+    d.notes ? `Notes: ${d.notes}` : "",
+  ].filter((l) => l !== "").join("\n");
+}
+
+export function groceryShopAlertHtml(d: GroceryOrderEmailData): string {
+  const inner = `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr><td style="padding:24px 24px 0;">
+      <h1 style="margin:0 0 14px;font-family:${SERIF};font-size:22px;font-weight:normal;color:${C.ink};">
+        New grocery order — ${esc(d.ref)}
+      </h1>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.cream};border-radius:10px;margin:0 0 18px;">
+        <tr><td style="padding:14px 16px;font-family:${SANS};font-size:15px;line-height:1.8;color:${C.ink};">
+          <strong>Collection:</strong> ${esc(d.collectionDate)} — ${esc(d.locationName)}<br>
+          <strong>Customer:</strong> ${esc(d.customerName)}<br>
+          <strong>Phone:</strong> ${esc(d.phone)}<br>
+          <strong>Email:</strong> ${d.email ? esc(d.email) : "(not given)"}
+        </td></tr>
+      </table>
+    </td></tr>
+    <tr><td style="padding:0 24px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${d.items.map(groceryLineRow).join("")}</table>
+    </td></tr>
+    <tr><td style="padding:14px 24px 0;">
+      <div style="border-top:1px solid ${C.line};padding-top:10px;"></div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        ${totalsRow("Total", money(d.total), { strong: true })}
+      </table>
+    </td></tr>
+    ${d.notes ? `<tr><td style="padding:18px 24px 30px;font-family:${SANS};font-size:15px;color:${C.ink};"><strong>Notes:</strong> ${esc(d.notes)}</td></tr>` : `<tr><td style="padding:0 24px 24px;"></td></tr>`}
+  </table>`;
+  return layout(inner, `New grocery order ${d.ref} for ${d.collectionDate}`);
+}
+
 /* ---------------------------------------------------------------------------
  * Shop alert for a new board order. Different job from the customer's
  * confirmation: no reassurance copy, no marketing — just what the counter needs

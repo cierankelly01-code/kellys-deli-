@@ -33,6 +33,7 @@ const NAV_GROUPS: Array<{ label: string; links: Array<{ to: string; label: strin
   {
     label: "Groceries",
     links: [
+      { to: "/admin/groceries", label: "Orders" },
       { to: "/admin/groceries/settings", label: "Settings" },
     ],
   },

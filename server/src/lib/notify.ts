@@ -10,6 +10,13 @@ import {
   breadShopAlertText,
   type BreadOrderEmailData,
 } from "./emailTemplate";
+import {
+  groceryOrderReceivedHtml,
+  groceryOrderReceivedText,
+  groceryShopAlertHtml,
+  groceryShopAlertText,
+  type GroceryOrderEmailData,
+} from "./emailTemplate";
 
 export interface NotifyTarget {
   name: string;
@@ -155,6 +162,16 @@ export async function notifyShopOfOrder(shopEmail: string, t: NotifyTarget, o: O
 /** Sent to the shop's own inbox (BreadShopSetting.notifyEmail) on every new bread order. */
 export async function notifyShopOfBreadOrder(shopEmail: string, d: BreadOrderEmailData): Promise<void> {
   await sendEmail(shopEmail, `New bread order ${d.ref} — ${d.collectionDate}`, breadShopAlertText(d), breadShopAlertHtml(d));
+}
+
+/** Sent to the customer when a grocery click & collect order is placed, if they gave an email. */
+export async function notifyGroceryOrderReceived(email: string, d: GroceryOrderEmailData): Promise<void> {
+  await sendEmail(email, `Order ${d.ref} confirmed — Kelly's Deli`, groceryOrderReceivedText(d), groceryOrderReceivedHtml(d));
+}
+
+/** Sent to the shop's own inbox (GroceryShopSetting.notifyEmail) on every new grocery order. */
+export async function notifyShopOfGroceryOrder(shopEmail: string, d: GroceryOrderEmailData): Promise<void> {
+  await sendEmail(shopEmail, `New grocery order ${d.ref} — ${d.collectionDate}`, groceryShopAlertText(d), groceryShopAlertHtml(d));
 }
 
 /** SMS marketing blast (stub) — logs the recipient count target, not the PII payload. */
