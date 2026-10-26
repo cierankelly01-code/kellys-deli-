@@ -410,6 +410,21 @@ export interface BreadProduct {
   locationIds: string[];
 }
 
+// --- Groceries click & collect ---
+
+export interface GroceryProductT {
+  id: string;
+  department: string;
+  name: string;
+  description: string | null;
+  price: number;
+  unitLabel: string | null;
+  imageUrl: string | null;
+  active: boolean;
+  sortOrder: number;
+  locationIds: string[];
+}
+
 export type BreadDayReason = "closed" | "too_soon" | "full" | null;
 
 export interface BreadDayAvailability {
@@ -553,5 +568,11 @@ export const api = {
     },
     createOrder: (body: CreateBreadOrderInput) =>
       req<{ order: BreadOrderDTO }>("/api/bread/orders", { method: "POST", body: JSON.stringify(body) }),
+  },
+
+  groceries: {
+    // Browse-only for now — ordering is the next increment.
+    products: (locationId?: string) =>
+      req<GroceryProductT[]>(`/api/groceries/products${locationId ? `?locationId=${locationId}` : ""}`),
   },
 };

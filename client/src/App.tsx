@@ -13,6 +13,7 @@ import PlatterDetail from "./pages/PlatterDetail";
 import Order from "./pages/Order";
 import Confirm from "./pages/Confirm";
 import Bread from "./pages/Bread";
+import Groceries from "./pages/Groceries";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import { Footer } from "./components/Footer";
@@ -79,6 +80,7 @@ export default function App() {
         <Route path="/order" element={<Order />} />
         <Route path="/confirm/:ref" element={<Confirm />} />
         <Route path="/bread" element={<Bread />} />
+        <Route path="/groceries" element={<Groceries />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="*" element={<NotFound />} />

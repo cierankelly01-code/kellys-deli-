@@ -22,7 +22,7 @@ import { genRef, genBreadRef, randomReferralCode } from "../lib/ref";
 import { captureDepositIntent } from "../lib/payments";
 import { notifyOrderReceived, notifyShopOfOrder, notifyBreadOrderReceived, notifyShopOfBreadOrder, type OrderNotifyInput } from "../lib/notify";
 import type { BreadEmailItem } from "../lib/emailTemplate";
-import { platterDTO, experienceDTO, locationDTO, orderDTO, publicOrderDTO, boardComponentDTO, boardGroupDTO, addOnDTO, categoryDTO, bundleDTO, breadProductDTO, breadOrderDTO } from "../lib/serialize";
+import { platterDTO, experienceDTO, locationDTO, orderDTO, publicOrderDTO, boardComponentDTO, boardGroupDTO, addOnDTO, categoryDTO, bundleDTO, breadProductDTO, breadOrderDTO, groceryProductDTO } from "../lib/serialize";
 
 export const publicRouter = asyncRouter();
 publicRouter.use("/occasion-reminders", occasionReminderRouter);
@@ -212,6 +212,20 @@ publicRouter.get("/bread/products", async (req, res) => {
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
   res.json(products.map(breadProductDTO));
+});
+
+// --- Groceries click & collect ---
+// Browse-only for now (menu/price list) — ordering (cart, checkout, admin order
+// management) is the next increment, same shape as bread's but with a flat lead time
+// instead of a cutoff clock. Not wired into the homepage nav until it's real.
+publicRouter.get("/groceries/products", async (req, res) => {
+  const locationId = typeof req.query.locationId === "string" ? req.query.locationId : undefined;
+  const products = await prisma.groceryProduct.findMany({
+    where: { active: true, ...(locationId ? { locations: { some: { locationId } } } : {}) },
+    include: { locations: true },
+    orderBy: [{ department: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+  res.json(products.map(groceryProductDTO));
 });
 
 publicRouter.get("/bread/availability", async (req, res) => {

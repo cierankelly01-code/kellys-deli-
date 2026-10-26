@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { api, type CategoryCounts, type OpeningHours, type Platter, type ShopCategory } from "../lib/api";
+import { api, type CategoryCounts, type LocationT, type OpeningHours, type Platter, type ShopCategory } from "../lib/api";
 import { addBoard } from "../lib/cart";
 import { openCartDrawer } from "../components/CartDrawer";
 import { gbp } from "../lib/format";
@@ -68,7 +68,8 @@ export default function Choice() {
   const [counts, setCounts] = useState<CategoryCounts | null>(null);
   const [boards, setBoards] = useState<Platter[] | null>(null);
   const [shopCats, setShopCats] = useState<ShopCategory[]>([]);
-  const [showHours, setShowHours] = useState(false);
+  const [locations, setLocations] = useState<LocationT[]>([]);
+  const [openHoursFor, setOpenHoursFor] = useState<string | null>(null);
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const src = params.get("src");
@@ -78,6 +79,7 @@ export default function Choice() {
     api.categories().then(setCounts).catch(() => setCounts(null));
     api.boards("signature").then(setBoards).catch(() => setBoards([]));
     api.shopCategories().then(setShopCats).catch(() => setShopCats([]));
+    api.locations().then(setLocations).catch(() => setLocations([]));
   }, []);
 
   const go = (path: string) => navigate(`${path}${suffix}`);
@@ -86,7 +88,13 @@ export default function Choice() {
     openCartDrawer();
   };
 
-  const hours = parseHours(counts?.openingHours ?? null);
+  // Per-shop hours (real, admin-set) fall back to the legacy global setting only for a
+  // shop that hasn't had its own hours filled in yet.
+  const fallbackHours = parseHours(counts?.openingHours ?? null);
+  const shopsWithHours = locations
+    .filter((l) => l.active)
+    .map((l) => ({ location: l, hours: (l.openingHours as OpeningHours | null) ?? fallbackHours }))
+    .filter((s): s is { location: LocationT; hours: OpeningHours } => !!s.hours);
   const today = DAY_LABELS[(new Date().getDay() + 6) % 7];
   // One tile per board, not one per size (see lib/variants).
   const signature = groupVariants(boards ?? []).slice(0, 6);
@@ -132,6 +140,27 @@ export default function Choice() {
         <span className="statement-line">Independent, family-run, and prepared for your occasion.</span>
         {counts?.reviewRating && <Stars rating={counts.reviewRating} count={counts.reviewCount} />}
       </div>
+
+      {/* Panzer's-style department trio — the three doors into the shop, right under the hero. */}
+      <section className="dept-trio-section" data-reveal>
+        <div className="dept-trio">
+          <button className="dept-trio-card" onClick={() => go("/groceries")}>
+            <span className="dept-trio-icon" aria-hidden="true">🧺</span>
+            <span className="dept-trio-name">Groceries</span>
+            <span className="dept-trio-tag">Sandwiches, pies, cheese &amp; more — click &amp; collect</span>
+          </button>
+          <button className="dept-trio-card" onClick={() => go("/bread")}>
+            <span className="dept-trio-icon" aria-hidden="true">🍞</span>
+            <span className="dept-trio-name">Bread</span>
+            <span className="dept-trio-tag">Fresh-baked, pre-ordered for next-day collection</span>
+          </button>
+          <button className="dept-trio-card" onClick={() => go("/platters")}>
+            <span className="dept-trio-icon" aria-hidden="true">🧀</span>
+            <span className="dept-trio-name">Catering</span>
+            <span className="dept-trio-tag">Boards, platters &amp; grazing tables for any occasion</span>
+          </button>
+        </div>
+      </section>
 
       {counts?.firstOrderHook && counts.firstOrderHookText && (
         <div className="firstorder-band">
@@ -255,25 +284,27 @@ export default function Choice() {
 
         <div className="deli-reassurance"><TrustChips /></div>
 
-        {hours && (
-          <div className="info-row">
-            <div className="card hours-card">
-              <button className="hours-status" onClick={() => setShowHours((s) => !s)}>
-                <span className={`status-dot ${computeOpenStatus(hours).open ? "open" : "closed"}`} aria-hidden="true" />
-                <span className="hours-status-text">{computeOpenStatus(hours).text}</span>
-                <span className="hours-toggle">{showHours ? "Hide hours ▲" : "Full hours ▼"}</span>
-              </button>
-              {showHours && (
-                <div className="hours-grid">
-                  {DAY_LABELS.map((d) => (
-                    <div key={d.key} className={`hours-row${d.key === today.key ? " is-today" : ""}`}>
-                      <span className="hours-day">{d.label}</span>
-                      <span className="hours-time">{hours[d.key]}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+        {shopsWithHours.length > 0 && (
+          <div className="info-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 10 }}>
+            {shopsWithHours.map(({ location, hours }) => (
+              <div key={location.id} className="card hours-card">
+                <button className="hours-status" onClick={() => setOpenHoursFor((cur) => (cur === location.id ? null : location.id))}>
+                  <span className={`status-dot ${computeOpenStatus(hours).open ? "open" : "closed"}`} aria-hidden="true" />
+                  <span className="hours-status-text">{location.name} · {computeOpenStatus(hours).text}</span>
+                  <span className="hours-toggle">{openHoursFor === location.id ? "Hide hours ▲" : "Full hours ▼"}</span>
+                </button>
+                {openHoursFor === location.id && (
+                  <div className="hours-grid">
+                    {DAY_LABELS.map((d) => (
+                      <div key={d.key} className={`hours-row${d.key === today.key ? " is-today" : ""}`}>
+                        <span className="hours-day">{d.label}</span>
+                        <span className="hours-time">{hours[d.key]}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
 

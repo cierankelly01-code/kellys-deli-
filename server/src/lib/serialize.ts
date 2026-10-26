@@ -24,6 +24,13 @@ import type {
   BreadShopSetting,
   BreadClosure,
   BreadSettings,
+  GroceryProduct,
+  GroceryProductLocation,
+  GroceryOrder,
+  GroceryOrderItem,
+  GroceryShopSetting,
+  GroceryClosure,
+  GrocerySettings,
 } from "@prisma/client";
 import { formatDate } from "./capacity";
 import { toMoney } from "./money";
@@ -449,6 +456,81 @@ export function breadSettingsDTO(s: BreadSettings) {
     cutoffMode: s.cutoffMode,
     cutoffDaysBefore: s.cutoffDaysBefore,
     cutoffTime: s.cutoffTime,
+    minOrderQty: s.minOrderQty,
+    maxItemQty: s.maxItemQty,
+  };
+}
+
+// --- Groceries click & collect ---
+
+export function groceryProductDTO(p: GroceryProduct & { locations?: GroceryProductLocation[] | null }) {
+  return {
+    id: p.id,
+    department: p.department,
+    name: p.name,
+    description: p.description,
+    price: Number(p.price),
+    unitLabel: p.unitLabel,
+    imageUrl: p.imageUrl,
+    active: p.active,
+    sortOrder: p.sortOrder,
+    locationIds: p.locations ? p.locations.map((l) => l.locationId) : [],
+  };
+}
+
+export function groceryOrderItemDTO(i: GroceryOrderItem) {
+  return {
+    id: i.id,
+    productId: i.productId,
+    name: i.name,
+    quantity: i.quantity,
+    unitPrice: Number(i.unitPrice),
+    lineTotal: toMoney(Number(i.unitPrice) * i.quantity),
+  };
+}
+
+export function groceryOrderDTO(
+  o: GroceryOrder & { location?: Location | null; items?: GroceryOrderItem[] | null },
+) {
+  const items = o.items ? o.items.map(groceryOrderItemDTO) : [];
+  return {
+    id: o.id,
+    ref: o.ref,
+    locationId: o.locationId,
+    locationName: o.location?.name ?? null,
+    collectionDate: formatDate(o.collectionDate),
+    customerName: o.customerName,
+    phone: o.phone,
+    email: o.email,
+    notes: o.notes,
+    status: o.status,
+    items,
+    total: toMoney(items.reduce((sum, i) => sum + i.lineTotal, 0)),
+    createdAt: o.createdAt.toISOString(),
+  };
+}
+
+export function groceryShopSettingDTO(s: GroceryShopSetting) {
+  return {
+    locationId: s.locationId,
+    dailyCapacity: s.dailyCapacity,
+    closedWeekdays: s.closedWeekdays,
+    notifyEmail: s.notifyEmail,
+  };
+}
+
+export function groceryClosureDTO(c: GroceryClosure) {
+  return {
+    id: c.id,
+    locationId: c.locationId,
+    date: formatDate(c.date),
+    reason: c.reason,
+  };
+}
+
+export function grocerySettingsDTO(s: GrocerySettings) {
+  return {
+    leadTimeHours: s.leadTimeHours,
     minOrderQty: s.minOrderQty,
     maxItemQty: s.maxItemQty,
   };
