@@ -26,18 +26,24 @@ const KNOWN_DEPARTMENTS = [
   "sandwiches", "salami", "meats", "quiches", "cheese", "pies", "tubs", "savoury", "pantry", "cakes",
 ];
 
-function toInput(p: GroceryProductT): GroceryProductUpsertInput {
+// Drops any locationId the admin can't see/toggle here (e.g. a shop later made inactive) —
+// otherwise it silently rides along on every save, and a product can end up assigned ONLY
+// to a shop nobody can select or deselect in this UI (a real incident: 45 products got
+// reassigned to a defunct location this way when their real shops were toggled off).
+function toInput(p: GroceryProductT, selectableIds: Set<string>): GroceryProductUpsertInput {
   return {
     department: p.department, name: p.name, description: p.description, price: p.price,
-    unitLabel: p.unitLabel, imageUrl: p.imageUrl, active: p.active, sortOrder: p.sortOrder, locationIds: p.locationIds,
+    unitLabel: p.unitLabel, imageUrl: p.imageUrl, active: p.active, sortOrder: p.sortOrder,
+    locationIds: p.locationIds.filter((id) => selectableIds.has(id)),
   };
 }
 
 function ProductRow({ product, locations, onChanged }: { product: GroceryProductT; locations: LocationT[]; onChanged: () => void }) {
-  const [draft, setDraft] = useState<GroceryProductUpsertInput>(toInput(product));
+  const selectableIds = useMemo(() => new Set(locations.map((l) => l.id)), [locations]);
+  const [draft, setDraft] = useState<GroceryProductUpsertInput>(toInput(product, selectableIds));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const dirty = JSON.stringify(draft) !== JSON.stringify(toInput(product));
+  const dirty = JSON.stringify(draft) !== JSON.stringify(toInput(product, selectableIds));
   const set = (patch: Partial<GroceryProductUpsertInput>) => setDraft((d) => ({ ...d, ...patch }));
 
   function toggleLocation(id: string) {
