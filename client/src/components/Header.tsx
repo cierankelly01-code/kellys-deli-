@@ -40,7 +40,7 @@ export function Header() {
           it would only ever skip to the element containing it. */}
       <div className="deli-announcement">Good food, close to home <span aria-hidden="true">·</span> Bentley Heath &amp; Stratford-upon-Avon</div>
       <header className="hdr deli-header">
-        <details className="deli-mobile-menu"><summary>Menu <span aria-hidden="true">+</span></summary><nav aria-label="Mobile navigation" onClick={(e) => { if ((e.target as HTMLElement).closest("a")) e.currentTarget.closest("details")?.removeAttribute("open"); }}><Link className="is-primary-link" to="/lunch">Order lunch</Link><Link className="is-primary-link" to="/groceries">Groceries</Link><Link className="is-primary-link" to="/shop">Boards &amp; platters</Link><Link className="is-primary-link" to="/office-catering">Office catering</Link><Link className="is-primary-link" to="/bread">Bread pre-orders</Link><Link to="/plan">Plan an event</Link><a href="/#our-shops">Visit &amp; contact</a></nav></details>
+        <details className="deli-mobile-menu"><summary>Menu <span aria-hidden="true">+</span></summary><nav aria-label="Mobile navigation" onClick={(e) => { if ((e.target as HTMLElement).closest("a")) e.currentTarget.closest("details")?.removeAttribute("open"); }}><Link className="is-primary-link" to="/lunch">Order lunch</Link><Link className="is-primary-link" to="/groceries">Deli Counter</Link><Link className="is-primary-link" to="/shop">Boards &amp; platters</Link><Link className="is-primary-link" to="/office-catering">Office catering</Link><Link className="is-primary-link" to="/bread">Bread pre-orders</Link><Link to="/plan">Plan an event</Link><a href="/#our-shops">Visit &amp; contact</a></nav></details>
         <span className="deli-header-note">INDEPENDENT.<br />ALWAYS WELCOMING.</span>
         <Link to="/" className="brand">
           <span className="brand-mark">Kelly&apos;s Deli</span>
@@ -48,7 +48,7 @@ export function Header() {
         </Link>
         <nav className="hdr-nav" aria-label="Main">
           <Link className="u-link" to="/lunch">Order lunch</Link>
-          <Link className="u-link" to="/groceries">Groceries</Link>
+          <Link className="u-link" to="/groceries">Deli Counter</Link>
           <Link className="u-link" to="/shop">Boards &amp; platters</Link>
           <Link className="u-link" to="/office-catering">Office catering</Link>
           <Link className="u-link" to="/bread">Bread pre-orders</Link>

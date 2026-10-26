@@ -105,7 +105,7 @@ export default function Choice() {
   // get here?" never needs a scroll to answer. Replaces the old boards-first hero.
   const MAIN_CATEGORIES: Array<{ label: string; eyebrow: string; to: string; image: string }> = [
     { label: "Lunch", eyebrow: "Order for tomorrow", to: "/lunch", image: "/images/grocery-ham-cheese.webp" },
-    { label: "Groceries", eyebrow: "Click & collect", to: "/groceries", image: "/images/groceries-counter.webp" },
+    { label: "Deli Counter", eyebrow: "Click & collect", to: "/groceries", image: "/images/groceries-counter.webp" },
     { label: "At Home Dining", eyebrow: "A night in, sorted", to: "/shop/at-home", image: catImage("at-home", "/images/board-grazing-table.webp") },
     { label: "Events", eyebrow: "Birthdays & celebrations", to: "/shop/hosting", image: catImage("hosting", "/images/board-ultimate.webp") },
     { label: "Office & Catering", eyebrow: "Meetings & team lunches", to: "/office-catering", image: catImage("office-corporate", "/images/board-antipasti.webp") },
@@ -148,7 +148,11 @@ export default function Choice() {
       <div className="app app-wide">
         <section className="board-section">
           <div className="spread shelf-head" data-reveal>
-            <div><p className="deli-eyebrow">From the deli counter</p><h2 className="section-h" style={{ margin: 0 }}>Made for the middle of the table.</h2></div>
+            <div>
+              <p className="deli-eyebrow">From the deli counter</p>
+              <h2 className="section-h" style={{ margin: 0 }}>Made for the middle of the table.</h2>
+              <DeadlineChip />
+            </div>
             <button className="btn-ghost" onClick={() => go("/platters")}>See all →</button>
           </div>
           {signature.length === 0 ? (
@@ -189,7 +193,6 @@ export default function Choice() {
               })}
             </div>
           )}
-          <div data-reveal><DeadlineChip /></div>
         </section>
 
         <Bundles />

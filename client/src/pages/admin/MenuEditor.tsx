@@ -87,6 +87,7 @@ export default function MenuEditor() {
   const [locations, setLocations] = useState<LocationT[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [search, setSearch] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -165,8 +166,11 @@ export default function MenuEditor() {
     set("items", items);
   }
 
+  const q = search.trim().toLowerCase();
+  const matches = q ? platters.filter((p) => p.name.toLowerCase().includes(q)) : platters;
   const grouped: Record<Category, AdminPlatter[]> = { board: [], home: [], events: [], seasonal: [], platters: [] };
-  for (const p of platters) grouped[p.category]?.push(p);
+  for (const p of matches) grouped[p.category]?.push(p);
+  const visibleCats = (["board", "home", "events", "seasonal", "platters"] as Category[]).filter((cat) => !q || grouped[cat].length > 0);
 
   return (
     <div>
@@ -176,7 +180,13 @@ export default function MenuEditor() {
 
       <FirstOrderHook settings={settings} onSaved={refresh} />
 
-      {(["board", "home", "events", "seasonal", "platters"] as Category[]).map((cat) => (
+      <div className="field" style={{ maxWidth: 360 }}>
+        <label>Find a product</label>
+        <input className="input" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name…" />
+      </div>
+      {q && visibleCats.length === 0 && <p className="muted">No products match &ldquo;{search}&rdquo;.</p>}
+
+      {visibleCats.map((cat) => (
         <div key={cat}>
           <h2>{CATEGORY_LABEL[cat]}{cat === "seasonal" ? " (switch on by season)" : ""}</h2>
           <div className="bc-rows">
@@ -410,6 +420,11 @@ function PlatterQuickRow({
 
   return (
     <div className={`bc-row ${!p.active ? "bc-row-hidden" : ""} ${editing ? "bc-row-editing" : ""}`}>
+      {p.imageUrl ? (
+        <img className="bc-row-thumb" src={p.imageUrl} alt="" loading="lazy" />
+      ) : (
+        <span className="bc-row-thumb bc-row-thumb-empty" aria-hidden="true" title="No photo yet">🖼</span>
+      )}
       <span className="bc-row-label bc-row-name">
         {p.name}
         {p.size ? <small className="muted"> · {p.size}</small> : null}

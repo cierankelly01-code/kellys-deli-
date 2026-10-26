@@ -38,7 +38,7 @@ function toInput(p: GroceryProductT, selectableIds: Set<string>): GroceryProduct
   };
 }
 
-function ProductRow({ product, locations, onChanged }: { product: GroceryProductT; locations: LocationT[]; onChanged: () => void }) {
+function ProductRow({ product, locations, onChanged, onDone }: { product: GroceryProductT; locations: LocationT[]; onChanged: () => void; onDone: () => void }) {
   const selectableIds = useMemo(() => new Set(locations.map((l) => l.id)), [locations]);
   const [draft, setDraft] = useState<GroceryProductUpsertInput>(toInput(product, selectableIds));
   const [busy, setBusy] = useState(false);
@@ -52,19 +52,18 @@ function ProductRow({ product, locations, onChanged }: { product: GroceryProduct
 
   async function save() {
     setBusy(true); setErr(null);
-    try { await adminApi.groceries.updateProduct(product.id, draft); onChanged(); }
-    catch (e: any) { setErr(e.message); }
-    finally { setBusy(false); }
+    try { await adminApi.groceries.updateProduct(product.id, draft); onChanged(); onDone(); }
+    catch (e: any) { setErr(e.message); setBusy(false); }
   }
   async function remove() {
     if (!confirm(`Delete "${product.name}"?`)) return;
     setBusy(true); setErr(null);
-    try { await adminApi.groceries.deleteProduct(product.id); onChanged(); }
+    try { await adminApi.groceries.deleteProduct(product.id); onChanged(); onDone(); }
     catch (e: any) { setErr(e.message); setBusy(false); }
   }
 
   return (
-    <div className="card addon-admin-row" style={{ marginBottom: 12 }}>
+    <div className="card addon-admin-row editor" style={{ marginBottom: 12 }}>
       {err && <div className="notice danger">{err}</div>}
       <ImageUpload value={draft.imageUrl ?? ""} onChange={(url) => set({ imageUrl: url })} label="Photo" />
       <div className="grid-2">
@@ -111,8 +110,62 @@ function ProductRow({ product, locations, onChanged }: { product: GroceryProduct
         <span>Active (shown to customers)</span>
       </label>
       <div className="nav-row">
+        <button className="btn btn-secondary" disabled={busy} onClick={onDone}>Close</button>
         <button className="btn" disabled={!dirty || busy} onClick={save}>{busy ? "Saving…" : "Save"}</button>
         <button className="btn-ghost" disabled={busy} onClick={remove}>Delete</button>
+      </div>
+    </div>
+  );
+}
+
+// Compact collapsed row (thumbnail, name, quick price edit, active toggle) — mirrors
+// MenuEditor's PlatterQuickRow. The full ProductRow (photo upload, department, locations…)
+// only renders for the one item currently being edited, so a department of a dozen-plus
+// products doesn't render a dozen full photo-upload forms at once.
+function GroceryQuickRow({
+  product, locations, editing, onEdit, onChanged, onError,
+}: {
+  product: GroceryProductT; locations: LocationT[]; editing: boolean; onEdit: () => void; onChanged: () => void; onError: (m: string) => void;
+}) {
+  const selectableIds = useMemo(() => new Set(locations.map((l) => l.id)), [locations]);
+  const [price, setPrice] = useState(String(product.price));
+  const [busy, setBusy] = useState(false);
+  const priceNum = parseFloat(price) || 0;
+  const dirty = priceNum > 0 && priceNum !== product.price;
+
+  async function run(fn: () => Promise<unknown>) {
+    setBusy(true);
+    try { await fn(); onChanged(); }
+    catch (e: any) { onError(e.message); }
+    finally { setBusy(false); }
+  }
+
+  const savePrice = () => run(() => adminApi.groceries.updateProduct(product.id, { ...toInput(product, selectableIds), price: priceNum }));
+
+  return (
+    <div className={`bc-row ${!product.active ? "bc-row-hidden" : ""} ${editing ? "bc-row-editing" : ""}`}>
+      {product.imageUrl ? (
+        <img className="bc-row-thumb" src={product.imageUrl} alt="" loading="lazy" />
+      ) : (
+        <span className="bc-row-thumb bc-row-thumb-empty" aria-hidden="true" title="No photo yet">🖼</span>
+      )}
+      <span className="bc-row-label bc-row-name">
+        {product.name}
+        {!product.active && <small className="muted"> (hidden)</small>}
+      </span>
+      <div className="bc-row-price">
+        <span className="muted">£</span>
+        <input className="input" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value.replace(/[^0-9.]/g, ""))} />
+      </div>
+      <div className="bc-row-actions">
+        {dirty && <button className="btn bc-save" disabled={busy} onClick={savePrice}>Save</button>}
+        <button
+          className="icon-btn" disabled={busy} title={product.active ? "Hide from customers" : "Show to customers"}
+          onClick={() => run(() => adminApi.groceries.updateProduct(product.id, { ...toInput(product, selectableIds), active: !product.active }))}
+        >
+          {product.active ? "👁" : "🚫"}
+        </button>
+        <button className="icon-btn" disabled={busy} title="Full editor (photo, department, shops…)" onClick={onEdit}>✎</button>
       </div>
     </div>
   );
@@ -126,6 +179,8 @@ function ProductsSection({ locations }: { locations: LocationT[] }) {
   const [newPrice, setNewPrice] = useState("");
   const [creating, setCreating] = useState(false);
   const [filter, setFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   function refresh() {
     adminApi.groceries.products().then(setProducts).catch((e) => setError(e.message));
@@ -133,18 +188,25 @@ function ProductsSection({ locations }: { locations: LocationT[] }) {
   useEffect(refresh, []);
 
   const departments = useMemo(() => Array.from(new Set(products.map((p) => p.department))).sort(), [products]);
-  const visible = useMemo(() => (filter === "all" ? products : products.filter((p) => p.department === filter)), [products, filter]);
+  const q = search.trim().toLowerCase();
+  const visible = useMemo(
+    () => products.filter((p) => (filter === "all" || p.department === filter) && (!q || p.name.toLowerCase().includes(q))),
+    [products, filter, q],
+  );
 
   async function create() {
     if (!newName.trim() || !newDepartment.trim()) return;
     setCreating(true); setError(null);
     try {
-      await adminApi.groceries.createProduct({
+      const created = await adminApi.groceries.createProduct({
         name: newName.trim(), department: newDepartment.trim(), price: parseFloat(newPrice) || 0,
         locationIds: locations.map((l) => l.id),
       });
       setNewName(""); setNewDepartment(""); setNewPrice("");
       refresh();
+      // Jump straight into the full editor so adding a photo is the natural next step,
+      // not a second trip back into a long list to find the thing just created.
+      setEditingId(created.id);
     } catch (e: any) { setError(e.message); }
     finally { setCreating(false); }
   }
@@ -168,6 +230,11 @@ function ProductsSection({ locations }: { locations: LocationT[] }) {
         <button className="btn" disabled={creating || !newName.trim() || !newDepartment.trim()} onClick={create}>{creating ? "Adding…" : "Add item"}</button>
       </div>
 
+      <div className="field" style={{ maxWidth: 360 }}>
+        <label>Find an item</label>
+        <input className="input" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name…" />
+      </div>
+
       {departments.length > 0 && (
         <div className="status-buttons" style={{ marginBottom: 14 }}>
           <button type="button" className={`status-btn${filter === "all" ? " active" : ""}`} onClick={() => setFilter("all")}>All ({products.length})</button>
@@ -178,8 +245,25 @@ function ProductsSection({ locations }: { locations: LocationT[] }) {
           ))}
         </div>
       )}
+      {q && visible.length === 0 && <p className="muted">No items match &ldquo;{search}&rdquo;.</p>}
 
-      {visible.map((p) => <ProductRow key={p.id} product={p} locations={locations} onChanged={refresh} />)}
+      <div className="bc-rows">
+        {visible.map((p) =>
+          editingId === p.id ? (
+            <ProductRow key={p.id} product={p} locations={locations} onChanged={refresh} onDone={() => setEditingId(null)} />
+          ) : (
+            <GroceryQuickRow
+              key={p.id}
+              product={p}
+              locations={locations}
+              editing={false}
+              onEdit={() => setEditingId(p.id)}
+              onChanged={refresh}
+              onError={setError}
+            />
+          ),
+        )}
+      </div>
     </section>
   );
 }

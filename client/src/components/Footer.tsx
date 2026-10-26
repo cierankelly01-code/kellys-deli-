@@ -21,7 +21,8 @@ export function Footer() {
         <div className="footer-cols">
           <div className="footer-col">
             <p className="footer-col-h">Order</p>
-            <Link className="u-link" to="/groceries">Groceries</Link>
+            <Link className="u-link" to="/lunch">Order lunch</Link>
+            <Link className="u-link" to="/groceries">Deli Counter</Link>
             <Link className="u-link" to="/shop">Boards &amp; platters</Link>
             <Link className="u-link" to="/office-catering">Office catering</Link>
             <Link className="u-link" to="/bread">Bread pre-orders</Link>

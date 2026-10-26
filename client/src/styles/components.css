@@ -531,10 +531,10 @@
 .stepper input { width: 56px; text-align: center; font-size: 1rem; padding: 6px; border: 1px solid var(--line); border-radius: 8px; }
 .stepper .stepper-val { min-width: 24px; text-align: center; font-weight: 700; }
 
-/* Department quick-nav (Groceries) — a sticky row of chips so a customer who knows what
-   they want can jump straight there in one tap, without the full catalogue being hidden
-   or filtered out: they still scroll past (and get tempted by) everything else on the way,
-   which is the point — this is upsell surface, not just a shortcut. */
+/* Department filter (Groceries) — a sticky row of chips that actually filters the list down
+   to one department (plus an "All" chip), instead of the page scrolling through every
+   department one after another. Picked over a jump-link nav because customers were finding
+   the full one-page catalogue too long a scroll to get to what they wanted. */
 .dept-nav {
   position: sticky; top: 0; z-index: 5; display: flex; gap: 8px; overflow-x: auto;
   padding: 12px 0; margin: 16px 0; background: var(--cream);
@@ -545,9 +545,10 @@
 .dept-nav-chip {
   flex: 0 0 auto; padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px;
   background: #fff; color: var(--ink); font-weight: 700; font-size: 0.9rem; text-decoration: none;
-  white-space: nowrap;
+  white-space: nowrap; cursor: pointer;
 }
 .dept-nav-chip:hover { border-color: var(--brick); color: var(--brick); }
+.dept-nav-chip.is-active { background: var(--navy); border-color: var(--navy); color: #fff; }
 .dept-section { scroll-margin-top: 64px; }
 
 /* A browsing page that goes wide (app-wide, multi-column grid) still wants its checkout

@@ -31,7 +31,7 @@ function departmentLabel(key: string): string {
 }
 
 export default function Groceries() {
-  usePageTitle("Groceries");
+  usePageTitle("Deli Counter");
 
   const [locations, setLocations] = useState<LocationT[]>([]);
   const [locationId, setLocationId] = useState("");
@@ -42,6 +42,7 @@ export default function Groceries() {
   const [date, setDate] = useState<string | null>(null);
 
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [activeDept, setActiveDept] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -83,6 +84,7 @@ export default function Groceries() {
     setLocationId(next);
     setDate(null);
     setQuantities({});
+    setActiveDept("");
   }
 
   function setQty(productId: string, qty: number) {
@@ -99,6 +101,7 @@ export default function Groceries() {
     }
     return Array.from(map.entries());
   }, [products]);
+  const visibleGroups = activeDept ? grouped.filter(([d]) => d === activeDept) : grouped;
 
   const lines = useMemo(
     () => (products ?? []).map((p) => ({ product: p, quantity: quantities[p.id] ?? 0 })).filter((l) => l.quantity > 0),
@@ -190,7 +193,7 @@ export default function Groceries() {
         style={{ backgroundImage: "url(/images/groceries-counter.webp)" }}
       >
         <div className="cat-hero-scrim">
-          <h1 className="cat-hero-h">Groceries</h1>
+          <h1 className="cat-hero-h">Deli Counter</h1>
           <p className="cat-hero-tag">Sandwiches, salads, pies, cheese and more — click &amp; collect</p>
         </div>
       </header>
@@ -218,15 +221,25 @@ export default function Groceries() {
       )}
 
       {grouped.length > 1 && (
-        <nav className="dept-nav" aria-label="Jump to department">
+        <nav className="dept-nav" aria-label="Filter by department">
+          <button type="button" className={`dept-nav-chip${activeDept === "" ? " is-active" : ""}`} onClick={() => setActiveDept("")}>
+            All
+          </button>
           {grouped.map(([department]) => (
-            <a key={department} href={`#dept-${department}`} className="dept-nav-chip">{departmentLabel(department)}</a>
+            <button
+              key={department}
+              type="button"
+              className={`dept-nav-chip${activeDept === department ? " is-active" : ""}`}
+              onClick={() => setActiveDept(department)}
+            >
+              {departmentLabel(department)}
+            </button>
           ))}
         </nav>
       )}
 
-      {grouped.map(([department, items]) => (
-        <section key={department} id={`dept-${department}`} className="board-section dept-section" style={{ marginTop: 24 }}>
+      {visibleGroups.map(([department, items]) => (
+        <section key={department} className="board-section dept-section" style={{ marginTop: 24 }}>
           <h2 className="section-h">{departmentLabel(department)}</h2>
           <div className="board-grid">
             {items.map((p) => (
