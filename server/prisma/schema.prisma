@@ -448,6 +448,7 @@ model BreadProduct {
   name        String
   description String?
   price       Decimal                @db.Decimal(10, 2)
+  imageUrl    String?
   active      Boolean                @default(true)
   sortOrder   Int                    @default(0)
   locations   BreadProductLocation[] // which shops sell this item

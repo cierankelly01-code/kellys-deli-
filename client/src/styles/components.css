@@ -536,6 +536,8 @@
 .order-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .order-line .ol-name { font-weight: 600; }
 .order-line .ol-price { font-weight: 700; color: var(--brick); min-width: 56px; text-align: right; }
+.ol-thumb { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+.ol-info { display: flex; align-items: center; gap: 10px; min-width: 0; }
 
 /* Add-ons step */
 .addons-step { margin: 16px 0; }

@@ -405,6 +405,7 @@ export interface BreadProduct {
   name: string;
   description: string | null;
   price: number;
+  imageUrl: string | null;
   active: boolean;
   sortOrder: number;
   locationIds: string[];

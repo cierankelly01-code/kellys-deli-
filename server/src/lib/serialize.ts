@@ -394,6 +394,7 @@ export function breadProductDTO(p: BreadProduct & { locations?: BreadProductLoca
     name: p.name,
     description: p.description,
     price: Number(p.price),
+    imageUrl: p.imageUrl,
     active: p.active,
     sortOrder: p.sortOrder,
     locationIds: p.locations ? p.locations.map((l) => l.locationId) : [],

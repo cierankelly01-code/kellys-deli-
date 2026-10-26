@@ -181,9 +181,12 @@ export default function Bread() {
         {products.length === 0 && <p className="muted">No bread items available at this shop right now.</p>}
         {products.map((p) => (
           <div key={p.id} className="order-line">
-            <div>
-              <span className="ol-name">{p.name}</span>
-              {p.description && <span className="muted ol-feeds"> · {p.description}</span>}
+            <div className="ol-info">
+              {p.imageUrl && <img className="ol-thumb" src={p.imageUrl} alt="" width="44" height="44" loading="lazy" />}
+              <div>
+                <span className="ol-name">{p.name}</span>
+                {p.description && <span className="muted ol-feeds"> · {p.description}</span>}
+              </div>
             </div>
             <div className="stepper" role="group" aria-label={`${p.name} quantity`}>
               <button type="button" onClick={() => setQty(p.id, (quantities[p.id] ?? 0) - 1)} aria-label="Decrease">−</button>
