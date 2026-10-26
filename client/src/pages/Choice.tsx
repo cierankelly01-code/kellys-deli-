@@ -131,7 +131,8 @@ export default function Choice() {
           </div>
         </div>
         <figure className="deli-hero-photo">
-          <img src={counts?.heroImageUrl || DEFAULT_HERO_IMG} alt="A grazing board of cheese, charcuterie and accompaniments from Kelly's Deli, Bentley Heath, Solihull" width="1000" height="1100" {...{ fetchpriority: "high" }} />
+          <img className="hero-fallback-img" src={counts?.heroImageUrl || DEFAULT_HERO_IMG} alt="Fresh bread arriving at Kelly's Deli, Bentley Heath, Solihull" width="1000" height="1100" {...{ fetchpriority: "high" }} />
+          <video src="/videos/hero-bread.mp4" poster={counts?.heroImageUrl || DEFAULT_HERO_IMG} autoPlay loop muted playsInline />
           <figcaption><span>THE KELLY’S TABLE</span><span>Something for everyone.</span></figcaption>
         </figure>
       </header>

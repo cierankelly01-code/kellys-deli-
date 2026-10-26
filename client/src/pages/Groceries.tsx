@@ -189,6 +189,7 @@ export default function Groceries() {
         className="cat-hero"
         style={{ backgroundImage: "url(/images/groceries-counter.webp)" }}
       >
+        <video src="/videos/hero-counter.mp4" poster="/images/groceries-counter.webp" autoPlay loop muted playsInline />
         <div className="cat-hero-scrim">
           <h1 className="cat-hero-h">Groceries</h1>
           <p className="cat-hero-tag">Sandwiches, salads, pies, cheese and more — click &amp; collect</p>
