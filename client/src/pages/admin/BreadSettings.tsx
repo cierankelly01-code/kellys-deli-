@@ -8,6 +8,7 @@ import {
   type BreadShopSettingDTO,
 } from "../../lib/admin";
 import type { BreadProduct } from "../../lib/api";
+import { ImageUpload } from "../../components/ImageUpload";
 
 // closedWeekdays uses JS getUTCDay() convention (0=Sun..6=Sat); shown Monday-first.
 const WEEKDAY_OPTIONS = [
@@ -21,7 +22,7 @@ const WEEKDAY_OPTIONS = [
 ];
 
 function toInput(p: BreadProduct): BreadProductUpsertInput {
-  return { name: p.name, description: p.description, price: p.price, active: p.active, sortOrder: p.sortOrder, locationIds: p.locationIds };
+  return { name: p.name, description: p.description, price: p.price, imageUrl: p.imageUrl, active: p.active, sortOrder: p.sortOrder, locationIds: p.locationIds };
 }
 
 function ProductRow({ product, locations, onChanged }: { product: BreadProduct; locations: LocationT[]; onChanged: () => void }) {
@@ -51,6 +52,7 @@ function ProductRow({ product, locations, onChanged }: { product: BreadProduct; 
   return (
     <div className="card addon-admin-row" style={{ marginBottom: 12 }}>
       {err && <div className="notice danger">{err}</div>}
+      <ImageUpload value={draft.imageUrl ?? ""} onChange={(url) => set({ imageUrl: url })} label="Photo" />
       <div className="field">
         <label>Name</label>
         <input className="input" value={draft.name} onChange={(e) => set({ name: e.target.value })} />

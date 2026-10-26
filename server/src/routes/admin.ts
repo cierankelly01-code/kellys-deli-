@@ -21,6 +21,10 @@ import {
   breadShopSettingDTO,
   breadClosureDTO,
   breadSettingsDTO,
+  groceryProductDTO,
+  groceryShopSettingDTO,
+  groceryClosureDTO,
+  grocerySettingsDTO,
   type PlatterItem,
 } from "../lib/serialize";
 import {
@@ -43,6 +47,10 @@ import {
   breadSettingsUpdateSchema,
   breadShopSettingUpdateSchema,
   breadClosureUpsertSchema,
+  groceryProductUpsertSchema,
+  grocerySettingsUpdateSchema,
+  groceryShopSettingUpdateSchema,
+  groceryClosureUpsertSchema,
 } from "../lib/validation";
 import { calcMargin } from "../lib/money";
 import { parseDate, formatDate } from "../lib/capacity";
@@ -714,6 +722,136 @@ adminRouter.delete("/bread/closures/:id", async (req, res) => {
   const exists = await prisma.breadClosure.findUnique({ where: { id: req.params.id } });
   if (!exists) return res.status(404).json({ error: "Closure not found" });
   await prisma.breadClosure.delete({ where: { id: req.params.id } });
+  res.json({ ok: true });
+});
+
+// --- Groceries click & collect (admin) ---
+adminRouter.get("/groceries/products", async (_req, res) => {
+  const products = await prisma.groceryProduct.findMany({
+    include: { locations: true },
+    orderBy: [{ department: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+  res.json(products.map(groceryProductDTO));
+});
+
+async function setGroceryProductLocations(productId: string, locationIds: string[]) {
+  await prisma.groceryProductLocation.deleteMany({ where: { productId } });
+  if (locationIds.length) {
+    await prisma.groceryProductLocation.createMany({
+      data: locationIds.map((locationId) => ({ productId, locationId })),
+      skipDuplicates: true,
+    });
+  }
+}
+
+adminRouter.post("/groceries/products", async (req, res) => {
+  const parsed = groceryProductUpsertSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid product", details: parsed.error.flatten() });
+  const count = await prisma.groceryProduct.count();
+  const { locationIds, ...data } = parsed.data;
+  const created = await prisma.groceryProduct.create({ data: { ...data, sortOrder: parsed.data.sortOrder ?? count } });
+  await setGroceryProductLocations(created.id, locationIds);
+  const withLocations = await prisma.groceryProduct.findUniqueOrThrow({ where: { id: created.id }, include: { locations: true } });
+  res.status(201).json(groceryProductDTO(withLocations));
+});
+
+adminRouter.patch("/groceries/products/:id", async (req, res) => {
+  const parsed = groceryProductUpsertSchema.partial().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid product", details: parsed.error.flatten() });
+  const exists = await prisma.groceryProduct.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Product not found" });
+  const { locationIds, ...data } = parsed.data;
+  await prisma.groceryProduct.update({ where: { id: req.params.id }, data });
+  if (locationIds) await setGroceryProductLocations(req.params.id, locationIds);
+  const updated = await prisma.groceryProduct.findUniqueOrThrow({ where: { id: req.params.id }, include: { locations: true } });
+  res.json(groceryProductDTO(updated));
+});
+
+// Past orders reference products by FK, so those can only be hidden, never deleted.
+adminRouter.delete("/groceries/products/:id", async (req, res) => {
+  const exists = await prisma.groceryProduct.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Product not found" });
+  const orderCount = await prisma.groceryOrderItem.count({ where: { productId: req.params.id } });
+  if (orderCount > 0) {
+    return res.status(409).json({ error: "This item has past orders — hide it with the Active toggle instead of deleting" });
+  }
+  await prisma.groceryProduct.delete({ where: { id: req.params.id } }); // GroceryProductLocation rows cascade
+  res.json({ ok: true });
+});
+
+// --- Global ordering settings (lead time / min & max qty) ---
+adminRouter.get("/groceries/settings", async (_req, res) => {
+  const settings = await prisma.grocerySettings.upsert({ where: { id: "singleton" }, update: {}, create: { id: "singleton" } });
+  res.json(grocerySettingsDTO(settings));
+});
+
+adminRouter.patch("/groceries/settings", async (req, res) => {
+  const parsed = grocerySettingsUpdateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid settings", details: parsed.error.flatten() });
+  const updated = await prisma.grocerySettings.upsert({
+    where: { id: "singleton" },
+    update: parsed.data,
+    create: { id: "singleton", ...parsed.data },
+  });
+  res.json(grocerySettingsDTO(updated));
+});
+
+// --- Per-shop settings (daily capacity, recurring closed weekdays, notify email) ---
+adminRouter.get("/groceries/shop-settings", async (_req, res) => {
+  const locations = await prisma.location.findMany({ orderBy: { name: "asc" } });
+  const rows = await prisma.groceryShopSetting.findMany();
+  const byLocation = new Map(rows.map((r) => [r.locationId, r]));
+  res.json(
+    locations.map((loc) => ({
+      ...groceryShopSettingDTO(
+        byLocation.get(loc.id) ?? { id: "", locationId: loc.id, dailyCapacity: null, closedWeekdays: [], notifyEmail: null, createdAt: new Date(), updatedAt: new Date() },
+      ),
+      locationName: loc.name,
+    })),
+  );
+});
+
+adminRouter.patch("/groceries/shop-settings/:locationId", async (req, res) => {
+  const parsed = groceryShopSettingUpdateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid shop settings", details: parsed.error.flatten() });
+  const location = await prisma.location.findUnique({ where: { id: req.params.locationId } });
+  if (!location) return res.status(404).json({ error: "Location not found" });
+  const data = { ...parsed.data, notifyEmail: parsed.data.notifyEmail || null };
+  const updated = await prisma.groceryShopSetting.upsert({
+    where: { locationId: req.params.locationId },
+    update: data,
+    create: { locationId: req.params.locationId, dailyCapacity: null, closedWeekdays: [], ...data },
+  });
+  res.json({ ...groceryShopSettingDTO(updated), locationName: location.name });
+});
+
+// --- One-off closures (bank holidays, unplanned closures) ---
+adminRouter.get("/groceries/closures", async (req, res) => {
+  const { locationId } = req.query as Record<string, string | undefined>;
+  const closures = await prisma.groceryClosure.findMany({
+    where: locationId ? { locationId } : {},
+    orderBy: { date: "asc" },
+  });
+  res.json(closures.map(groceryClosureDTO));
+});
+
+adminRouter.post("/groceries/closures", async (req, res) => {
+  const parsed = groceryClosureUpsertSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid closure", details: parsed.error.flatten() });
+  const location = await prisma.location.findUnique({ where: { id: parsed.data.locationId } });
+  if (!location) return res.status(404).json({ error: "Location not found" });
+  const created = await prisma.groceryClosure.upsert({
+    where: { locationId_date: { locationId: parsed.data.locationId, date: parseDate(parsed.data.date) } },
+    update: { reason: parsed.data.reason ?? null },
+    create: { locationId: parsed.data.locationId, date: parseDate(parsed.data.date), reason: parsed.data.reason ?? null },
+  });
+  res.status(201).json(groceryClosureDTO(created));
+});
+
+adminRouter.delete("/groceries/closures/:id", async (req, res) => {
+  const exists = await prisma.groceryClosure.findUnique({ where: { id: req.params.id } });
+  if (!exists) return res.status(404).json({ error: "Closure not found" });
+  await prisma.groceryClosure.delete({ where: { id: req.params.id } });
   res.json({ ok: true });
 });
 

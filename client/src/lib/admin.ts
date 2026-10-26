@@ -1,5 +1,5 @@
 // Admin API client + JWT token storage.
-import { ApiError, type OrderDTO, type Platter, type PlatterItem, type LocationT, type Experience, type Category, type BoardComponent, type BoardComponentCategory, type BoardGroup, type BoardType, type BoardSize, type BoardTier, type AddOn, type AddOnUnitType, type ShopCategory, type SubscriptionFrequency, type Bundle, type BundleInput, type GiftVoucherRequestDTO, type BreadProduct, type BreadOrderDTO, type BreadOrderStatus } from "./api";
+import { ApiError, type OrderDTO, type Platter, type PlatterItem, type LocationT, type Experience, type Category, type BoardComponent, type BoardComponentCategory, type BoardGroup, type BoardType, type BoardSize, type BoardTier, type AddOn, type AddOnUnitType, type ShopCategory, type SubscriptionFrequency, type Bundle, type BundleInput, type GiftVoucherRequestDTO, type BreadProduct, type BreadOrderDTO, type BreadOrderStatus, type GroceryProductT } from "./api";
 
 const BASE = import.meta.env.VITE_API_URL || "";
 const TOKEN_KEY = "kd_admin_token";
@@ -258,6 +258,7 @@ export interface BreadProductUpsertInput {
   name: string;
   description?: string | null;
   price: number;
+  imageUrl?: string | null;
   active?: boolean;
   sortOrder?: number;
   locationIds: string[];
@@ -304,6 +305,41 @@ export interface BreadBakeSheetResponse {
     location: { id: string; name: string };
     sheet: { totalOrders: number; totalItems: number; lines: BreadBakeSheetLine[]; orders: BreadBakeSheetOrder[] };
   }>;
+}
+
+// --- Groceries click & collect ---
+
+export interface GroceryProductUpsertInput {
+  department: string;
+  name: string;
+  description?: string | null;
+  price: number;
+  unitLabel?: string | null;
+  imageUrl?: string | null;
+  active?: boolean;
+  sortOrder?: number;
+  locationIds: string[];
+}
+
+export interface GrocerySettingsDTO {
+  leadTimeHours: number;
+  minOrderQty: number;
+  maxItemQty: number;
+}
+
+export interface GroceryShopSettingDTO {
+  locationId: string;
+  locationName: string;
+  dailyCapacity: number | null;
+  closedWeekdays: number[];
+  notifyEmail: string | null;
+}
+
+export interface GroceryClosureDTO {
+  id: string;
+  locationId: string;
+  date: string;
+  reason: string | null;
 }
 
 export const adminApi = {
@@ -496,5 +532,29 @@ export const adminApi = {
     createClosure: (input: { locationId: string; date: string; reason?: string | null }) =>
       authedReq<BreadClosureDTO>(`/api/admin/bread/closures`, { method: "POST", body: JSON.stringify(input) }),
     deleteClosure: (id: string) => authedReq<{ ok: boolean }>(`/api/admin/bread/closures/${id}`, { method: "DELETE" }),
+  },
+
+  // Groceries click & collect
+  groceries: {
+    products: () => authedReq<GroceryProductT[]>(`/api/admin/groceries/products`),
+    createProduct: (input: GroceryProductUpsertInput) =>
+      authedReq<GroceryProductT>(`/api/admin/groceries/products`, { method: "POST", body: JSON.stringify(input) }),
+    updateProduct: (id: string, input: Partial<GroceryProductUpsertInput>) =>
+      authedReq<GroceryProductT>(`/api/admin/groceries/products/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+    deleteProduct: (id: string) => authedReq<{ ok: boolean }>(`/api/admin/groceries/products/${id}`, { method: "DELETE" }),
+
+    settings: () => authedReq<GrocerySettingsDTO>(`/api/admin/groceries/settings`),
+    updateSettings: (patch: Partial<GrocerySettingsDTO>) =>
+      authedReq<GrocerySettingsDTO>(`/api/admin/groceries/settings`, { method: "PATCH", body: JSON.stringify(patch) }),
+
+    shopSettings: () => authedReq<GroceryShopSettingDTO[]>(`/api/admin/groceries/shop-settings`),
+    updateShopSettings: (locationId: string, patch: { dailyCapacity?: number | null; closedWeekdays?: number[]; notifyEmail?: string | null }) =>
+      authedReq<GroceryShopSettingDTO>(`/api/admin/groceries/shop-settings/${locationId}`, { method: "PATCH", body: JSON.stringify(patch) }),
+
+    closures: (locationId?: string) =>
+      authedReq<GroceryClosureDTO[]>(`/api/admin/groceries/closures${locationId ? `?locationId=${locationId}` : ""}`),
+    createClosure: (input: { locationId: string; date: string; reason?: string | null }) =>
+      authedReq<GroceryClosureDTO>(`/api/admin/groceries/closures`, { method: "POST", body: JSON.stringify(input) }),
+    deleteClosure: (id: string) => authedReq<{ ok: boolean }>(`/api/admin/groceries/closures/${id}`, { method: "DELETE" }),
   },
 };

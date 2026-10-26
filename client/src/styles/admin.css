@@ -22,10 +22,15 @@
 .admin-tag { font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mustard); font-weight: 700; }
 .admin-top .logout { margin-left: auto; }
 
-.admin-nav { display: flex; gap: 6px; overflow-x: auto; border-bottom: 2px solid var(--line); margin-bottom: 18px; }
+.admin-nav { display: flex; flex-wrap: wrap; gap: 18px 28px; border-bottom: 2px solid var(--line); margin-bottom: 18px; padding-bottom: 10px; }
+.admin-nav-group { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.admin-nav-group-label {
+  font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft);
+  font-weight: 700; margin-right: 8px; opacity: 0.7;
+}
 .admin-nav a {
-  padding: 10px 14px; white-space: nowrap; text-decoration: none; color: var(--ink-soft);
-  font-weight: 700; border-bottom: 3px solid transparent; margin-bottom: -2px;
+  padding: 6px 10px; white-space: nowrap; text-decoration: none; color: var(--ink-soft);
+  font-weight: 700; border-bottom: 3px solid transparent; margin-bottom: -2px; border-radius: 4px;
 }
 .admin-nav a.active { color: var(--brick); border-bottom-color: var(--brick); }
 

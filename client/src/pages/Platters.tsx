@@ -29,10 +29,11 @@ export default function Platters() {
   );
   const navigate = useNavigate();
   const [boards, setBoards] = useState<Platter[] | null>(null);
+  const [boardsError, setBoardsError] = useState(false);
   const [counts, setCounts] = useState<CategoryCounts | null>(null);
 
   useEffect(() => {
-    api.boards().then(setBoards).catch(() => setBoards([]));
+    api.boards().then(setBoards).catch(() => { setBoards([]); setBoardsError(true); });
     api.categories().then(setCounts).catch(() => setCounts(null));
   }, []);
 
@@ -136,7 +137,9 @@ export default function Platters() {
       )}
 
       {boards !== null && boards.length === 0 && (
-        <p className="muted">Our boards are being updated — please check back shortly.</p>
+        <p className={boardsError ? "notice danger" : "muted"}>
+          {boardsError ? "We couldn't load our boards just now — please refresh." : "Our boards are being updated — please check back shortly."}
+        </p>
       )}
 
       <Faq />

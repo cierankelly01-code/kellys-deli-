@@ -67,6 +67,7 @@ function priceFeeds(g: ProductGroup): string {
 export default function Choice() {
   const [counts, setCounts] = useState<CategoryCounts | null>(null);
   const [boards, setBoards] = useState<Platter[] | null>(null);
+  const [boardsError, setBoardsError] = useState(false);
   const [shopCats, setShopCats] = useState<ShopCategory[]>([]);
   const [locations, setLocations] = useState<LocationT[]>([]);
   const [openHoursFor, setOpenHoursFor] = useState<string | null>(null);
@@ -77,7 +78,7 @@ export default function Choice() {
 
   useEffect(() => {
     api.categories().then(setCounts).catch(() => setCounts(null));
-    api.boards("signature").then(setBoards).catch(() => setBoards([]));
+    api.boards("signature").then(setBoards).catch(() => { setBoards([]); setBoardsError(true); });
     api.shopCategories().then(setShopCats).catch(() => setShopCats([]));
     api.locations().then(setLocations).catch(() => setLocations([]));
   }, []);
@@ -190,7 +191,9 @@ export default function Choice() {
             <button className="btn-ghost" onClick={() => go("/platters")}>See all →</button>
           </div>
           {signature.length === 0 ? (
-            <p className="muted" role="status">{boards === null ? "Bringing you our boards…" : "Our board selection is being updated. Browse the shop for what’s available."} {boards !== null && <Link to="/shop">Browse the shop →</Link>}</p>
+            <p className={boardsError ? "notice danger" : "muted"} role="status">
+              {boards === null ? "Bringing you our boards…" : boardsError ? "We couldn't load our boards just now — please refresh." : "Our board selection is being updated. Browse the shop for what’s available."} {boards !== null && !boardsError && <Link to="/shop">Browse the shop →</Link>}
+            </p>
           ) : (
             <div className="board-grid">
               {signature.map((g, i) => {

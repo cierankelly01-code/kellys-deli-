@@ -368,6 +368,7 @@ export const breadProductUpsertSchema = z.object({
   name: z.string().min(1, "Name is required").max(120),
   description: z.string().max(500).nullable().optional(),
   price: z.number().nonnegative().max(9999),
+  imageUrl: z.string().max(2000).nullable().optional(),
   active: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
   // Which shops sell this item. Empty = available nowhere (kept off every shop's order form).
@@ -413,3 +414,45 @@ export const breadAvailabilityQuerySchema = z.object({
   from: dateString.optional(),
   days: z.coerce.number().int().min(1).max(120).optional(),
 });
+
+// --- Groceries click & collect (admin) ---
+
+export const groceryProductUpsertSchema = z.object({
+  department: z.string().min(1, "Department is required").max(60),
+  name: z.string().min(1, "Name is required").max(120),
+  description: z.string().max(500).nullable().optional(),
+  price: z.number().nonnegative().max(9999),
+  unitLabel: z.string().max(40).nullable().optional(),
+  imageUrl: z.string().max(2000).nullable().optional(),
+  active: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+  // Which shops sell this item. Empty = available nowhere (kept off every shop's order form).
+  locationIds: z.array(z.string().min(1)).max(20).default([]),
+});
+export type GroceryProductUpsertInput = z.infer<typeof groceryProductUpsertSchema>;
+
+export const grocerySettingsUpdateSchema = z
+  .object({
+    leadTimeHours: z.number().int().min(0).max(24 * 30).optional(),
+    minOrderQty: z.number().int().positive().max(1000).optional(),
+    maxItemQty: z.number().int().positive().max(1000).optional(),
+  })
+  .refine((d) => d.minOrderQty == null || d.maxItemQty == null || d.maxItemQty >= d.minOrderQty, {
+    message: "Max per-item quantity must be at least the minimum order quantity",
+    path: ["maxItemQty"],
+  });
+export type GrocerySettingsUpdateInput = z.infer<typeof grocerySettingsUpdateSchema>;
+
+export const groceryShopSettingUpdateSchema = z.object({
+  dailyCapacity: z.number().int().nonnegative().max(100000).nullable().optional(),
+  closedWeekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
+  notifyEmail: z.string().email("Enter a valid email").max(200).nullable().optional().or(z.literal("")),
+});
+export type GroceryShopSettingUpdateInput = z.infer<typeof groceryShopSettingUpdateSchema>;
+
+export const groceryClosureUpsertSchema = z.object({
+  locationId: z.string().min(1),
+  date: dateString,
+  reason: z.string().max(120).nullable().optional(),
+});
+export type GroceryClosureUpsertInput = z.infer<typeof groceryClosureUpsertSchema>;
