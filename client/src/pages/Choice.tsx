@@ -105,6 +105,7 @@ export default function Choice() {
   // get here?" never needs a scroll to answer. Replaces the old boards-first hero.
   const MAIN_CATEGORIES: Array<{ label: string; eyebrow: string; to: string; image: string }> = [
     { label: "Lunch", eyebrow: "Order for tomorrow", to: "/lunch", image: "/images/grocery-ham-cheese.webp" },
+    { label: "Bread", eyebrow: "Fresh-baked, pre-order", to: "/bread", image: "/images/bread-granary-coburg.webp" },
     { label: "Deli Counter", eyebrow: "Click & collect", to: "/groceries", image: "/images/groceries-counter.webp" },
     { label: "At Home Dining", eyebrow: "A night in, sorted", to: "/shop/at-home", image: catImage("at-home", "/images/board-grazing-table.webp") },
     { label: "Events", eyebrow: "Birthdays & celebrations", to: "/shop/hosting", image: catImage("hosting", "/images/board-ultimate.webp") },
