@@ -375,6 +375,12 @@ export const breadProductUpsertSchema = z.object({
   locationIds: z.array(z.string().min(1)).max(20).default([]),
 });
 export type BreadProductUpsertInput = z.infer<typeof breadProductUpsertSchema>;
+// PATCH: every field optional and NO defaults. Zod 4 applies .default() even inside
+// .partial()/.optional(), so partial() of the upsert schema would turn `{ active: false }`
+// into `{ active: false, locationIds: [] }` and silently unlink the item from every shop.
+export const breadProductPatchSchema = breadProductUpsertSchema
+  .extend({ locationIds: z.array(z.string().min(1)).max(20).optional() })
+  .partial();
 
 export const breadSettingsUpdateSchema = z
   .object({
@@ -430,6 +436,10 @@ export const groceryProductUpsertSchema = z.object({
   locationIds: z.array(z.string().min(1)).max(20).default([]),
 });
 export type GroceryProductUpsertInput = z.infer<typeof groceryProductUpsertSchema>;
+// PATCH: see breadProductPatchSchema - no defaults, so an omitted locationIds stays untouched.
+export const groceryProductPatchSchema = groceryProductUpsertSchema
+  .extend({ locationIds: z.array(z.string().min(1)).max(20).optional() })
+  .partial();
 
 export const grocerySettingsUpdateSchema = z
   .object({

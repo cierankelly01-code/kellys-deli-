@@ -44,11 +44,13 @@ import {
   bundleUpsertSchema,
   giftVoucherStatusSchema,
   breadProductUpsertSchema,
+  breadProductPatchSchema,
   breadOrderStatusSchema,
   breadSettingsUpdateSchema,
   breadShopSettingUpdateSchema,
   breadClosureUpsertSchema,
   groceryProductUpsertSchema,
+  groceryProductPatchSchema,
   grocerySettingsUpdateSchema,
   groceryShopSettingUpdateSchema,
   groceryClosureUpsertSchema,
@@ -628,7 +630,7 @@ adminRouter.post("/bread/products", async (req, res) => {
 });
 
 adminRouter.patch("/bread/products/:id", async (req, res) => {
-  const parsed = breadProductUpsertSchema.partial().safeParse(req.body);
+  const parsed = breadProductPatchSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid product", details: parsed.error.flatten() });
   const exists = await prisma.breadProduct.findUnique({ where: { id: req.params.id } });
   if (!exists) return res.status(404).json({ error: "Product not found" });
@@ -758,7 +760,7 @@ adminRouter.post("/groceries/products", async (req, res) => {
 });
 
 adminRouter.patch("/groceries/products/:id", async (req, res) => {
-  const parsed = groceryProductUpsertSchema.partial().safeParse(req.body);
+  const parsed = groceryProductPatchSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid product", details: parsed.error.flatten() });
   const exists = await prisma.groceryProduct.findUnique({ where: { id: req.params.id } });
   if (!exists) return res.status(404).json({ error: "Product not found" });
