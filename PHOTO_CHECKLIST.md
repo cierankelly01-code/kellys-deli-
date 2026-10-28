@@ -1,5 +1,35 @@
 # Photo checklist
 
+## 2026-10-28 update — second pass through your photo drop
+
+The first pass (27 Oct) shipped 18 photos. This pass went through everything left in
+the folder, opened every single image, and got **17 more ready** (they go live with the
+next deploy + data update):
+
+- **New draft products created from your own photo names** — all hidden (inactive, no
+  price except salads at your £25/kg) until you price & activate them in admin:
+  cakes: Cherry Flapjack, Rocky Road, Lemon Tart · sandwiches: Smoked Salmon Roll,
+  Focaccia Sandwich (the shopfront shot — it's a beauty) · meats: Pastrami ·
+  salads: Waldorf, Pear & Blue Cheese, Roast Potato Caesar ·
+  bread: White Farmhouse, Granary Cottage Loaf, Wholemeal Tin — Small.
+- **Photos attached to products that already existed with none**: Hummus, Olives,
+  Cornichons, Smoked Salmon pot (cropped from your counter photos — that's genuinely
+  how they're sold), plus a pastry-case photo saved ready (`grocery-pastries-case.webp`).
+
+Still needs you (couldn't do these honestly without you):
+- **Tzatziki** — both counter shots are under the pink display light, the dip comes out
+  lavender. A quick daylight phone shot sorts it.
+- **Samosa** — can't tell chicken vs veg from the photo; say which and it goes on.
+- **Brownie** — only photo is the Halloween one (Frankenstein face); need a plain one.
+- **Two salads with no name**: a noodle salad with sriracha-style mayo, and a red/tomato
+  couscous with cherry tomatoes. Name them and they go on like the others.
+- **Pastries** — the case photo is ready, but tell me how you sell them (per croissant?
+  mixed box?) before I create products.
+- `forcliade.PNG` in the folder is a screenshot of a database query (emails/logins), not
+  food — worth deleting from the folder.
+- The counter/bread **videos** are still waiting on your call about social reels.
+
+
 **Correction from the first version of this file:** I'd matched the loose photos from
 the repo root to products by filename alone and called 14 of them "ready to upload." I
 was wrong to do that without actually looking at them. I've now opened every image —
