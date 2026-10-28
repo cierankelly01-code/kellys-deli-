@@ -12,6 +12,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev:server"],
       "port": 4000
+    },
+    {
+      "name": "local-prod",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server/scripts/start-local-prod.mjs"],
+      "port": 4010
     }
   ]
 }
