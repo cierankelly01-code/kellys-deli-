@@ -3,9 +3,10 @@ export function gbp(n: number): string {
   return `£${n % 1 === 0 ? n.toFixed(0) : n.toFixed(2)}`;
 }
 
-/** "Fri 14 Jun" from a 'YYYY-MM-DD' string (treated as a calendar date, no TZ shift). */
+/** "Fri 14 Jun" from a 'YYYY-MM-DD' string or a full ISO timestamp
+ * (treated as a calendar date, no TZ shift). */
 export function formatDate(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
+  const [y, m, d] = iso.split("T")[0].split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
   return dt.toLocaleDateString("en-GB", {
     weekday: "short",
@@ -17,7 +18,7 @@ export function formatDate(iso: string): string {
 
 /** "Friday 14 June 2026" — longer form for the confirmation screen. */
 export function formatDateLong(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
+  const [y, m, d] = iso.split("T")[0].split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
   return dt.toLocaleDateString("en-GB", {
     weekday: "long",
