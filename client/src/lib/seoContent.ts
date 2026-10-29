@@ -8,6 +8,7 @@ export type LocationCopy = (typeof content.locations)["bentley-heath"];
 export const faq = content.faq;
 export const officeFaq = content.officeFaq;
 export const whyUs = content.whyUs;
+export const family = content.family;
 export const partyGuide = content.partyGuide;
 export const locationCopy = (slug: string): LocationCopy | undefined =>
   (content.locations as Record<string, LocationCopy>)[slug];

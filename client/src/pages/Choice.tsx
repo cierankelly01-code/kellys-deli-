@@ -115,7 +115,7 @@ export default function Choice() {
   const MAIN_CATEGORIES: Array<{ label: string; eyebrow: string; to: string; image: string; size?: "feature" | "wide"; pos?: string }> = [
     { label: "Events & Parties", eyebrow: "Birthdays, showers & celebrations", to: "/shop/hosting", image: catImage("hosting", "/images/board-mezze.webp"), size: "feature" },
     { label: "Lunch", eyebrow: "Sandwiches, ordered ahead", to: "/lunch", image: "/images/grocery-ham-cheese.webp", pos: "50% 72%" },
-    { label: "Bread", eyebrow: "Pre‑order for collection", to: "/bread", image: "/images/bread-crusty-cobs.webp" },
+    { label: "Bread", eyebrow: "Baked fresh every day", to: "/bread", image: "/images/bread-crusty-cobs.webp" },
     { label: "Deli Counter", eyebrow: "Click & collect", to: "/groceries", image: "/images/groceries-counter.webp" },
     { label: "At Home Dining", eyebrow: "A night in, sorted", to: "/shop/at-home", image: catImage("at-home", "/images/open-sandwich.webp"), pos: "50% 75%" },
     { label: "Office & Catering", eyebrow: "Meetings & team lunches", to: "/office-catering", image: catImage("office-corporate", "/images/board-ploughmans.webp"), size: "wide", pos: "50% 55%" },

@@ -302,7 +302,7 @@ async function routePage(path: string, locs: Location[]): Promise<SeoPage> {
       list([
         `${link("/shop/hosting", "Events & parties")} — birthdays, showers and celebrations`,
         `${link("/lunch", "Lunch")} — order sandwiches and salads ahead`,
-        `${link("/bread", "Bread")} — pre-order for collection`,
+        `${link("/bread", "Bread")} — baked fresh every day, pre-order for collection`,
         `${link("/groceries", "Deli counter")} — click and collect`,
         `${link("/shop/at-home", "At home dining")} — boards for a night in`,
         `${link("/office-catering", "Office & catering")} — meetings and team lunches`,
@@ -433,13 +433,13 @@ async function routePage(path: string, locs: Location[]): Promise<SeoPage> {
     const bread = await prisma.breadProduct.findMany({ where: { active: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] });
     return {
       status: 200,
-      title: "Bread to Pre-order — Kelly's Deli",
-      description: "Pre-order bread from Kelly's Deli for collection from the shop you choose, in Bentley Heath, Solihull or Stratford-upon-Avon.",
+      title: "Fresh Bread to Pre-order — Kelly's Deli",
+      description: "Bread baked fresh every day and delivered to Kelly's Deli by our own baker. Pre-order for collection in Bentley Heath, Solihull or Stratford-upon-Avon.",
       path,
       jsonLd: [breadcrumb([["Bread", path]])],
       body: frame(
         "Bread, pre-ordered",
-        `<p>Pick your loaves, pick a collection day, and we'll have them waiting at the counter. Pay on collection.</p>${list(
+        `<p>Our bread is baked fresh every day and delivered to us by our own baker. Pick your loaves, pick a collection day, and we'll have them waiting at the counter. Pay on collection.</p>${list(
           bread.map((b) => `${esc(b.name)} — ${esc(gbp(Number(b.price)))}${b.description ? `. ${esc(cleanDesc(b.description))}` : ""}`)
         )}`,
         locs
@@ -594,7 +594,13 @@ async function routePage(path: string, locs: Location[]): Promise<SeoPage> {
         { "@context": "https://schema.org", "@type": "AboutPage", name: "Our story — Kelly's Deli", url: SITE + path, about: { "@id": `${SITE}/#organization` } },
         breadcrumb([["Our story", path]]),
       ],
-      body: frame("Our story", [s.missionTagline, s.founderNote, s.aboutText].filter(Boolean).map((t) => `<p>${esc(t)}</p>`).join("") + whyUsHtml(), locs),
+      body: frame(
+        "Our story",
+        `<h2>${esc(content.family.h)}</h2><p>${esc(content.family.p)}</p>` +
+          [s.missionTagline, s.founderNote, s.aboutText].filter(Boolean).map((t) => `<p>${esc(t)}</p>`).join("") +
+          whyUsHtml(),
+        locs
+      ),
     };
   }
 

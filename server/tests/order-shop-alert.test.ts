@@ -68,7 +68,11 @@ d("shop order alert — wired into order creation", () => {
   const prisma = new PrismaClient();
   let base: () => Record<string, unknown>;
 
-  const farDate = () => new Date(Date.now() + (30 + Math.floor(Math.random() * 180)) * 86_400_000).toISOString().slice(0, 10);
+  const farDate = () => {
+    const d = new Date(Date.now() + (30 + Math.floor(Math.random() * 180)) * 86_400_000);
+    while (d.getUTCDay() === 0 || d.getUTCDay() === 1) d.setUTCDate(d.getUTCDate() + 1); // shops shut Sun/Mon
+    return d.toISOString().slice(0, 10);
+  };
   const uniqPhone = () => `07${Math.floor(700000000 + Math.random() * 99999999)}`;
 
   beforeAll(async () => {

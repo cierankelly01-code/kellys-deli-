@@ -210,8 +210,8 @@ export default function PlanEvent() {
 
           {boardsFailed && (
             <div className="notice danger" role="alert">
-              We can&apos;t load the boards right now. Please refresh, or call the deli on{" "}
-              <a href="tel:01564703441">01564 703441</a> and we&apos;ll sort your event over the phone.
+              We can&apos;t load the boards right now. Please refresh, or email{" "}
+              <a href="mailto:hello@kellysdeli.co.uk">hello@kellysdeli.co.uk</a> with your numbers and we&apos;ll sort your event.
             </div>
           )}
 

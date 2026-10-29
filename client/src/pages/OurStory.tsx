@@ -4,6 +4,7 @@ import { api, type CategoryCounts, type LocationT } from "../lib/api";
 import { usePageTitle } from "../lib/title";
 import { Header } from "../components/Header";
 import { Stars } from "../components/Trust";
+import { family } from "../lib/seoContent";
 
 
 const DEFAULT_ABOUT = "Proper food from the people you know — grazing boards for collection, made fresh.";
@@ -86,6 +87,11 @@ export default function OurStory() {
           <div className="os-hero-rating"><Stars rating={counts.reviewRating} count={counts.reviewCount} /></div>
         )}
       </header>
+
+      <section className="os-about os-family" data-reveal aria-labelledby="os-family-h">
+        <h2 id="os-family-h" className="section-h">{family.h}</h2>
+        <p>{family.p}</p>
+      </section>
 
       <section className="os-note" data-reveal>
         <p className="os-note-text">&ldquo;{counts?.founderNote || DEFAULT_NOTE}&rdquo;</p>

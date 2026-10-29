@@ -1,5 +1,5 @@
 {
-  "_readme": "Copy shared by the React pages and the server-rendered HTML that search engines and AI assistants read. Only put TRUE, checkable facts here: every line is something ChatGPT or Google may quote back to a customer. whyUs items need a source note so the next person can re-check them. Claim-checked 29 Oct 2026.",
+  "_readme": "Copy shared by the React pages and the server-rendered HTML that search engines and AI assistants read. Only put TRUE, checkable facts here: every line is something ChatGPT or Google may quote back to a customer. whyUs items need a source note so the next person can re-check them. Claim-checked 29 Oct 2026; the family, supplier, freshness and party-count facts come from the owner's family (Cieran) the same day.",
   "faq": [
     { "q": "How much notice do you need?", "a": "At least 48 hours before your collection date for boards and platters. The calendar on the order page shows dates that meet that notice and aren't fully booked." },
     { "q": "How does payment work?", "a": "A 25% deposit secures your board or platter order — we'll be in touch by text or email to confirm and arrange it. The balance is due on collection, nothing extra is charged automatically. Your deposit is fully refundable up to 48 hours before." },
@@ -14,19 +14,26 @@
     { "q": "Can you cater for dietary requirements and allergies?", "a": "Tell us about allergies or dietary needs when you enquire and we'll talk through what we can provide before anything is booked. We can't guarantee any item is completely free from a given allergen." },
     { "q": "How many platters do we need for our office?", "a": "Each board's size shows how many it feeds. As a rough guide, plan a light platter per 3-4 people if it's alongside other food, or per 2-3 people if it's the main lunch — tell us your headcount and we'll help you get it right." }
   ],
+  "family": {
+    "h": "A proper family-run deli",
+    "p": "Kelly's Deli is run by Mark and Fiona Kelly and their five children, Liam, Abigail, Katie, Cieran and Simone, and we all work in the business. Mark and Fiona go out and meet every supplier and taste the food themselves, and nothing goes on sale in the shop until it's up to the Kelly's Deli standard.",
+    "source": "Cieran (owner's son), 29 Oct 2026"
+  },
   "whyUs": [
-    { "fact": "Two shops: Bentley Heath in Solihull, and Stratford-upon-Avon. Order online and pick the shop you'll collect from.", "source": "Location table + checkout shop picker" },
-    { "fact": "Every board is made to order once you've booked your date. Nothing sits pre-built waiting for a customer.", "source": "Our Story values, live since July 2026" },
-    { "fact": "Boards list how many people they feed, so you can match the food to the guest list before you order.", "source": "Platter.feedsMin/feedsMax/serves" },
-    { "fact": "Boards and platters need just 48 hours' notice.", "source": "capacity.ts MIN_NOTICE_HOURS + Terms" },
-    { "fact": "Bread, sandwiches and salads come from the same shop, so you can sort the whole table in one go.", "source": "Bread + Groceries catalogues" }
+    { "fact": "A proper family-run deli: Mark and Fiona Kelly and their five children all work in the business.", "source": "Cieran, 29 Oct 2026" },
+    { "fact": "Mark and Fiona meet every supplier and taste the food themselves before anything goes on sale.", "source": "Cieran, 29 Oct 2026" },
+    { "fact": "Our bread is baked fresh every day and delivered to us by our own baker.", "source": "Cieran, 29 Oct 2026 (his wording)" },
+    { "fact": "Cakes and salads are made fresh every day, and our crusty cobs are made up throughout the day so they're always fresh.", "source": "Cieran, 29 Oct 2026" },
+    { "fact": "We've catered over 1,000 parties over the years.", "source": "Cieran's estimate, 29 Oct 2026" },
+    { "fact": "Every board is made to order once you've booked your date, and lists how many people it feeds.", "source": "Our Story values; Platter.feedsMin/feedsMax/serves" },
+    { "fact": "Two shops, Bentley Heath in Solihull and Stratford-upon-Avon. Boards and platters need just 48 hours' notice.", "source": "Location table; capacity.ts" }
   ],
   "locations": {
     "bentley-heath": {
       "title": "Kelly's Deli Bentley Heath, Solihull — Deli, Grazing Boards & Party Platters",
       "description": "Kelly's Deli at 1 Slater Road, Bentley Heath, Solihull B93 8AQ. Grazing boards, party platters, bread and a deli counter for collection, close to Knowle, Dorridge and Solihull.",
       "h1": "Kelly's Deli, Bentley Heath",
-      "lede": "Our shop on Slater Road in Bentley Heath, on the doorstep of Knowle and Dorridge. Order a grazing board, party platter, bread or lunch online, then collect it from the counter.",
+      "lede": "Our family's shop on Slater Road in Bentley Heath, on the doorstep of Knowle and Dorridge. Order a grazing board, party platter, bread or lunch online, then collect it from the counter.",
       "nearby": ["Bentley Heath", "Knowle", "Dorridge", "Solihull", "Hockley Heath", "Widney Manor"],
       "areaServedSchema": ["Solihull", "Bentley Heath", "Knowle", "Dorridge"],
       "mapQuery": "Kelly's Deli 1 Slater Road Solihull B93 8AQ"
@@ -46,7 +53,7 @@
     "title": "Party Food in Solihull — Grazing Boards & Platters to Order | Kelly's Deli",
     "description": "Hosting a party in Solihull or Stratford-upon-Avon? Kelly's Deli makes grazing boards and party platters to order. See what feeds how many, prices, and how to collect with 48 hours' notice.",
     "h1": "Hosting a party in Solihull? Here's the food sorted.",
-    "answer": "Kelly's Deli is an independent deli in Bentley Heath, Solihull (with a second shop in Stratford-upon-Avon) that makes grazing boards and party platters to order. Pick boards to cover your guest list, choose a collection date at least 48 hours ahead, and collect them ready to put on the table.",
+    "answer": "Kelly's Deli is a family-run deli in Bentley Heath, Solihull (with a second shop in Stratford-upon-Avon) that has catered over 1,000 parties. We make grazing boards and party platters to order: pick boards to cover your guest list, choose a collection date at least 48 hours ahead, and collect them ready to put on the table.",
     "sections": [
       {
         "h": "How much party food do I need?",
@@ -66,7 +73,7 @@
       },
       {
         "h": "What about the rest of the table?",
-        "p": "Pre-order bread, add salads from the deli counter, or order sandwiches for a lighter spread. Feeding the office instead? See our office catering."
+        "p": "Pre-order bread, baked fresh every day and delivered to us by our own baker. Add salads made fresh every day, or order sandwiches for a lighter spread. Feeding the office instead? See our office catering."
       }
     ],
     "occasions": ["Birthdays", "Baby showers", "Family gatherings", "Celebrations", "Office lunches & meetings"]

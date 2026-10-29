@@ -33,20 +33,24 @@ Written 29 Oct 2026. What the site now does, and what only the owner can do.
 | 11 | Send 5–10 real facts for the "Why Kelly's Deli" list: year started, who makes the food, named suppliers, how many parties catered | Specific numbers are what AI quotes back. Add them to `server/src/content/seo-content.json` | 10 min |
 | 12 | Sort out the Stratford phone number (missing on the site and in its business details) | NAP consistency | 1 min |
 
-## Facts only the owner can confirm (copy is held back until then)
-A claim-check on 29 Oct removed or softened every line we couldn't prove. To put any of these back, confirm it:
-1. After a board order, how is the 25% deposit actually taken: a payment link, bank transfer, or a phone call? (Terms say "arranged directly with us"; the confirmation page says "secure payment link".)
-2. Is the bread baked in-house? If yes, "fresh-baked" can go back on the Bread tile and pages.
-3. Is Bentley Heath the original shop?
-4. Is the Stratford address exactly 13 Wood Street, CV37 6JF? Is it really closed Sunday and Monday, and what's its phone number?
-5. Is delivery offered for big events, and from which shop?
-6. Which occasions can we name: christenings, hen dos, Christmas, wakes?
-7. Which grocery lines are actually on sale (salads by the kilo, cheese, meats)?
+## Owner answers (29 Oct, from Cieran) — now in the copy
+- Family-run: Mark and Fiona Kelly and their five children (Liam, Abigail, Katie, Cieran, Simone) all work in the business. Mark and Fiona meet every supplier and taste the food before it goes on sale.
+- Bread: "baked fresh every day and delivered to us by our own baker" (his wording). Cakes and salads made fresh every day; crusty cobs made up throughout the day.
+- Over 1,000 parties catered (his estimate).
+- Neither shop has a phone number. Removed from the site files; **the number is still in the live database: clear it in admin** (Menu → shop details).
+- No board collection on Sunday or Monday "as it stands". The calendar now reads each shop's opening hours, so changing the hours in admin is all it takes to open a new day.
+- Deposits: Stripe is coming. Until it's wired, the copy says "we'll be in touch to take a 25% deposit".
 
-## Bugs found while checking claims (not fixed on this branch)
-- **Boards can be booked for Sundays and Mondays**, when both shops are shut. The board calendar checks notice and capacity but not closed days (bread and groceries do). Fix it, or confirm Sunday/Monday collection happens.
-- **"Order for tomorrow"** (the live Lunch tile) can't happen: the 24h lead time is measured to midnight, so tomorrow is never bookable. This branch rewords the tile. Shortening the lead time is your call.
-- The board calendar uses a hard-coded 48h, not the admin lead-time setting the order endpoint uses.
+## Still open
+1. Is the Stratford address exactly 13 Wood Street, CV37 6JF?
+2. Is delivery offered for big events, and from which shop?
+3. Which occasions can we name: christenings, hen dos, Christmas, wakes?
+4. Which grocery lines are actually on sale (salads by the kilo, cheese, meats)?
+
+## Fixed on this branch (found while checking claims)
+- Boards could be booked for Sundays and Mondays: the board calendar and the order endpoint now refuse a shop's closed days.
+- The board calendar used a hard-coded 48h; it now uses the admin lead-time setting, like the order endpoint.
+- "Order for tomorrow" on the Lunch tile was impossible (24h lead time is measured to midnight). The tile is reworded; shortening the lead time is your call.
 
 ## Measure it monthly (first Monday)
 Ask each in ChatGPT, Gemini, Perplexity and Google (AI Overview), in a fresh chat. Log whether we're named (mention), linked (citation), the position, and what reason it gives.

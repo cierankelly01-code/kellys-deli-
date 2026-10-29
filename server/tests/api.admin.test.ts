@@ -12,7 +12,10 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "changeme123";
 // Random far-future date so integration tests never contend on capacity.
 function farDate(): string {
   const days = 30 + Math.floor(Math.random() * 180);
-  return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+  const d = new Date(Date.now() + days * 86_400_000);
+  // Both shops are shut Sunday and Monday, and a closed day is now refused: move to Tuesday.
+  while (d.getUTCDay() === 0 || d.getUTCDay() === 1) d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
 }
 const uniqPhone = () => `07${Math.floor(700000000 + Math.random() * 99999999)}`;
 

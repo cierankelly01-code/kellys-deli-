@@ -6,6 +6,7 @@ import {
   meetsLeadTime,
   canBook,
   MIN_NOTICE_HOURS,
+  closedWeekdaysFromHours,
 } from "../src/lib/capacity";
 
 // Fixed "now" for deterministic tests: Mon 1 Jun 2026, 09:00 UTC.
@@ -100,4 +101,32 @@ describe("canBook (server gate)", () => {
 
 it("exposes the 48h constant", () => {
   expect(MIN_NOTICE_HOURS).toBe(48);
+});
+
+describe("closed days (from a shop's opening hours)", () => {
+  // 2026-06-01 is a Monday; 2026-06-07 a Sunday; 2026-06-05 a Friday.
+  const HOURS = { mon: "Closed", tue: "8:00 - 16:00", wed: "8:00 - 16:00", thu: "8:00 - 16:00", fri: "8:00 - 16:00", sat: "8:00 - 15:00", sun: "Closed" };
+  const FAR = new Date("2026-05-01T09:00:00.000Z"); // well past any notice period
+
+  it("reads closed weekdays from the hours, Sunday = 0", () => {
+    expect(closedWeekdaysFromHours(HOURS).sort()).toEqual([0, 1]);
+  });
+
+  it("treats a missing or blank day as closed, but no hours at all as unknown (nothing closed)", () => {
+    expect(closedWeekdaysFromHours({ ...HOURS, wed: "" }).sort()).toEqual([0, 1, 3]);
+    expect(closedWeekdaysFromHours(null)).toEqual([]);
+  });
+
+  it("never offers a day the shop is shut, even with capacity and notice", () => {
+    const closed = closedWeekdaysFromHours(HOURS);
+    expect(getDayAvailability("2026-06-07", 5, 0, FAR, MIN_NOTICE_HOURS, closed).bookable).toBe(false);
+    expect(getDayAvailability("2026-06-08", 5, 0, FAR, MIN_NOTICE_HOURS, closed).bookable).toBe(false);
+    expect(getDayAvailability("2026-06-05", 5, 0, FAR, MIN_NOTICE_HOURS, closed).bookable).toBe(true);
+    expect(canBook("2026-06-07", 5, 0, FAR, MIN_NOTICE_HOURS, closed)).toBe(false);
+  });
+
+  it("marks shut days closed across a calendar run", () => {
+    const days = buildAvailability("2026-06-01", 7, 5, {}, FAR, MIN_NOTICE_HOURS, closedWeekdaysFromHours(HOURS));
+    expect(days.filter((d) => d.bookable).map((d) => d.date)).toEqual(["2026-06-02", "2026-06-03", "2026-06-04", "2026-06-05", "2026-06-06"]);
+  });
 });

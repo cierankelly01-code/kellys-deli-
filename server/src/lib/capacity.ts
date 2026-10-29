@@ -44,6 +44,22 @@ export function meetsNotice(dateStr: string, now: Date): boolean {
   return meetsLeadTime(dateStr, now, MIN_NOTICE_HOURS);
 }
 
+const HOURS_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const; // index = getUTCDay()
+
+/**
+ * Weekdays (0 = Sunday) a shop is shut, read from its admin-set opening hours: a day
+ * marked "Closed", blank or missing is shut. No hours at all = unknown, so nothing is
+ * blocked. Opening on a new day is just an hours change in admin.
+ */
+export function closedWeekdaysFromHours(hours: unknown): number[] {
+  if (!hours || typeof hours !== "object") return [];
+  const h = hours as Record<string, unknown>;
+  return HOURS_KEYS.flatMap((k, i) => {
+    const v = typeof h[k] === "string" ? (h[k] as string).trim() : "";
+    return !v || /closed/i.test(v) ? [i] : [];
+  });
+}
+
 /** Availability for a single (location-)date given that day's booked count. */
 export function getDayAvailability(
   dateStr: string,
@@ -51,9 +67,11 @@ export function getDayAvailability(
   booked: number,
   now: Date,
   leadHours: number = MIN_NOTICE_HOURS,
+  closedWeekdays: number[] = [],
 ): DayAvailability {
   const remaining = Math.max(0, capacity - booked);
-  const notice = meetsLeadTime(dateStr, now, leadHours);
+  const shopOpen = !closedWeekdays.includes(parseDate(dateStr).getUTCDay());
+  const notice = shopOpen && meetsLeadTime(dateStr, now, leadHours);
   let status: DayStatus;
   if (!notice) status = "closed";
   else if (remaining <= 0) status = "full";
@@ -80,13 +98,14 @@ export function buildAvailability(
   bookedByDate: Record<string, number>,
   now: Date,
   leadHours: number = MIN_NOTICE_HOURS,
+  closedWeekdays: number[] = [],
 ): DayAvailability[] {
   const start = parseDate(fromDateStr);
   const out: DayAvailability[] = [];
   for (let i = 0; i < days; i++) {
     const d = new Date(start.getTime() + i * 86_400_000);
     const dateStr = formatDate(d);
-    out.push(getDayAvailability(dateStr, capacity, bookedByDate[dateStr] ?? 0, now, leadHours));
+    out.push(getDayAvailability(dateStr, capacity, bookedByDate[dateStr] ?? 0, now, leadHours, closedWeekdays));
   }
   return out;
 }
@@ -98,6 +117,7 @@ export function canBook(
   booked: number,
   now: Date,
   leadHours: number = MIN_NOTICE_HOURS,
+  closedWeekdays: number[] = [],
 ): boolean {
-  return getDayAvailability(dateStr, capacity, booked, now, leadHours).bookable;
+  return getDayAvailability(dateStr, capacity, booked, now, leadHours, closedWeekdays).bookable;
 }

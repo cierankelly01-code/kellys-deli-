@@ -17,7 +17,7 @@ import {
   groceryAvailabilityQuerySchema,
 } from "../lib/validation";
 import { priceOrder, priceLineItemOrder, REFERRAL_DISCOUNT } from "../lib/money";
-import { buildAvailability, canBook, getDayAvailability, meetsNotice, meetsLeadTime, parseDate, formatDate } from "../lib/capacity";
+import { buildAvailability, canBook, closedWeekdaysFromHours, getDayAvailability, meetsNotice, meetsLeadTime, parseDate, formatDate } from "../lib/capacity";
 import { buildBreadAvailability, canBookBread, getBreadDayAvailability, type BreadOrderingSettings } from "../lib/bread-capacity";
 import { recommendBoards, capacity as boardCapacity, type RecBoard } from "../lib/recommender";
 import { genRef, genBreadRef, genGroceryRef, randomReferralCode } from "../lib/ref";
@@ -837,7 +837,12 @@ publicRouter.get("/availability", async (req, res) => {
     const key = formatDate(o.collectionOrDeliveryDate);
     bookedByDate[key] = (bookedByDate[key] ?? 0) + 1;
   }
-  res.json({ locationId, capacity: location.weeklyCapacity, days: buildAvailability(fromDate, span, location.weeklyCapacity, bookedByDate, now) });
+  // Same lead time and closed days the order endpoint enforces, so the calendar never
+  // offers a date the order would then be refused for (it used a hard-coded 48h and
+  // ignored closed days, so Sundays and Mondays showed as bookable).
+  const leadHours = await getLeadHours();
+  const closed = closedWeekdaysFromHours(location.openingHours);
+  res.json({ locationId, capacity: location.weeklyCapacity, days: buildAvailability(fromDate, span, location.weeklyCapacity, bookedByDate, now, leadHours, closed) });
 });
 
 // --- Availability (experiences: Σ party size per (experience,location,date) vs session capacity) ---
@@ -955,6 +960,9 @@ publicRouter.post("/orders", async (req, res) => {
   if (!meetsLeadTime(input.collectionOrDeliveryDate, now, leadHours)) {
     return res.status(400).json({ error: `Orders need at least ${leadHours} hours notice` });
   }
+  if (closedWeekdaysFromHours(location.openingHours).includes(parseDate(input.collectionOrDeliveryDate).getUTCDay())) {
+    return res.status(400).json({ error: `${location.name} is closed that day — please choose another collection date` });
+  }
 
   // Load + validate any add-ons.
   const addOnInputs = input.addOns ?? [];
@@ -1028,7 +1036,7 @@ publicRouter.post("/orders", async (req, res) => {
       const booked = await tx.order.count({
         where: { locationId: input.locationId, collectionOrDeliveryDate: parseDate(input.collectionOrDeliveryDate), type: { in: ["platter", "gift"] }, status: { not: "cancelled" } },
       });
-      if (!canBook(input.collectionOrDeliveryDate, location.weeklyCapacity, booked, now, leadHours)) throw new CapacityError();
+      if (!canBook(input.collectionOrDeliveryDate, location.weeklyCapacity, booked, now, leadHours, closedWeekdaysFromHours(location.openingHours))) throw new CapacityError();
 
       const ref = await uniqueRef(tx);
       const referralCode = await uniqueReferralCode(tx);

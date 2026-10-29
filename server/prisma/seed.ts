@@ -27,7 +27,7 @@ async function main() {
       id: "loc-bentley-heath", name: "Bentley Heath", slug: "bentley-heath", weeklyCapacity: 5, active: true,
       // Address/phone pulled from the existing order-confirmation email template
       // (server/src/lib/emailTemplate.ts) and PlanEvent.tsx — not newly invented.
-      address: "1 Slater Road, Bentley Heath, Solihull", postcode: "B93 8AQ", phone: "01564 703441",
+      address: "1 Slater Road, Bentley Heath, Solihull", postcode: "B93 8AQ", phone: null, // neither shop has a phone line (owner, 29 Oct 2026)
       // Hours pulled from the existing LocalBusiness structured data in client/index.html
       // (already live/authoritative) — not newly invented.
       openingHours: {
