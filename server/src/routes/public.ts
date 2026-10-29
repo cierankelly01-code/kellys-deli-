@@ -938,14 +938,19 @@ publicRouter.post("/orders/:ref/deposit-checkout", depositCheckoutLimiter, async
     // a payment landing meanwhile has written its pi_ (refunds match on it), and a
     // second tab may have saved its own session. Either way this one must not win.
     const saved = await prisma.order.updateMany({
-      where: { id: order.id, depositStatus: "pending", depositIntentId: order.depositIntentId },
+      where: { id: order.id, depositStatus: "pending", depositIntentId: order.depositIntentId, status: { in: ["new", "deposit_requested"] } },
       data: { depositIntentId: checkout.sessionId },
     });
     if (saved.count === 0) {
       // Something changed while Stripe answered. If the deposit is no longer pending
       // (paid online, or marked paid in admin), close this page — reused or new — so it
       // can't be paid twice. Otherwise another tab saved its own session first.
-      const now = await prisma.order.findUnique({ where: { id: order.id }, select: { depositStatus: true } });
+      const now = await prisma.order.findUnique({ where: { id: order.id }, select: { depositStatus: true, status: true } });
+      if (now?.status !== "new" && now?.status !== "deposit_requested") {
+        // Cancelled (e.g. its unpaid hold ran out) or moved on by the shop meanwhile.
+        await expireCheckout(checkout.sessionId);
+        return res.status(409).json({ error: "This order can't be paid online any more — please refresh the page." });
+      }
       if (now?.depositStatus !== "pending") {
         await expireCheckout(checkout.sessionId);
         return res.status(409).json({ error: "This deposit has just been paid — refresh the page in a moment." });

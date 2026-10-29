@@ -34,6 +34,7 @@ import type {
 } from "@prisma/client";
 import { formatDate } from "./capacity";
 import { stripeEnabled } from "./env";
+import { UNPAID_HOLD_MINUTES } from "./unpaid-orders";
 import { toMoney } from "./money";
 
 const num = (d: unknown): number | null => (d == null ? null : Number(d));
@@ -386,6 +387,12 @@ export function publicOrderDTO(
     deliveryAddress: null,
     // Whether the confirmation page may offer "Pay £X deposit" (see canPayDepositOnline).
     canPayOnline: stripeEnabled() && canPayDepositOnline(o),
+    // Until when an unpaid online order keeps its date (unpaid-orders.ts); null for orders
+    // that are never released that way (already emailed, or never sent to Stripe).
+    holdEndsAt:
+      stripeEnabled() && canPayDepositOnline(o) && !o.confirmationSentAt && o.depositIntentId?.startsWith("cs_")
+        ? new Date(o.createdAt.getTime() + UNPAID_HOLD_MINUTES * 60_000).toISOString()
+        : null,
   };
 }
 

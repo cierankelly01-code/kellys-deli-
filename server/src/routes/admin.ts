@@ -2,6 +2,7 @@ import { asyncRouter } from "../lib/async-router";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { expireCheckout } from "../lib/payments";
+import { sendOrderEmails, orderEmailInclude } from "../lib/order-emails";
 import { Prisma } from "@prisma/client";
 import { env } from "../lib/env";
 import {
@@ -183,6 +184,12 @@ adminRouter.patch("/orders/:id/deposit", async (req, res) => {
     },
     include: { ...ORDER_INCLUDE, customer: true },
   });
+  // An online order nobody has been emailed about yet (the customer left Stripe, then paid
+  // by phone): this is its confirmation, so the customer hears they're booked in.
+  if (next === "paid" && !existing.confirmationSentAt && existing.type !== "experience") {
+    const full = await prisma.order.findUnique({ where: { id: existing.id }, include: orderEmailInclude });
+    if (full) await sendOrderEmails(full, { depositPaid: true });
+  }
   res.json({ ...orderDTO(order), cost: orderCost(order), profit: profitOf(toStatInput(order)) });
 });
 

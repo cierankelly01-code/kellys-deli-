@@ -327,6 +327,8 @@ export interface OrderDTO {
   depositPaidAt: string | null;
   /** Public order lookup only: the deposit can be paid online right now. */
   canPayOnline?: boolean;
+  /** Public order lookup only: an unpaid online order keeps its date until then. */
+  holdEndsAt?: string | null;
   isSubscription: boolean;
   subscriptionFrequency: SubscriptionFrequency | null;
   subscriptionDiscount: number | null;

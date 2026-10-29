@@ -202,6 +202,15 @@ export async function notifyReferralOffer(t: NotifyTarget, referralCode: string,
   await Promise.all([sendSms(t.phone, msg), sendEmail(t.email, "Get £15 off — refer a friend", msg)]);
 }
 
+/** Sent to the shop when the deposit is paid on an order it already had a "new order" email for. */
+export async function notifyShopDepositPaid(shopEmail: string, t: NotifyTarget, o: OrderNotifyInput): Promise<void> {
+  await sendEmail(
+    shopEmail,
+    `Deposit paid — ${o.ref}`,
+    `${t.name} has paid the £${o.deposit.toFixed(2)} deposit for ${o.ref}. Collection ${o.collectionDate} at ${o.locationName}. Don't take the deposit again.`,
+  );
+}
+
 /**
  * Sent to the shop when Stripe took money we couldn't simply mark as a paid deposit
  * (paid twice, paid on a cancelled order, wrong amount). A person needs to look at it,
