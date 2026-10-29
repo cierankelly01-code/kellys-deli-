@@ -332,6 +332,9 @@ model Order {
   // stamps depositPaidAt. depositIntentId stores the provider's payment-intent id.
   depositIntentId          String?
   depositPaidAt            DateTime?
+  // When the customer and shop were first emailed about this order. Online-deposit orders
+  // stay null until the deposit is paid; only a null order is ever auto-cancelled unpaid.
+  confirmationSentAt       DateTime?
   // Subscribe & Save recurring intent (payment-ready, not payment-live). The first order
   // carries a snapshot of the recurring terms; subscription links the ongoing plan.
   isSubscription           Boolean      @default(false)

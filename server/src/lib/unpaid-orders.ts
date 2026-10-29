@@ -29,6 +29,9 @@ export async function releaseUnpaidOrders(now = new Date()): Promise<string[]> {
       // Only orders that went to a Stripe page. Orders from before Stripe, or made while it
       // was down (stub_…), are waiting on the shop to take the deposit: never touched.
       depositIntentId: { startsWith: "cs_" },
+      // Never emailed: an order the customer or shop has a confirmation for is never
+      // cancelled behind their backs, even if a later payment page was abandoned.
+      confirmationSentAt: null,
       createdAt: { lt: cutoff },
     },
     select: { id: true, ref: true, depositIntentId: true, notes: true },
@@ -48,7 +51,7 @@ export async function releaseUnpaidOrders(now = new Date()): Promise<string[]> {
     // Conditional on the same pending session, so a payment or an admin change that lands
     // in the meantime wins.
     const r = await prisma.order.updateMany({
-      where: { id: o.id, status: "new", depositStatus: "pending", depositIntentId: o.depositIntentId },
+      where: { id: o.id, status: "new", depositStatus: "pending", depositIntentId: o.depositIntentId, confirmationSentAt: null },
       data: { status: "cancelled", notes: [o.notes, RELEASED_NOTE].filter(Boolean).join("\n") },
     });
     if (r.count > 0) released.push(o.ref);

@@ -1,9 +1,10 @@
 import { prisma } from "./prisma";
 import { formatDate } from "./capacity";
-import { notifyOrderReceived, notifyShopOfOrder, type OrderNotifyInput } from "./notify";
+import { notifyOrderReceived, notifyShopOfOrder, notifyShopDepositPaid, type OrderNotifyInput } from "./notify";
 
 /** The board order as loaded for its emails: boards with their platter, add-ons, shop. */
 export interface OrderForEmail {
+  id: string;
   ref: string;
   customerName: string;
   phone: string;
@@ -38,20 +39,37 @@ function notifyInput(o: OrderForEmail, depositPaid: boolean): OrderNotifyInput {
   };
 }
 
+async function shopInbox(): Promise<string | null> {
+  return (await prisma.setting.findUnique({ where: { key: "orderNotifyEmail" } }))?.value?.trim() || null;
+}
+
 /**
- * The customer's confirmation and the shop's "new order" alert for a board order.
- * Online-deposit orders send these only once Stripe confirms the deposit (depositPaid),
- * so an abandoned payment page never looks like a confirmed order to either side.
+ * The customer's confirmation and the shop's alert for a board order. Online-deposit
+ * orders call this only once the deposit is paid (depositPaid), so an abandoned payment
+ * page never looks like a confirmed order to either side.
+ *
+ * The first call for an order stamps confirmationSentAt (claimed atomically, so two
+ * callers can't both send the "new order" alert) and sends the full emails. A later call
+ * (a deposit paid for an order both sides were already told about) sends the customer
+ * "you're booked in" and the shop a short "deposit paid" note, not a second "new order".
  * The order is already committed when this runs: a mail failure is logged, never thrown.
  */
 export async function sendOrderEmails(o: OrderForEmail, opts: { depositPaid?: boolean } = {}): Promise<void> {
-  const input = notifyInput(o, opts.depositPaid ?? false);
+  const depositPaid = opts.depositPaid ?? false;
+  const first = (await prisma.order.updateMany({ where: { id: o.id, confirmationSentAt: null }, data: { confirmationSentAt: new Date() } })).count > 0;
+  if (!first && !depositPaid) return;
+  const input = notifyInput(o, depositPaid);
   const target = { name: o.customerName, phone: o.phone, email: o.email };
   await notifyOrderReceived(target, input).catch((err) => console.error(`[orders] customer notice failed for ${o.ref}`, err));
   try {
-    const to = (await prisma.setting.findUnique({ where: { key: "orderNotifyEmail" } }))?.value?.trim();
-    // The shop's copy leaves the photos out: it's read at the counter, not admired.
-    if (to) await notifyShopOfOrder(to, target, { ...input, boards: input.boards?.map(({ imageUrl: _i, meta: _m, ...b }) => b) });
+    const to = await shopInbox();
+    if (!to) return;
+    if (first) {
+      // The shop's copy leaves the photos out: it's read at the counter, not admired.
+      await notifyShopOfOrder(to, target, { ...input, boards: input.boards?.map(({ imageUrl: _i, meta: _m, ...b }) => b) });
+    } else {
+      await notifyShopDepositPaid(to, target, input);
+    }
   } catch (err) {
     console.error(`[orders] shop alert failed for ${o.ref}`, err);
   }

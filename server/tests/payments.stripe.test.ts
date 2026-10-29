@@ -379,8 +379,18 @@ d("Stripe deposits — third review", () => {
     create.mockRejectedValueOnce(new Error("Stripe unavailable"));
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
     const noPage = (await placeOrder()).ref; // shop chases this deposit by hand
-    errors.mockRestore();
     await backdate(noPage);
+
+    // Emailed when placed (Stripe was down), then the customer opened Pay and gave up: both
+    // sides already hold a confirmation, so it must never be cancelled behind their backs.
+    create.mockRejectedValueOnce(new Error("Stripe unavailable"));
+    const emailedThenAbandoned = (await placeOrder()).ref;
+    errors.mockRestore();
+    expect((await request(app).post(`/api/orders/${emailedThenAbandoned}/deposit-checkout`)).status).toBe(200);
+    await backdate(emailedThenAbandoned);
+    (await session(emailedThenAbandoned)).status = "expired";
+    expect((await getOrder(emailedThenAbandoned)).holdEndsAt).toBeNull();
+    expect((await getOrder(recent)).holdEndsAt).toEqual(expect.any(String));
 
     const logs = vi.spyOn(console, "log").mockImplementation(() => {});
     try { while ((await releaseUnpaidOrders()).length) { /* drain older rows from earlier runs */ } } finally { logs.mockRestore(); }
@@ -392,5 +402,37 @@ d("Stripe deposits — third review", () => {
     expect(await status(paidJustNow)).toBe("new");
     expect(await status(recent)).toBe("new");
     expect(await status(noPage)).toBe("new");
+    expect(await status(emailedThenAbandoned)).toBe("new");
+  });
+
+  it("a deposit taken by phone on an unconfirmed online order sends the customer their confirmation", async () => {
+    const { ref } = await placeOrder();
+    const id = (await prisma.order.findUnique({ where: { ref } }))!.id;
+    const logs = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const res = await request(app).patch(`/api/admin/orders/${id}/deposit`).set("Authorization", `Bearer ${await adminToken()}`).send({ depositStatus: "paid" });
+      expect(res.status).toBe(200);
+      expect(logs.mock.calls.some((c) => String(c[0]).startsWith("[notify:email") && String(c[0]).includes(`Order ${ref} confirmed`))).toBe(true);
+    } finally { logs.mockRestore(); }
+    expect((await prisma.order.findUnique({ where: { ref } }))!.confirmationSentAt).not.toBeNull();
+  });
+
+  it("tells the shop 'deposit paid', not 'new order', when it already had the order email", async () => {
+    await prisma.setting.upsert({ where: { key: "orderNotifyEmail" }, update: { value: "shop-test@example.com" }, create: { key: "orderNotifyEmail", value: "shop-test@example.com" } });
+    create.mockRejectedValueOnce(new Error("Stripe unavailable"));
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const logs = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const { ref, pence } = await placeOrder(); // emailed straight away: no payment page
+      logs.mockClear();
+      expect((await postWebhook(paidEvent(ref, pence))).body.handled).toBe(true);
+      const shop = logs.mock.calls.map((c) => String(c[0])).filter((l) => l.includes("shop-test@example.com") && l.includes(ref));
+      expect(shop.some((l) => l.includes(`Deposit paid — ${ref}`))).toBe(true);
+      expect(shop.some((l) => l.includes("New order"))).toBe(false);
+    } finally {
+      logs.mockRestore();
+      errors.mockRestore();
+      await prisma.setting.delete({ where: { key: "orderNotifyEmail" } }).catch(() => {});
+    }
   });
 });

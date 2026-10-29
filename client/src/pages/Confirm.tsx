@@ -80,7 +80,7 @@ export default function Confirm() {
   const [paying, setPaying] = useState(false);
   const backFromStripe = params.get("paid") === "1";
   const cancelledAtStripe = params.get("cancelled") === "1";
-  usePageTitle("Order confirmed");
+  usePageTitle("Your order");
 
   useEffect(() => {
     if (!ref) return;
@@ -135,11 +135,19 @@ export default function Confirm() {
       ? [{ id: "primary", platterId: order.platterId ?? "", platterName: order.platterName, quantity: order.quantity ?? 1, unitPrice: 0, lineTotal: 0 }]
       : [];
 
+  // Waiting on an online deposit (or just back from Stripe, not yet confirmed): nothing on
+  // the page may read as booked — no tick, calendar, freebie or referral until it's paid.
+  const showBooked = order.status !== "cancelled" && !(order.depositStatus === "pending" && (order.canPayOnline || backFromStripe));
+  const holdEnds = order.holdEndsAt ? new Date(order.holdEndsAt) : null;
+  const holdTime = holdEnds && holdEnds.getTime() > Date.now()
+    ? holdEnds.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })
+    : null;
+
   return (
     <div className="app">
       <Header />
       <div className="confirm-hero center">
-        {order.status !== "cancelled" && <div className="tick">✓</div>}
+        {showBooked && <div className="tick">✓</div>}
         {order.depositStatus === "paid" ? (
           <>
             <h1>Deposit paid — you&apos;re booked in!</h1>
@@ -178,8 +186,8 @@ export default function Confirm() {
           <>
             <h1>{cancelledAtStripe ? "Your date isn't booked yet" : "Nearly there: pay your deposit"}</h1>
             <p className="confirm-copy">
-              Your date is confirmed once the 25% deposit is paid. We&apos;ll hold it for an hour while you pay. The
-              balance is payable on collection.
+              Your date is confirmed once the 25% deposit is paid.{holdTime && ` We're holding it for you until ${holdTime}.`}{" "}
+              The balance is payable on collection.
             </p>
             {cancelledAtStripe && <p className="notice warn">Your payment wasn&apos;t completed. You can try again below.</p>}
             <button className="btn" onClick={payDeposit} disabled={paying}>
@@ -199,12 +207,14 @@ export default function Confirm() {
         )}
         <div className="ref-badge">Order reference<strong>{order.ref}</strong></div>
         <p className="muted save-hint">Screenshot or bookmark this page — your order lives at this link.</p>
-        <button className="btn btn-secondary cal-btn" onClick={() => downloadIcs(order)}>
-          Add collection to my calendar
-        </button>
+        {showBooked && (
+          <button className="btn btn-secondary cal-btn" onClick={() => downloadIcs(order)}>
+            Add collection to my calendar
+          </button>
+        )}
       </div>
 
-      {order.freebie && (
+      {showBooked && order.freebie && (
         <div className="notice good">🎁 First-order treat: <strong>{order.freebie}</strong> — on the house!</div>
       )}
 
@@ -228,7 +238,7 @@ export default function Confirm() {
         <div className="review-row"><span className="muted">Balance on collection</span><span>{gbp(order.balance)}</span></div>
       </div>
 
-      {order.customerReferralCode && <ReferralShare code={order.customerReferralCode} />}
+      {showBooked && order.customerReferralCode && <ReferralShare code={order.customerReferralCode} />}
 
       <p className="muted center footnote">
         Deposits are fully refundable up to 48 hours before collection. Need to change something? Quote your reference {order.ref}.
