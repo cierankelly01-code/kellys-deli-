@@ -3,12 +3,14 @@
 // TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are set. Never throws: the order is already
 // saved and paid when this runs, so a failed ping is logged and forgotten.
 //
-// Telegram is a third party, so the message carries no customer details (name, phone,
-// email): only the ref, what was ordered, the money, the shop and the date.
+// It goes to the owner's own private chat, so it names the customer (owner's ask,
+// 29 Oct 2026), but never their phone or email. Sent as plain text (no parse_mode), so
+// nothing a customer types can turn into Telegram markup or links.
 
 export interface OrderPing {
   kind: "board" | "bread" | "deli";
   ref: string;
+  customerName: string;
   /** What was paid online just now. */
   paid: number;
   /** The order total, when more than was paid (a tasting's deposit). */
@@ -19,8 +21,16 @@ export interface OrderPing {
   items: { name: string; qty: number }[];
 }
 
-const KIND_LABEL: Record<OrderPing["kind"], string> = { board: "order", bread: "bread order", deli: "deli order" };
+const KIND_LABEL: Record<OrderPing["kind"], string> = { board: "ORDER", bread: "BREAD ORDER", deli: "DELI ORDER" };
 const MAX_ITEMS_SHOWN = 6;
+const MAX_NAME = 60;
+
+/** The customer's name on one short line: control characters and line breaks out. */
+function oneLine(s: string): string {
+  // eslint-disable-next-line no-control-regex
+  const clean = s.replace(/[\u0000-\u001f\u007f-\u009f]+/g, " ").replace(/\s+/g, " ").trim();
+  return clean.length > MAX_NAME ? `${clean.slice(0, MAX_NAME - 1)}…` : clean;
+}
 
 /** "2026-11-14" -> "Sat 14 Nov". Dates are stored as UTC midnight, so read them in UTC. */
 function shortDate(ymd: string): string {
@@ -33,11 +43,17 @@ const money = (n: number) => `£${n.toFixed(2)}`;
 
 export function orderPingText(p: OrderPing): string {
   const amount = p.total !== undefined && p.total > p.paid ? `${money(p.paid)} deposit (${money(p.total)} total)` : money(p.paid);
-  const head = `New ${KIND_LABEL[p.kind]} ${p.ref} — ${amount} — ${p.locationName}, ${shortDate(p.collectionDate)}`;
-  if (!p.items.length) return head;
-  const shown = p.items.slice(0, MAX_ITEMS_SHOWN).map((i) => `${i.qty}× ${i.name}`);
-  const more = p.items.length - shown.length;
-  return `${head}\n${shown.join(", ")}${more > 0 ? ` + ${more} more` : ""}`;
+  const name = oneLine(p.customerName);
+  const lines = [
+    `💷 KA-CHING! NEW ${KIND_LABEL[p.kind]} — ${amount}${name ? ` — ${name}` : ""}`,
+    `${p.ref} · ${p.locationName} · ${shortDate(p.collectionDate)}`,
+  ];
+  if (p.items.length) {
+    const shown = p.items.slice(0, MAX_ITEMS_SHOWN).map((i) => `${i.qty}× ${i.name}`);
+    const more = p.items.length - shown.length;
+    lines.push(`${shown.join(", ")}${more > 0 ? ` + ${more} more` : ""}`);
+  }
+  return lines.join("\n");
 }
 
 /** Whether the ping is configured, read at call time so tests (and a redeploy) can change it. */

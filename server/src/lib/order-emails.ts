@@ -73,6 +73,7 @@ export async function sendOrderEmails(
     await pingPaidOrder({
       kind: "board",
       ref: o.ref,
+      customerName: o.customerName,
       paid: input.deposit,
       total: input.total,
       locationName: input.locationName,

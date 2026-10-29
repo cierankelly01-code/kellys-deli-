@@ -31,7 +31,7 @@ If the database `Setting` row `sitePassword` isn't empty, the whole public site 
 5. Public pages changed, and the gate is off? `node server/scripts/indexnow.mjs`.
 
 ## Phone ping per paid order (Telegram)
-Every order paid online (boards, bread `KDB-`, deli `KDS-`) sends one Telegram message, like `New order KD-7Q2M4X — £85.00 — Bentley Heath, Sat 14 Nov` with the items on a second line. It goes out with the paid confirmation email, so once per payment, never for an unpaid order or a deposit marked paid in admin. No customer name, phone or email is in it. Off until both env vars are set; if Telegram is down the order and emails carry on and the server logs `[notify:telegram]`.
+Every order paid online (boards, bread `KDB-`, deli `KDS-`) sends one Telegram message to the owner's private chat, like `💷 KA-CHING! NEW ORDER — £85.00 — Sarah Jones`, then `KD-7Q2M4X · Bentley Heath · Sat 14 Nov`, then the items. It goes out with the paid confirmation email, so once per payment, never for an unpaid order or a deposit marked paid in admin. It has the customer's name only, never their phone or email, and is sent as plain text. If the chat is ever a group, everyone in it sees customer names. Off until both env vars are set; if Telegram is down the order and emails carry on and the server logs `[notify:telegram]`.
 
 Setup, once (about 5 minutes, on the phone):
 1. In Telegram, open a chat with **@BotFather**, send `/newbot`, give it a name (e.g. `Kelly's Deli Orders`) and a username ending in `bot`. BotFather replies with the bot's token. Keep it private: anyone with it can post as the bot.

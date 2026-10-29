@@ -30,6 +30,7 @@ import { sendSimpleOrderEmails } from "../src/lib/simple-order-payments";
 const ping: OrderPing = {
   kind: "board",
   ref: "KD-7Q2M4X",
+  customerName: "Sarah Jones",
   paid: 85,
   total: 85,
   locationName: "Bentley Heath",
@@ -56,20 +57,28 @@ afterEach(() => {
 });
 
 describe("telegram ping — message", () => {
-  it("reads like a shop notification: ref, money, shop, short date", () => {
-    expect(orderPingText(ping).split("\n")[0]).toBe("New order KD-7Q2M4X — £85.00 — Bentley Heath, Sat 14 Nov");
-    expect(orderPingText(ping).split("\n")[1]).toBe("1× Medium Platter, 2× Napkins pack");
+  it("leads with the ka-ching, the money and the customer's name, then the ref, shop and date", () => {
+    expect(orderPingText(ping)).toBe(
+      "💷 KA-CHING! NEW ORDER — £85.00 — Sarah Jones\nKD-7Q2M4X · Bentley Heath · Sat 14 Nov\n1× Medium Platter, 2× Napkins pack",
+    );
   });
 
   it("names bread and deli orders, and says when only a deposit was paid", () => {
-    expect(orderPingText({ ...ping, kind: "bread", ref: "KDB-AAAAAA", items: [] })).toBe("New bread order KDB-AAAAAA — £85.00 — Bentley Heath, Sat 14 Nov");
-    expect(orderPingText({ ...ping, kind: "deli", ref: "KDS-BBBBBB", items: [] })).toMatch(/^New deli order KDS-BBBBBB/);
-    expect(orderPingText({ ...ping, paid: 35.75, total: 143 })).toContain("£35.75 deposit (£143.00 total)");
+    expect(orderPingText({ ...ping, kind: "bread", ref: "KDB-AAAAAA", items: [] })).toBe("💷 KA-CHING! NEW BREAD ORDER — £85.00 — Sarah Jones\nKDB-AAAAAA · Bentley Heath · Sat 14 Nov");
+    expect(orderPingText({ ...ping, kind: "deli", ref: "KDS-BBBBBB", items: [] })).toMatch(/^💷 KA-CHING! NEW DELI ORDER — /);
+    expect(orderPingText({ ...ping, paid: 35.75, total: 143 })).toContain("£35.75 deposit (£143.00 total) — Sarah Jones");
+  });
+
+  it("keeps a customer-typed name to one plain line, and copes with none", () => {
+    const first = (name: string) => orderPingText({ ...ping, customerName: name }).split("\n")[0];
+    expect(first("Sarah\nKD-FAKE01 · Refund me\u0000 ")).toBe("💷 KA-CHING! NEW ORDER — £85.00 — Sarah KD-FAKE01 · Refund me");
+    expect(first("x".repeat(200)).length).toBeLessThan(110);
+    expect(first("   ")).toBe("💷 KA-CHING! NEW ORDER — £85.00");
   });
 
   it("keeps a long order to one short line of items", () => {
     const items = Array.from({ length: 9 }, (_, i) => ({ name: `Loaf ${i}`, qty: 1 }));
-    expect(orderPingText({ ...ping, items }).split("\n")[1]).toMatch(/1× Loaf 5 \+ 3 more$/);
+    expect(orderPingText({ ...ping, items }).split("\n")[2]).toMatch(/1× Loaf 5 \+ 3 more$/);
   });
 });
 
@@ -131,12 +140,13 @@ const loaf = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe("telegram ping — wired into the paid confirmations", () => {
-  it("pings once when a board order is paid online, with no customer contact details", async () => {
+  it("pings once when a board order is paid online: name yes, phone and email no, plain text", async () => {
     await sendOrderEmails(board(), { depositPaid: true });
     expect(sent()).toHaveLength(1);
     const text: string = sent()[0].body.text;
-    expect(text).toBe("New order KD-7Q2M4X — £85.00 — Bentley Heath, Sat 14 Nov\n1× Medium Platter, 1× Napkins pack");
-    for (const secret of ["07700900123", "dawn@example.com", "Dawn", "Fletcher"]) expect(text).not.toContain(secret);
+    expect(text).toBe("💷 KA-CHING! NEW ORDER — £85.00 — Dawn Fletcher\nKD-7Q2M4X · Bentley Heath · Sat 14 Nov\n1× Medium Platter, 1× Napkins pack");
+    for (const secret of ["07700900123", "dawn@example.com"]) expect(text).not.toContain(secret);
+    expect(sent()[0].body).not.toHaveProperty("parse_mode");
   });
 
   it("pings for a payment on a board order the shop already had, but not for a webhook retry", async () => {
@@ -163,8 +173,8 @@ describe("telegram ping — wired into the paid confirmations", () => {
     await sendSimpleOrderEmails("grocery", loaf({ ref: "KDS-BBBBBB" }), { paid: true });
     await sendSimpleOrderEmails("bread", loaf({ ref: "KDB-CCCCCC" }), { paid: false });
     expect(sent().map((s) => s.body.text)).toEqual([
-      "New bread order KDB-AAAAAA — £9.00 — Bentley Heath, Sat 14 Nov\n2× Sourdough",
-      "New deli order KDS-BBBBBB — £9.00 — Bentley Heath, Sat 14 Nov\n2× Sourdough",
+      "💷 KA-CHING! NEW BREAD ORDER — £9.00 — Dawn Fletcher\nKDB-AAAAAA · Bentley Heath · Sat 14 Nov\n2× Sourdough",
+      "💷 KA-CHING! NEW DELI ORDER — £9.00 — Dawn Fletcher\nKDS-BBBBBB · Bentley Heath · Sat 14 Nov\n2× Sourdough",
     ]);
   });
 

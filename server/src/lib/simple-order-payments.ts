@@ -85,6 +85,7 @@ export async function sendSimpleOrderEmails(k: SimpleKind, o: SimpleOrder, opts:
     await pingPaidOrder({
       kind: k === "bread" ? "bread" : "deli",
       ref: dto.ref,
+      customerName: dto.customerName,
       paid: dto.total,
       locationName: data.locationName,
       collectionDate: dto.collectionDate,
