@@ -132,7 +132,9 @@ adminRouter.patch("/orders/:id/status", async (req, res) => {
 
   const order = await prisma.order.update({
     where: { id: req.params.id },
-    data: { status: parsed.data.status },
+    // The shop has handled this order by hand: it's theirs now, so the unpaid-order
+    // release (which only touches orders nobody was told about) must leave it alone.
+    data: { status: parsed.data.status, confirmationSentAt: existing.confirmationSentAt ?? new Date() },
     include: { ...ORDER_INCLUDE, customer: true },
   });
 
@@ -186,9 +188,11 @@ adminRouter.patch("/orders/:id/deposit", async (req, res) => {
   });
   // An online order nobody has been emailed about yet (the customer left Stripe, then paid
   // by phone): this is its confirmation, so the customer hears they're booked in.
-  if (next === "paid" && !existing.confirmationSentAt && existing.type !== "experience") {
+  // Not for a cancelled order (e.g. released unpaid): "you're booked in" would be untrue
+  // until the shop reopens it.
+  if (next === "paid" && !existing.confirmationSentAt && existing.type !== "experience" && existing.status !== "cancelled") {
     const full = await prisma.order.findUnique({ where: { id: existing.id }, include: orderEmailInclude });
-    if (full) await sendOrderEmails(full, { depositPaid: true });
+    if (full) await sendOrderEmails(full, { depositPaid: true, depositPaidBy: "shop" });
   }
   res.json({ ...orderDTO(order), cost: orderCost(order), profit: profitOf(toStatInput(order)) });
 });

@@ -1108,7 +1108,9 @@ publicRouter.post("/orders", async (req, res) => {
   // Two independent hooks: a first-order treat, and a "spend £X, get a free gift" threshold that
   // compares against the boards+add-ons subtotal (pricing.base — same number the cart shows).
   const freebies: string[] = [];
-  const priorOrders = await prisma.order.count({ where: { phone: input.phone, type: { in: ["platter", "gift"] } } });
+  // Cancelled orders don't count: a customer whose unpaid order was released is told to
+  // order again, and that is still their first order.
+  const priorOrders = await prisma.order.count({ where: { phone: input.phone, type: { in: ["platter", "gift"] }, status: { not: "cancelled" } } });
   if (priorOrders === 0 && (await getSetting("firstOrderHook")) === "on") {
     freebies.push((await getSetting("firstOrderHookText")) || "FREE first-order treat");
   }

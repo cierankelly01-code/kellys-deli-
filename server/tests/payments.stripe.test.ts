@@ -412,9 +412,35 @@ d("Stripe deposits — third review", () => {
     try {
       const res = await request(app).patch(`/api/admin/orders/${id}/deposit`).set("Authorization", `Bearer ${await adminToken()}`).send({ depositStatus: "paid" });
       expect(res.status).toBe(200);
-      expect(logs.mock.calls.some((c) => String(c[0]).startsWith("[notify:email") && String(c[0]).includes(`Order ${ref} confirmed`))).toBe(true);
+      const mail = logs.mock.calls.map((c) => String(c[0])).find((l) => l.startsWith("[notify:email") && l.includes(`Order ${ref} confirmed`));
+      expect(mail).toBeDefined();
+      expect(mail).not.toMatch(/by card|by Stripe|\(Stripe\)/i); // taken by phone or bank, not by card
     } finally { logs.mockRestore(); }
     expect((await prisma.order.findUnique({ where: { ref } }))!.confirmationSentAt).not.toBeNull();
+  });
+
+  it("an order the shop reopens by hand is never released again", async () => {
+    const { releaseUnpaidOrders, UNPAID_HOLD_MINUTES } = await import("../src/lib/unpaid-orders");
+    const { ref } = await placeOrder();
+    const o = (await prisma.order.findUnique({ where: { ref } }))!;
+    await prisma.order.update({ where: { ref }, data: { createdAt: new Date(Date.now() - (UNPAID_HOLD_MINUTES + 1) * 60_000), status: "cancelled" } });
+    sessions.get(o.depositIntentId!)!.status = "expired";
+    const res = await request(app).patch(`/api/admin/orders/${o.id}/status`).set("Authorization", `Bearer ${await adminToken()}`).send({ status: "new" });
+    expect(res.status).toBe(200);
+    const logs = vi.spyOn(console, "log").mockImplementation(() => {});
+    try { while ((await releaseUnpaidOrders()).length) { /* drain */ } } finally { logs.mockRestore(); }
+    expect((await prisma.order.findUnique({ where: { ref } }))!.status).toBe("new");
+  });
+
+  it("still confirms to the customer when Stripe retries a payment we recorded but didn't confirm", async () => {
+    const { ref, pence } = await placeOrder();
+    // As if the process died between recording the payment and sending the emails.
+    await prisma.order.update({ where: { ref }, data: { depositStatus: "paid", depositIntentId: "pi_test_crashed", depositPaidAt: new Date() } });
+    const logs = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      await postWebhook(paidEvent(ref, pence, { intent: "pi_test_crashed" }));
+      expect(logs.mock.calls.some((c) => String(c[0]).startsWith("[notify:email") && String(c[0]).includes(`Order ${ref} confirmed`))).toBe(true);
+    } finally { logs.mockRestore(); }
   });
 
   it("tells the shop 'deposit paid', not 'new order', when it already had the order email", async () => {
