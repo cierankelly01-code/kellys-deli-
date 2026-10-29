@@ -1,0 +1,14 @@
+# .github/dependabot.yml. Weekly, grouped, so it's one PR to review rather than twenty.
+# Security fixes still open straight away, regardless of the schedule.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule: { interval: monthly }

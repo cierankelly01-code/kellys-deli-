@@ -1,0 +1,86 @@
+# Security baseline CI for any client repo. Copied from factory-os/ci.yml, which is green.
+# Drop into .github/workflows/security.yml. Edit NODE_VERSION and the audit dirs, nothing else.
+# Every action is pinned to a commit SHA; the token is read-only.
+name: Security
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays: catch new CVEs in unchanged code
+
+permissions:
+  contents: read
+
+env:
+  # KDL pins no Node version (no engines, .nvmrc or Dockerfile; Coolify picks its default).
+  # 22 matches @types/node ^22 in server/package.json. Pin engines/.nvmrc and update this together.
+  NODE_VERSION: "22"
+
+jobs:
+  secrets:
+    name: Secret scan (gitleaks, full history)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install gitleaks 8.30.1 (checksum verified)
+        working-directory: ${{ runner.temp }}
+        env:
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          file="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL -o "$file" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${file}"
+          echo "${GITLEAKS_SHA256}  ${file}" | sha256sum -c -
+          tar -xzf "$file" gitleaks
+      - name: Scan every commit for keys, tokens and passwords
+        run: '"$RUNNER_TEMP/gitleaks" git --redact --no-banner --exit-code 1 .'
+
+  dependencies:
+    name: Dependency audit (fail on high or critical, production deps)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm audit --omit=dev --audit-level=high
+
+  private-files:
+    name: No secrets or client data tracked
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Refuse .env, keys, dumps and client data folders
+        run: |
+          bad=$(git ls-files | grep -Ei '(^|/)\.env($|\.)|\.pem$|\.key$|id_rsa|\.sqlite$|\.dump$|(^|/)clients/[^_][^/]*/data/' | grep -Evi '\.(example|sample|template)$' || true)
+          if [ -n "$bad" ]; then echo "::error::Tracked files that must never be in git:"; echo "$bad"; exit 1; fi
+
+  # Runs with NO secrets and NO database. The real-DB suites (api.*.test.ts etc.) gate on
+  # DATABASE_URL and skip here, so this covers the pure unit tests + both type-checked builds.
+  # Full DB coverage would need a postgres service + migrate + seed; not added yet.
+  # E2E (Playwright) is not run in CI: it needs a seeded DB and a production server.
+  build-and-test:
+    name: Build and unit tests (no DB, no secrets)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm ci
+      - run: npm run build
+      - run: npm test

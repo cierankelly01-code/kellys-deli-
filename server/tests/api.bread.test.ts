@@ -62,6 +62,17 @@ d("Bread pre-ordering", () => {
     expect(res.body.find((p: any) => p.id === productId)).toBeTruthy();
   });
 
+  it("a partial PATCH without locationIds keeps the product's shop links", async () => {
+    // Regression guard for zod 4, which applies .default([]) inside .partial().
+    const patch = await request(app)
+      .patch(`/api/admin/bread/products/${productId}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ description: "A test loaf, patched" });
+    expect(patch.status).toBe(200);
+    const res = await request(app).get(`/api/bread/products?locationId=${locationId}`);
+    expect(res.body.find((p: any) => p.id === productId)).toBeTruthy();
+  });
+
   it("reports availability with a reason for the lead-time window", async () => {
     const today = new Date().toISOString().slice(0, 10);
     const res = await request(app).get(`/api/bread/availability?locationId=${locationId}&from=${today}&days=1`);

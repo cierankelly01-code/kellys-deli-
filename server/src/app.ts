@@ -94,6 +94,15 @@ export function createApp(): Express {
     })
   );
 
+  // Helmet doesn't set Permissions-Policy. The site uses none of these browser features:
+  // no geolocation, camera or mic, and no client-side payment UI (Stripe is server-side
+  // PaymentIntents only, no Stripe.js). If Stripe Elements / Payment Request is ever added,
+  // switch payment to `payment=(self "https://js.stripe.com")` alongside the CSP edits.
+  app.use((_req, res, next) => {
+    res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
+    next();
+  });
+
   app.use(cors({ origin: env.clientOrigins, credentials: true }));
 
   // Stripe webhook — MUST see the raw body (signature verification), so it's mounted
