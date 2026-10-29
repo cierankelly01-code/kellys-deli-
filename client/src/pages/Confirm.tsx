@@ -4,6 +4,7 @@ import { api, type OrderDTO } from "../lib/api";
 import { gbp, formatDateLong } from "../lib/format";
 import { Header } from "../components/Header";
 import { usePageTitle } from "../lib/title";
+import SimpleOrderConfirm from "./SimpleOrderConfirm";
 
 function ReferralShare({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
@@ -58,7 +59,7 @@ function downloadIcs(order: OrderDTO): void {
     `DTSTART;VALUE=DATE:${day}`,
     `DTEND;VALUE=DATE:${nextDay}`,
     `SUMMARY:${esc(`Kelly's Deli — ${name} collection`)}`,
-    `DESCRIPTION:${esc(`Order ${order.ref}. Balance due on collection.`)}`,
+    `DESCRIPTION:${esc(`Order ${order.ref}.${order.balance > 0 ? " Balance due on collection." : ""}`)}`,
     "END:VEVENT", "END:VCALENDAR",
   ];
   const blob = new Blob([lines.join("\r\n")], { type: "text/calendar" });
@@ -70,7 +71,13 @@ function downloadIcs(order: OrderDTO): void {
   URL.revokeObjectURL(url);
 }
 
+/** Bread (KDB-) and deli counter (KDS-) refs have their own page; boards (KD-) use this one. */
 export default function Confirm() {
+  const { ref } = useParams();
+  return /^KD[BS]-/.test(ref ?? "") ? <SimpleOrderConfirm /> : <BoardConfirm />;
+}
+
+function BoardConfirm() {
   const { ref } = useParams();
   const [params] = useSearchParams();
   const [order, setOrder] = useState<OrderDTO | null>(null);
@@ -88,7 +95,7 @@ export default function Confirm() {
   }, [ref]);
 
   // Back from Stripe: the webhook usually lands within a second or two. Re-check a few
-  // times rather than telling the customer "pending" for a deposit they've just paid.
+  // times rather than telling the customer "pending" for a payment they've just made.
   useEffect(() => {
     if (!ref || !backFromStripe || !order || order.depositStatus !== "pending") return;
     let tries = 0;
@@ -107,7 +114,7 @@ export default function Confirm() {
     try {
       const { checkoutUrl } = await api.depositCheckout(ref);
       if (checkoutUrl && /^https:\/\/checkout\.stripe\.com\//.test(checkoutUrl)) window.location.assign(checkoutUrl);
-      else setPayError("Online payment isn't available right now — we'll be in touch about your deposit.");
+      else setPayError("Online payment isn't available right now — we'll be in touch about payment.");
     } catch (e: any) {
       setPayError(e?.message || "We couldn't open the payment page. Please try again.");
     } finally {
@@ -138,6 +145,8 @@ export default function Confirm() {
   // Waiting on an online deposit (or just back from Stripe, not yet confirmed): nothing on
   // the page may read as booked — no tick, calendar, freebie or referral until it's paid.
   const showBooked = order.status !== "cancelled" && !(order.depositStatus === "pending" && (order.canPayOnline || backFromStripe));
+  // Orders placed from 29 Oct 2026 are paid in full (no balance); older ones kept their 25% deposit.
+  const inFull = order.balance === 0;
   const holdEnds = order.holdEndsAt ? new Date(order.holdEndsAt) : null;
   const holdTime = holdEnds && holdEnds.getTime() > Date.now()
     ? holdEnds.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })
@@ -150,18 +159,19 @@ export default function Confirm() {
         {showBooked && <div className="tick">✓</div>}
         {order.depositStatus === "paid" ? (
           <>
-            <h1>Deposit paid — you&apos;re booked in!</h1>
+            <h1>{inFull ? "Paid — you're booked in!" : "Deposit paid — you're booked in!"}</h1>
             <p className="confirm-copy">
-              Thanks — we&apos;ve got your {gbp(order.deposit)} deposit and your date is confirmed. The balance of{" "}
-              {gbp(order.balance)} is payable on collection.
+              {inFull
+                ? `Thanks — your order's paid in full and your date is confirmed. Just collect it on the day.`
+                : `Thanks — we've got your ${gbp(order.deposit)} deposit and your date is confirmed. The balance of ${gbp(order.balance)} is payable on collection.`}
             </p>
           </>
         ) : order.depositStatus === "refunded" ? (
           <>
-            <h1>Your deposit has been refunded</h1>
+            <h1>{inFull ? "Your payment has been refunded" : "Your deposit has been refunded"}</h1>
             <p className="confirm-copy">
-              We&apos;ve refunded your {gbp(order.deposit)} deposit for order {order.ref}. It can take a few days to reach
-              your account. Questions? Email hello@kellysdeli.co.uk.
+              We&apos;ve refunded {gbp(order.deposit)} for order {order.ref}. It can take 5 to 10 working days to show on your statement, depending on
+              your bank. Questions? Email hello@kellysdeli.co.uk.
             </p>
           </>
         ) : backFromStripe ? (
@@ -177,21 +187,21 @@ export default function Confirm() {
           <>
             <h1>This order wasn&apos;t booked</h1>
             <p className="confirm-copy">
-              Order {order.ref} has been cancelled, so we&apos;re not holding a date for it. If the deposit wasn&apos;t paid
+              Order {order.ref} has been cancelled, so we&apos;re not holding a date for it. If it wasn&apos;t paid
               in time, you&apos;re welcome to order again. Questions? Email hello@kellysdeli.co.uk.
             </p>
             <Link className="btn" to="/">Order again</Link>
           </>
         ) : order.canPayOnline ? (
           <>
-            <h1>{cancelledAtStripe ? "Your date isn't booked yet" : "Nearly there: pay your deposit"}</h1>
+            <h1>{cancelledAtStripe ? "Your date isn't booked yet" : inFull ? "Nearly there: pay for your order" : "Nearly there: pay your deposit"}</h1>
             <p className="confirm-copy">
-              Your date is confirmed once the 25% deposit is paid.{holdTime && ` We're holding it for you until ${holdTime}.`}{" "}
-              The balance is payable on collection.
+              {inFull ? "Your date is confirmed once your order is paid." : "Your date is confirmed once the deposit is paid. The balance is payable on collection."}
+              {holdTime && ` We're holding it for you until ${holdTime}.`}
             </p>
             {cancelledAtStripe && <p className="notice warn">Your payment wasn&apos;t completed. You can try again below.</p>}
             <button className="btn" onClick={payDeposit} disabled={paying}>
-              {paying ? "Opening secure payment…" : `Pay ${gbp(order.deposit)} deposit`}
+              {paying ? "Opening secure payment…" : inFull ? `Pay ${gbp(order.deposit)}` : `Pay ${gbp(order.deposit)} deposit`}
             </button>
             <p className="muted small">Card payment by Stripe. We never see your card details.</p>
             {payError && <p className="notice danger" role="alert">{payError}</p>}
@@ -200,8 +210,9 @@ export default function Confirm() {
           <>
             <h1>Your order request is in!</h1>
             <p className="confirm-copy">
-              Thanks — your order request is in. We&apos;ll be in touch to take a 25% deposit to confirm your order.
-              The balance is payable on collection.
+              {inFull
+                ? "Thanks — your order request is in. We'll be in touch about payment to confirm your order."
+                : "Thanks — your order request is in. We'll be in touch to take a 25% deposit to confirm your order. The balance is payable on collection."}
             </p>
           </>
         )}
@@ -232,16 +243,17 @@ export default function Confirm() {
         <hr />
         <div className="review-row"><span className="muted">Total</span><span style={{ fontWeight: 700 }}>{gbp(order.total)}</span></div>
         <div className="review-row accent">
-          <span className="muted">Deposit due (25%)</span>
+          <span className="muted">{inFull ? "Payment" : "Deposit due (25%)"}</span>
           <span style={{ fontWeight: 700 }}>{gbp(order.deposit)} <span className={`pill ${order.depositStatus === "paid" ? "good" : "warn"}`}>{order.depositStatus}</span></span>
         </div>
-        <div className="review-row"><span className="muted">Balance on collection</span><span>{gbp(order.balance)}</span></div>
+        {!inFull && <div className="review-row"><span className="muted">Balance on collection</span><span>{gbp(order.balance)}</span></div>}
       </div>
 
       {showBooked && order.customerReferralCode && <ReferralShare code={order.customerReferralCode} />}
 
       <p className="muted center footnote">
-        Deposits are fully refundable up to 48 hours before collection. Need to change something? Quote your reference {order.ref}.
+        {inFull ? "Fully refundable if you cancel 48 hours or more before collection." : "Deposits are fully refundable up to 48 hours before collection."}{" "}
+        Need to change something? Quote your reference {order.ref}.
       </p>
       <Link className="btn btn-secondary" to="/">Back to menu</Link>
     </div>

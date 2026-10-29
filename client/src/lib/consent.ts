@@ -298,8 +298,8 @@ export function trackPageView(path?: string): void {
 }
 
 /**
- * The site's key conversion: a placed order request. Payment happens off-site (card
- * machine / payment link), so this "Lead"-type event is the strongest on-site signal
+ * The site's key conversion: a placed order request. Payment happens on Stripe's own page (off-site),
+ * so this "Lead"-type event is the strongest on-site signal
  * and what ad platforms should optimise toward.
  */
 export function trackOrderRequest(opts: { value?: number; ref?: string }): void {

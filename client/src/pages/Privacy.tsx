@@ -11,7 +11,7 @@ export default function Privacy() {
       <Header />
       <article className="legal">
         <h1>Privacy Policy</h1>
-        <p className="muted">Last updated: 6 September 2026</p>
+        <p className="muted">Last updated: 29 October 2026</p>
 
         <p>
           This policy explains what personal information Kelly&apos;s Deli (&quot;we&quot;, &quot;us&quot;)
@@ -43,7 +43,7 @@ export default function Privacy() {
         <ul>
           <li>Our website and database hosting providers (which store your order securely).</li>
           <li>Our email provider, to send you order confirmations.</li>
-          <li>When you pay a deposit online, Stripe, our card payment provider — they take your card details directly on their own secure page; we never see or store your card number. We share your order reference, deposit amount, collection shop and date, and email address with them.</li>
+          <li>When you pay online, Stripe, our card payment provider — they take your card details directly on their own secure page; we never see or store your card number. We share your order reference, the amount, and your collection shop and date with them. Stripe asks for your email on its own page; if you didn't give us one, we keep the email you give Stripe so we can send your order confirmation.</li>
           <li>
             If you accept advertising cookies (see below), the advertising and analytics providers we use —
             Meta (Facebook and Instagram), TikTok and Google Analytics — receive information about your visit

@@ -28,3 +28,11 @@ export function formatDateLong(iso: string): string {
     timeZone: "UTC",
   });
 }
+
+/** Admin labels for a bread or deli counter order's payment. */
+export const PAYMENT_LABEL: Record<string, string> = {
+  none: "Pay on collection",
+  pending: "Awaiting payment",
+  paid: "Paid online",
+  refunded: "Refunded",
+};

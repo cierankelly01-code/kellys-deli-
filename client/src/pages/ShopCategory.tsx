@@ -150,7 +150,7 @@ export default function ShopCategory() {
       {!cat.isCorporate && (
         <div className="cat-subscribe-note" data-reveal>
           <span className="csn-badge" aria-hidden="true">↻</span>
-          <span>Order it on repeat and <strong>save 10%</strong> — pick weekly, fortnightly or monthly on any board. No card taken now; we set the schedule up with you.</span>
+          <span>Order it on repeat and <strong>save 10%</strong> — pick weekly, fortnightly or monthly on any board. You pay for your first board when you order; we set the rest of the schedule up with you.</span>
         </div>
       )}
 
@@ -175,7 +175,7 @@ export default function ShopCategory() {
         <div>
           <h2 className="prebook-h">Got a date in the diary? Book it in now.</h2>
           <p className="prebook-copy">
-            Birthday, celebration or a big weekend coming up — pick a date ahead, pay the 25% deposit and it&apos;s locked in.
+            Birthday, celebration or a big weekend coming up — pick a date ahead, pay when you order and it&apos;s locked in.
             Add a gift note at checkout if it&apos;s for someone else.
           </p>
           <Link className="btn prebook-cta" to="/platters">Book a board ahead</Link>

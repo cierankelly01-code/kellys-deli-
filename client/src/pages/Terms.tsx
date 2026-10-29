@@ -10,7 +10,7 @@ export default function Terms() {
       <Header />
       <article className="legal">
         <h1>Terms &amp; Conditions</h1>
-        <p className="muted">Last updated: 7 July 2026</p>
+        <p className="muted">Last updated: 29 October 2026</p>
 
         <p>
           These terms apply when you place an order with Kelly&apos;s Deli through this website. By
@@ -20,8 +20,8 @@ export default function Terms() {
 
         <h2>Placing an order</h2>
         <p>
-          When you place an order you&apos;ll receive a confirmation with a reference number. This
-          confirms we&apos;ve received your order; your order is accepted once we confirm we can fulfil
+          When you place an order you pay for it online, and once it&apos;s paid you&apos;ll receive a
+          confirmation with a reference number. Your order is accepted once we confirm we can fulfil
           it for your chosen date and location. We may not be able to accept an order if we&apos;re fully
           booked or an item is unavailable.
         </p>
@@ -32,22 +32,27 @@ export default function Terms() {
           booked; availability is shown when you order.
         </p>
 
-        <h2>Prices, deposits and payment</h2>
+        <h2>Prices and payment</h2>
         <ul>
           <li>Prices are shown on the website and include VAT where applicable.</li>
-          <li>A deposit is taken to secure your order; the balance is due on collection or delivery.</li>
           <li>
-            Where online payment is offered at checkout, the deposit is paid by card through our payment provider,
-            Stripe; we never see or store your card details. Otherwise, deposits are arranged directly with us.
-            Balances are paid on collection.
+            You pay for your order in full when you place it, by card through our payment provider, Stripe; we
+            never see or store your card details. Your order is confirmed once it&apos;s paid.
           </li>
+          <li>
+            If online payment isn&apos;t available when you order a board or platter, we&apos;ll be in touch to
+            arrange payment, and your date is confirmed once it&apos;s paid. For bread, lunch and deli counter orders,
+            you pay when you collect. Your order page tells you which applies.
+          </li>
+          <li>Tasting sessions: a 25% deposit, taken by phone when we confirm your booking.</li>
+          <li>Orders placed before 29 October 2026 keep the terms they were placed on (a deposit, with the balance paid on collection).</li>
         </ul>
 
         <h2>Changes, cancellations and refunds</h2>
         <p>
-          Need to change or cancel? Contact us as soon as possible, quoting your order reference. Because
-          our food is freshly prepared to order, we may be unable to refund a deposit if you cancel inside
-          the 48-hour notice window. We&apos;ll always try to be fair and reasonable, and this does not
+          Need to change or cancel? Contact us as soon as possible, quoting your order reference. If you cancel
+          48 hours or more before collection, we&apos;ll refund you in full. Because our food is freshly prepared
+          to order, we can&apos;t refund cancellations made less than 48 hours before collection. This does not
           affect your legal rights if something is wrong with your order.
         </p>
 

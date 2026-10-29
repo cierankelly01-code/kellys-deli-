@@ -133,14 +133,15 @@ export interface LineItemPricing {
   subscriptionDiscount: number; // Subscribe & Save % off the subtotal
   discount: number; // referral discount applied
   total: number; // what the customer owes
-  deposit: number; // 25% of total, rounded to nearest 5p
-  balance: number; // payable on collection = total - deposit
+  deposit: number; // paid upfront: the whole total (owner, 29 Oct 2026: full payment, not 25%)
+  balance: number; // payable on collection: 0 now that orders are paid in full
 }
 
 /**
  * Full pricing for a v2 line-item order (boards + add-ons). Subscribe & Save takes a % off
- * the subtotal first; a referral then takes its flat £ off; the 25% deposit is rounded to
- * the nearest 5p and the balance is the remainder, due on collection.
+ * the subtotal first; a referral then takes its flat £ off. The whole total is paid upfront
+ * (the `deposit` field keeps its name for the existing orders and columns built on it);
+ * orders placed before 29 Oct 2026 kept their 25% deposit and balance on collection.
  *
  * `subscriptionDiscountPct` defaults to 0 (a normal one-off order).
  */
@@ -160,8 +161,8 @@ export function priceLineItemOrder(
   const afterSub = toMoney(afterBundle - subscriptionDiscount);
   const total = applyReferral(afterSub, hasValidReferral);
   const discount = toMoney(afterSub - total);
-  const deposit = roundTo5p(total * DEPOSIT_RATE);
-  const balance = toMoney(total - deposit);
+  const deposit = total;
+  const balance = 0;
   return { base, boardsTotal, addOnsTotal: addOns_, subscriptionDiscount, discount, total, deposit, balance };
 }
 

@@ -1,12 +1,21 @@
-# Taking deposits online with Stripe
+# Taking payment online with Stripe
 
-Board and platter orders take a 25% deposit. With Stripe switched on, the customer is sent to **Stripe Checkout** (Stripe's own secure payment page) straight after ordering. Stripe tells our server when they've paid, and the order shows "Deposit paid". Card details never touch our server.
+**Every order is paid in full when it's placed** (owner, 29 Oct 2026): boards and platters, bread, lunch and the deli counter. The customer is sent to **Stripe Checkout** (Stripe's own secure payment page) straight after ordering. Stripe tells our server when they've paid, and only then do the confirmation emails go out. Card details never touch our server. Refunds: in full if the customer cancels 48 hours or more before collection; nothing inside 48 hours (Terms page).
 
-With Stripe switched off (no keys set), nothing changes: the site says "we'll be in touch to take a 25% deposit", as now.
+Orders placed before 29 Oct 2026 keep their 25% deposit with the balance on collection. The board `deposit` column still holds "the amount paid online", which is now the whole total, so their pages and emails show the old wording only when there's a balance left.
 
-Bread, lunch and deli counter orders are pay-on-collection and never go to Stripe.
+If Stripe is off or can't open a page when an order is placed, boards stay "we'll be in touch about payment" and bread/deli orders fall back to pay on collection (`paymentStatus = "none"`), emailed straight away.
 
-## How it works (for the next developer)
+Tastings (experiences) still take a 25% deposit by phone and never go to Stripe.
+
+## Bread and deli counter orders
+- `server/src/lib/simple-order-payments.ts` handles both (refs `KDB-` and `KDS-`): start checkout on order, pay again from the order page (`POST /api/simple-orders/:ref/checkout`), the order page lookup (`GET /api/simple-orders/:ref`, contact details masked), the webhook, and refunds.
+- Fields on `BreadOrder` / `GroceryOrder`: `paymentStatus` (none | pending | paid | refunded), `paymentIntentId` (cs_ while open, pi_ once paid), `paidAt`, `confirmationSentAt`. Migration `20261029190000_bread_grocery_payments`, safe to run twice; must be applied before deploying this code.
+- Email is optional on these forms; if the customer gave none, the one they type on Stripe's page is saved when they pay.
+- Orders under 30p (Stripe's minimum) are paid on collection.
+- Admin bread and deli lists show a payment pill. Changing an order's status by hand stops it ever being auto-released.
+
+## How it works (boards; for the next developer)
 - `server/src/lib/payments.ts` is the only file that talks to Stripe.
 - `POST /api/orders` saves the order first, then creates a Checkout Session for the deposit. The amount always comes from the server's own pricing. If Stripe is down, the order is still saved and the customer can pay later from the confirmation page.
 - `POST /api/orders/:ref/deposit-checkout` lets the customer pay or retry from the confirmation page.

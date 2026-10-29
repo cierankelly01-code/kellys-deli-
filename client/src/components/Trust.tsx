@@ -34,7 +34,7 @@ export function TrustChips() {
           <path d="M9 12.5l2 2 4-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       ),
-      label: "25% deposit to confirm",
+      label: "Pay securely online",
     },
     {
       icon: (
@@ -43,7 +43,7 @@ export function TrustChips() {
           <path d="M4 5v4h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       ),
-      label: "Refundable to 48 hrs",
+      label: "Full refund up to 48 hrs before",
     },
     {
       icon: (

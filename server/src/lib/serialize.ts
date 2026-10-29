@@ -450,6 +450,8 @@ export function breadOrderDTO(
     notes: o.notes,
     status: o.status,
     items,
+    paymentStatus: o.paymentStatus, // none (pay on collection) | pending | paid | refunded
+    paidAt: o.paidAt ? o.paidAt.toISOString() : null,
     total: toMoney(items.reduce((sum, i) => sum + i.lineTotal, 0)),
     createdAt: o.createdAt.toISOString(),
   };
@@ -529,6 +531,8 @@ export function groceryOrderDTO(
     notes: o.notes,
     status: o.status,
     items,
+    paymentStatus: o.paymentStatus, // none (pay on collection) | pending | paid | refunded
+    paidAt: o.paidAt ? o.paidAt.toISOString() : null,
     // Subscribe & Save snapshot — mirrors the board order DTO.
     isSubscription: o.isSubscription,
     subscriptionFrequency: o.subscriptionFrequency,

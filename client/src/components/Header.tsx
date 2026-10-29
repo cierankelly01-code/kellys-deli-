@@ -6,7 +6,7 @@ import { CART_CHANGED_EVENT, openCartDrawer } from "./CartDrawer";
 const ANNOUNCEMENTS = [
   "Local British produce, styled beautifully",
   "48 hours' notice for collection orders",
-  "A 25% deposit confirms your order",
+  "Pay securely online when you order",
   "Catering for a group? Plan your event online",
 ];
 

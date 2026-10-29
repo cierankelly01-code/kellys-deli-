@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api, type AddOn, type Bundle, type CategoryCounts, type Platter } from "../lib/api";
 import { emptyCart, loadCart, saveCart, type Cart } from "../lib/cart";
-import { computeTotals, roundTo5p } from "../lib/addOnPricing";
+import { computeTotals } from "../lib/addOnPricing";
 import { bestBundleDiscount } from "../lib/bundle-discount";
 import { gbp } from "../lib/format";
 import { DeliVideos } from "./DeliVideos";
@@ -10,7 +10,7 @@ import { trackShoppingEvent } from "../lib/consent";
 
 /* Smart Cart — the slide-over basket the big DTC stores run as a paid app.
  * Opens on add-to-order, shows the boards with steppers, one-tap add-on upsells
- * ("pairs well with"), live total + deposit maths, and a single checkout CTA.
+ * ("pairs well with"), live total, and a single checkout CTA.
  * Everything reads/writes the same kd-cart the order flow uses, so checkout
  * continuity is free. Open it from anywhere with openCartDrawer(). */
 
@@ -119,7 +119,7 @@ export function CartDrawer() {
   );
 
   /* "Feeds around 18–24 people" — the question every grazing-board customer is
-   * actually asking, answered before they reach the deposit. Shown only when every
+   * actually asking, answered before they reach checkout. Shown only when every
    * board in the basket has a printed range, so the number is never a guess. */
   const feedsKnown = lines.length > 0 && lines.every(({ p }) => p.feedsMin != null && p.feedsMax != null);
   const feedsMin = feedsKnown ? lines.reduce((s, { b, p }) => s + (p.feedsMin ?? 0) * b.quantity, 0) : 0;
@@ -132,9 +132,6 @@ export function CartDrawer() {
   const subscriptionPct = cart.subscription && content?.subscribeSave !== false ? Math.min(100, Math.max(0, content?.subscribeSaveDiscountPct ?? 10)) : 0;
   const subscriptionSaving = Math.round((totals.total - bundleSaving.amount) * subscriptionPct) / 100;
   const basketTotal = Math.round((totals.total - bundleSaving.amount - subscriptionSaving) * 100) / 100;
-  // Split the money into the two moments the customer cares about: today, and on the day.
-  const deposit = roundTo5p(basketTotal * .25);
-  const balance = Math.round((basketTotal - deposit) * 100) / 100;
   const completeOffer = bundles.filter((b) => b.saving > bundleSaving.amount).map((b) => {
     const missing = b.items.map((it) => {
       const quantity = it.kind === "board" ? cart.boards.find((x) => x.platterId === it.refId)?.quantity ?? 0 : cart.addOns.find((x) => x.addOnId === it.refId)?.quantity ?? 0;
@@ -297,10 +294,9 @@ export function CartDrawer() {
             {bundleSaving.amount > 0 && <div className="spread bundle-saving" role="status"><span>{bundleSaving.name} saving</span><span>−{gbp(bundleSaving.amount)}</span></div>}
             {subscriptionSaving > 0 && <div className="spread"><span>Subscribe &amp; save ({subscriptionPct}%)</span><span>−{gbp(subscriptionSaving)}</span></div>}
             <div className="spread"><span className="muted">{subscriptionSaving > 0 ? "Total per delivery" : "Total"}</span><strong>{gbp(basketTotal)}</strong></div>
-            <div className="spread small"><span>25% deposit to confirm</span><strong>{gbp(deposit)}</strong></div>
-            <div className="spread small muted"><span>Balance on collection</span><span>{gbp(balance)}</span></div>
+            <div className="spread small muted"><span>Paid securely online when you order</span></div>
             <button className="btn" onClick={checkout}>Continue — choose collection day</button>
-            <p className="drawer-reassure">Deposit is fully refundable up to 48 hours before collection.</p>
+            <p className="drawer-reassure">Fully refundable if you cancel 48 hours or more before collection.</p>
             <button className="btn-ghost drawer-keep" onClick={close}>Keep browsing</button>
           </div>
         )}

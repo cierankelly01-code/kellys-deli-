@@ -112,10 +112,11 @@ export default function Orders() {
               </div>
               <div className="spread order-foot">
                 <span>
-                  Total <strong>{gbp(o.total)}</strong> · deposit due (25%) {gbp(o.deposit)}{" "}
+                  {/* Paid in full since 29 Oct 2026 (no balance); older orders kept a 25% deposit. */}
+                  Total <strong>{gbp(o.total)}</strong> · {o.balance > 0 ? "deposit due (25%)" : "payment"} {gbp(o.deposit)}{" "}
                   <select
                     className={`pill ${o.depositStatus === "paid" ? "" : "warn"}`}
-                    aria-label={`Deposit status for ${o.ref}`}
+                    aria-label={`Payment status for ${o.ref}`}
                     value={o.depositStatus}
                     onChange={(e) => changeDeposit(o.id, e.target.value as "pending" | "paid" | "refunded")}
                   >
@@ -123,7 +124,7 @@ export default function Orders() {
                     <option value="paid">paid</option>
                     <option value="refunded">refunded</option>
                   </select>
-                  {" "}· balance {gbp(o.balance)}
+                  {o.balance > 0 && <>{" "}· balance {gbp(o.balance)}</>}
                 </span>
                 <span className="profit">profit <strong className="pos">{gbp(o.profit)}</strong></span>
               </div>

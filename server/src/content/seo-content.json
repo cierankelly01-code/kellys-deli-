@@ -7,8 +7,8 @@
     },
     {
       "q": "How does payment work?",
-      "a": "A 25% deposit secures your board or platter order — we'll be in touch by text or email to confirm and arrange it. The balance is due on collection, nothing extra is charged automatically. Your deposit is fully refundable up to 48 hours before.",
-      "aOnline": "A 25% deposit secures your board or platter order: you pay it securely online by card when you order (card payments are handled by Stripe; we never see your card details). The balance is due on collection, nothing extra is charged automatically. Your deposit is fully refundable up to 48 hours before. Bread, lunch and the deli counter are paid on collection."
+      "a": "We'll be in touch by text or email to take payment and confirm your order. Nothing is charged automatically. It's fully refundable if you cancel 48 hours or more before collection.",
+      "aOnline": "You pay for your order in full, securely online by card, when you place it (card payments are handled by Stripe; we never see your card details). That goes for boards, platters, bread, lunch and the deli counter. Your order is confirmed once it's paid, and it's fully refundable if you cancel 48 hours or more before collection."
     },
     {
       "q": "Can you cater for allergies?",
@@ -16,7 +16,7 @@
     },
     {
       "q": "Can I change or cancel an order?",
-      "a": "Get in touch as soon as you can with your order reference and we'll sort it out — the earlier you let us know, the more flexible we can be."
+      "a": "Get in touch as soon as you can with your order reference and we'll sort it out. If you cancel 48 hours or more before collection, we'll refund you in full. Because everything is made fresh to order, we can't refund cancellations made less than 48 hours before."
     }
   ],
   "officeFaq": [
@@ -149,12 +149,12 @@
         "table": "boards"
       },
       {
-        "h": "Do I need to pay a deposit?",
-        "p": "For boards and platters, yes: a 25% deposit secures your date and comes off the total. It is fully refundable up to 48 hours before collection, and the balance is paid on collection. Bread, lunch and the deli counter are paid on collection, with no deposit."
+        "h": "How do I pay, and can I get a refund?",
+        "p": "You pay for your order in full, securely online by card, when you place it. Your date is confirmed once it's paid. If you cancel 48 hours or more before collection, you get a full refund."
       },
       {
-        "h": "Where do I collect, and how do I pay?",
-        "p": "From either shop: 1 Slater Road, Bentley Heath, Solihull B93 8AQ, or 13 Wood Street, Stratford-upon-Avon CV37 6JF. You pick the shop and the day when you order. A 25% deposit confirms a board or platter order and the balance is paid on collection. For a larger event, ask us about delivery."
+        "h": "Where do I collect?",
+        "p": "From either shop: 1 Slater Road, Bentley Heath, Solihull B93 8AQ, or 13 Wood Street, Stratford-upon-Avon CV37 6JF. You pick the shop and the day when you order. For a larger event, ask us about delivery."
       },
       {
         "h": "How do I tell you about allergies?",

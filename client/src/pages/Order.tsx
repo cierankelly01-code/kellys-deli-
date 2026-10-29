@@ -12,7 +12,7 @@ import {
   type SubscriptionFrequency,
 } from "../lib/api";
 import { loadCart, saveCart, clearCart, type Cart } from "../lib/cart";
-import { computeTotals, feedsMid, roundTo5p } from "../lib/addOnPricing";
+import { computeTotals, feedsMid } from "../lib/addOnPricing";
 import { gbp, formatDate } from "../lib/format";
 import { CapacityCalendar, daysInMonth, monthStart } from "../components/CapacityCalendar";
 import { AddOnsStep } from "../components/AddOnsStep";
@@ -146,7 +146,7 @@ export default function Order() {
   );
 
   // Subscribe & Save display maths (server reprices authoritatively on submit). Mirrors
-  // server money.ts: % off the subtotal first, then 25% deposit rounded to the nearest 5p.
+  // server money.ts: % off the subtotal first. The whole total is paid when ordering.
   const subOn = counts?.subscribeSave !== false;
   const subPct = subFreq && subOn ? counts?.subscribeSaveDiscountPct ?? 10 : 0;
   const bundleSaving = bestBundleDiscount(bundles, [
@@ -155,8 +155,6 @@ export default function Order() {
   ]);
   const subDiscount = subPct > 0 ? money(((totals.total - bundleSaving.amount) * subPct) / 100) : 0;
   const finalTotal = money(totals.total - bundleSaving.amount - subDiscount);
-  const finalDeposit = roundTo5p(finalTotal * 0.25);
-  const finalBalance = money(finalTotal - finalDeposit);
 
   // Headcount used for add-on suggestions: the event headcount, or the boards' combined
   // feeds midpoint for a direct order.
@@ -233,7 +231,7 @@ export default function Order() {
       // Conversion signal for ad platforms — fired once here at placement (not on the
       // confirmation page, which is also reached via bookmark). No-ops without consent.
       trackOrderRequest({ value: res.order.total, ref: res.order.ref });
-      // Online deposits on: straight to Stripe's secure page, which returns to the
+      // Online payment on: straight to Stripe's secure page, which returns to the
       // confirmation page. Off (or Stripe unavailable): the confirmation page as before.
       const checkoutUrl = res.payment?.checkoutUrl;
       if (checkoutUrl && /^https:\/\/checkout\.stripe\.com\//.test(checkoutUrl)) {
@@ -287,7 +285,7 @@ export default function Order() {
       {step === "extras" && (
         <>
           <AddOnsStep addOns={addOns} headcount={headcount} value={cart?.addOns ?? []} onChange={(next) => update({ addOns: next })} />
-          <RunningTotal total={finalTotal} deposit={finalDeposit} subDiscount={subDiscount} />
+          <RunningTotal total={finalTotal} subDiscount={subDiscount} />
           <div className="step-actions">
             <button className="btn-ghost" onClick={() => setStep("details")}>Back</button>
             <button className="btn" onClick={() => setStep("review")}>Review order</button>
@@ -375,7 +373,7 @@ export default function Order() {
           <label className="field"><span>Email</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" /></label>
           <label className="field"><span>Allergies / notes (optional)</span><textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} /></label>
 
-          <RunningTotal total={finalTotal} deposit={finalDeposit} subDiscount={subDiscount} />
+          <RunningTotal total={finalTotal} subDiscount={subDiscount} />
           <div className="step-actions">
             <button className="btn" disabled={!detailsValid} onClick={() => setStep("extras")}>Continue — add extras</button>
           </div>
@@ -400,21 +398,19 @@ export default function Order() {
               </>
             )}
             <div className="review-row total"><span>{subDiscount > 0 ? "Total per delivery" : "Total"}</span><span>{gbp(finalTotal)}</span></div>
-            <div className="review-row"><span>Deposit due (25%)</span><span>{gbp(finalDeposit)}</span></div>
-            <div className="review-row"><span>Balance on collection</span><span>{gbp(finalBalance)}</span></div>
             {date && <div className="review-row muted"><span>{subFreq ? "First collection" : "Collection"}</span><span>{formatDate(date)}</span></div>}
             {isGift && recipientName.trim() && <div className="review-row muted"><span>Gift for</span><span>{recipientName.trim()}</span></div>}
           </div>
 
           {subFreq ? (
             <p className="deposit-policy recurring-note">
-              <strong>You&apos;re setting up a {subFreq} board.</strong> No card is taken now and nothing bills
-              automatically — we&apos;ll get in touch to set your schedule up with you and confirm each delivery before we
-              make it. The 25% deposit confirms your first board; pause, skip or cancel any time.
+              <strong>You&apos;re setting up a {subFreq} board.</strong> You pay for your first board now. Nothing
+              else bills automatically — we&apos;ll get in touch to set your schedule up with you and confirm each
+              delivery before we make it. Pause, skip or cancel any time.
             </p>
           ) : (
             <p className="deposit-policy">
-              A 25% deposit confirms your order. Deposits are fully refundable up to 48 hours before collection.
+              You pay in full when you order. It&apos;s fully refundable if you cancel 48 hours or more before collection.
             </p>
           )}
 
@@ -422,7 +418,7 @@ export default function Order() {
           <div className="step-actions">
             <button className="btn-ghost" onClick={() => setStep("extras")}>Back</button>
             <button className="btn" disabled={submitting} onClick={submit}>
-              {submitting ? "Placing…" : "Place order request"}
+              {submitting ? "Placing…" : `Order and pay ${gbp(finalTotal)}`}
             </button>
           </div>
         </section>
@@ -431,14 +427,14 @@ export default function Order() {
   );
 }
 
-function RunningTotal({ total, deposit, subDiscount = 0 }: { total: number; deposit: number; subDiscount?: number }) {
+function RunningTotal({ total, subDiscount = 0 }: { total: number; subDiscount?: number }) {
   return (
     <div className="running-total">
       <div>
         <span className="muted">Order total</span> <strong>{gbp(total)}</strong>
         {subDiscount > 0 && <span className="rt-saved"> · you save {gbp(subDiscount)}</span>}
       </div>
-      <div className="muted small">25% deposit to confirm: {gbp(deposit)}</div>
+      <div className="muted small">Paid securely online when you order</div>
     </div>
   );
 }

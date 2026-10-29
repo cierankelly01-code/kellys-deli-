@@ -111,15 +111,25 @@ export interface OrderNotifyInput {
 export async function notifyOrderReceived(t: NotifyTarget, o: OrderNotifyInput): Promise<void> {
   const balance = Math.max(0, Math.round((o.total - o.deposit) * 100) / 100);
   // SMS stays a single line — it is charged per segment and read at a glance.
+  // Board orders from 29 Oct 2026 are paid in full (balance 0); tastings and older orders
+  // still have a 25% deposit with the balance on collection.
+  const inFull = balance === 0;
   const sms = o.depositPaid
-    ? `Thanks ${t.name} — we've received your £${o.deposit.toFixed(2)} deposit for Kelly's Deli order ${o.ref}. ` +
-      `Your collection on ${o.collectionDate} at ${o.locationName} is confirmed. The balance (£${balance.toFixed(2)}) is payable on collection.`
+    ? inFull
+      ? `Thanks ${t.name} — your £${o.deposit.toFixed(2)} payment for Kelly's Deli order ${o.ref} is in. ` +
+        `Your collection on ${o.collectionDate} at ${o.locationName} is confirmed.`
+      : `Thanks ${t.name} — we've received your £${o.deposit.toFixed(2)} deposit for Kelly's Deli order ${o.ref}. ` +
+        `Your collection on ${o.collectionDate} at ${o.locationName} is confirmed. The balance (£${balance.toFixed(2)}) is payable on collection.`
     : `Thanks ${t.name} — your Kelly's Deli order request ${o.ref} is in. ` +
     `Collection ${o.collectionDate} at ${o.locationName}. Total £${o.total.toFixed(2)}. ` +
-    ((o.payOnline ?? stripeEnabled())
-      ? `Pay the 25% deposit (£${o.deposit.toFixed(2)}) securely online to confirm your date: ${env.publicUrl}/confirm/${encodeURIComponent(o.ref)} `
-      : `We'll be in touch shortly to take a 25% deposit (£${o.deposit.toFixed(2)}) to confirm your order. `) +
-    `The balance (£${balance.toFixed(2)}) is payable on collection.`;
+    (inFull
+      ? (o.payOnline ?? stripeEnabled())
+        ? `Pay securely online to confirm your date: ${env.publicUrl}/confirm/${encodeURIComponent(o.ref)}`
+        : `We'll be in touch shortly to take payment and confirm your order.`
+      : ((o.payOnline ?? stripeEnabled())
+          ? `Pay the 25% deposit (£${o.deposit.toFixed(2)}) securely online to confirm your date: ${env.publicUrl}/confirm/${encodeURIComponent(o.ref)} `
+          : `We'll be in touch shortly to take a 25% deposit (£${o.deposit.toFixed(2)}) to confirm your order. `) +
+        `The balance (£${balance.toFixed(2)}) is payable on collection.`);
 
   const data = {
     customerName: t.name,
@@ -135,7 +145,7 @@ export async function notifyOrderReceived(t: NotifyTarget, o: OrderNotifyInput):
     depositPaid: o.depositPaid ?? false,
     depositPaidBy: o.depositPaidBy,
   };
-  const subject = o.depositPaid ? `Order ${o.ref} confirmed — deposit received` : `Order request ${o.ref} received — Kelly's Deli`;
+  const subject = o.depositPaid ? `Order ${o.ref} confirmed — payment received` : `Order request ${o.ref} received — Kelly's Deli`;
   await Promise.all([
     sendSms(t.phone, sms),
     sendEmail(t.email, subject, orderReceivedText(data), orderReceivedHtml(data)),
@@ -173,7 +183,7 @@ export async function notifyShopOfOrder(shopEmail: string, t: NotifyTarget, o: O
     depositPaid: o.depositPaid ?? false,
     depositPaidBy: o.depositPaidBy,
   };
-  const subject = o.depositPaid ? `New order ${o.ref} (deposit paid) — ${o.collectionDate}` : `New order ${o.ref} — ${o.collectionDate}`;
+  const subject = o.depositPaid ? `New order ${o.ref} (paid) — ${o.collectionDate}` : `New order ${o.ref} — ${o.collectionDate}`;
   await sendEmail(shopEmail, subject, orderShopAlertText(d), orderShopAlertHtml(d));
 }
 
@@ -209,8 +219,8 @@ export async function notifyReferralOffer(t: NotifyTarget, referralCode: string,
 export async function notifyShopDepositPaid(shopEmail: string, t: NotifyTarget, o: OrderNotifyInput): Promise<void> {
   await sendEmail(
     shopEmail,
-    `Deposit paid — ${o.ref}`,
-    `${t.name} has paid the £${o.deposit.toFixed(2)} deposit for ${o.ref}. Collection ${o.collectionDate} at ${o.locationName}. Don't take the deposit again.`,
+    `Paid — ${o.ref}`,
+    `${t.name} has paid £${o.deposit.toFixed(2)} for ${o.ref}. Collection ${o.collectionDate} at ${o.locationName}. Don't take payment again.`,
   );
 }
 

@@ -13,7 +13,7 @@ import { morphNavigate } from "../lib/motion";
 export default function Shop() {
   usePageTitle(
     "Shop grazing boards by occasion",
-    "Browse Kelly's Deli by occasion — hosting a crowd, a board for a night in, or office & corporate catering in Solihull. Made fresh for collection, 25% deposit.",
+    "Browse Kelly's Deli by occasion — hosting a crowd, a board for a night in, or office & corporate catering in Solihull. Made fresh for collection, paid online when you order.",
   );
   const navigate = useNavigate();
   const [cats, setCats] = useState<ShopCategory[] | null>(null);
@@ -75,7 +75,7 @@ export default function Shop() {
         <div>
           <h2 className="prebook-h">Birthday coming up? Book the board now, sorted.</h2>
           <p className="prebook-copy">
-            Pick a date weeks or months ahead, pay just the 25% deposit to lock it in, and add a gift note if it&apos;s
+            Pick a date weeks or months ahead, pay when you order to lock it in, and add a gift note if it&apos;s
             for someone special. We&apos;ll make it fresh the day you collect — one less thing to think about.
           </p>
           <Link className="btn prebook-cta" to="/platters">Book a board ahead</Link>

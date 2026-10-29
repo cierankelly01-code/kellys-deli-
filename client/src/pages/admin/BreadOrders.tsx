@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { api, type LocationT } from "../../lib/api";
 import { adminApi } from "../../lib/admin";
 import type { BreadOrderDTO, BreadOrderStatus } from "../../lib/api";
-import { gbp, formatDateLong } from "../../lib/format";
+import { gbp, formatDateLong, PAYMENT_LABEL } from "../../lib/format";
 
 const FLOW: BreadOrderStatus[] = ["pending", "confirmed", "collected"];
 const STATUS_LABEL: Record<BreadOrderStatus, string> = {
@@ -100,6 +100,7 @@ export default function BreadOrders() {
                   </div>
                   <div className="right">
                     <div>{gbp(o.total)}</div>
+                    <div><span className={`pill ${o.paymentStatus === "paid" ? "good" : o.paymentStatus === "none" ? "" : "warn"}`}>{PAYMENT_LABEL[o.paymentStatus]}</span></div>
                     <div className="muted">{o.locationName}</div>
                   </div>
                 </div>

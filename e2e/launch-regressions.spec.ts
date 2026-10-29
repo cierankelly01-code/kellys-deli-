@@ -30,17 +30,17 @@ test("empty checkout stops before details or order submission", async ({ page })
   await expect(page.getByRole("button", { name: "Browse boards" })).toBeVisible();
 });
 
-test("subscription drawer total and deposit match checkout", async ({ page }) => {
+test("subscription drawer total matches checkout, paid in full", async ({ page }) => {
   await setup(page);
   await page.goto(`/platter/${board.id}`);
   await page.getByRole("button", { name: "Your basket, 1 board", exact: true }).click();
   const drawer = page.getByRole("dialog", { name: "Your basket" });
   await expect(drawer.getByText("Subscribe & save (10%)")).toBeVisible();
   await expect(drawer.locator(".drawer-foot")).toContainText("£90.00");
-  await expect(drawer.locator(".drawer-foot")).toContainText("£22.50");
+  await expect(drawer.locator(".drawer-foot")).toContainText("Paid securely online when you order");
   await drawer.getByRole("button", { name: /Continue — choose collection day/ }).click();
   await expect(page.locator(".running-total")).toContainText("£90.00");
-  await expect(page.locator(".running-total")).toContainText("£22.50");
+  await expect(page.locator(".running-total")).toContainText("Paid securely online when you order");
 });
 
 test("video product navigation closes basket even on the same product route", async ({ page }) => {

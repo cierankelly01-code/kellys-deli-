@@ -24,13 +24,10 @@ import { headcountGuide } from "../lib/headcount-guide";
 import { genRef, genBreadRef, genGroceryRef, randomReferralCode } from "../lib/ref";
 import { createDepositCheckout, expireCheckout, DepositAlreadyPaidError, type DepositCheckout } from "../lib/payments";
 import { sendOrderEmails } from "../lib/order-emails";
+import { startSimpleCheckout, retrySimpleCheckout, loadSimpleOrder, publicSimpleOrderDTO, simpleKindForRef, SimplePayError } from "../lib/simple-order-payments";
 import rateLimit from "express-rate-limit";
 import { env, stripeEnabled } from "../lib/env";
-import {
-  notifyOrderReceived, notifyShopOfOrder, notifyBreadOrderReceived, notifyShopOfBreadOrder,
-  notifyGroceryOrderReceived, notifyShopOfGroceryOrder, type OrderNotifyInput,
-} from "../lib/notify";
-import type { BreadEmailItem, GroceryEmailItem } from "../lib/emailTemplate";
+import { notifyOrderReceived, notifyShopOfOrder, type OrderNotifyInput } from "../lib/notify";
 import { platterDTO, experienceDTO, locationDTO, orderDTO, publicOrderDTO, canPayDepositOnline, boardComponentDTO, boardGroupDTO, addOnDTO, categoryDTO, bundleDTO, breadProductDTO, breadOrderDTO, groceryProductDTO, groceryOrderDTO } from "../lib/serialize";
 
 export const publicRouter = asyncRouter();
@@ -416,23 +413,10 @@ publicRouter.post("/bread/orders", async (req, res) => {
       });
     });
 
-    const dto = breadOrderDTO(order);
-    const emailItems: BreadEmailItem[] = dto.items.map((i) => ({ name: i.name, quantity: i.quantity, unitPrice: i.unitPrice, lineTotal: i.lineTotal }));
-    const emailData = {
-      ref: dto.ref,
-      customerName: dto.customerName,
-      phone: dto.phone,
-      email: dto.email,
-      locationName: dto.locationName ?? location.name,
-      collectionDate: dto.collectionDate,
-      notes: dto.notes,
-      items: emailItems,
-      total: dto.total,
-    };
-    if (dto.email) await notifyBreadOrderReceived(dto.email, emailData);
-    if (shopSetting?.notifyEmail) await notifyShopOfBreadOrder(shopSetting.notifyEmail, emailData);
-
-    res.status(201).json({ order: dto });
+    // Paid in full online: the client sends the customer to Stripe, and the confirmation
+    // emails go once it's paid. No payment page possible → pay on collection, emailed now.
+    const checkoutUrl = await startSimpleCheckout("bread", order);
+    res.status(201).json({ order: breadOrderDTO(order), payment: { checkoutUrl } });
   } catch (err) {
     if (err instanceof BreadCapacityError) {
       const messages: Record<string, string> = {
@@ -605,23 +589,8 @@ publicRouter.post("/groceries/orders", async (req, res) => {
       });
     });
 
-    const dto = groceryOrderDTO(order);
-    const emailItems: GroceryEmailItem[] = dto.items.map((i) => ({ name: i.name, quantity: i.quantity, unitPrice: i.unitPrice, lineTotal: i.lineTotal }));
-    const emailData = {
-      ref: dto.ref,
-      customerName: dto.customerName,
-      phone: dto.phone,
-      email: dto.email,
-      locationName: dto.locationName ?? location.name,
-      collectionDate: dto.collectionDate,
-      notes: dto.notes,
-      items: emailItems,
-      total: dto.total,
-    };
-    if (dto.email) await notifyGroceryOrderReceived(dto.email, emailData);
-    if (shopSetting?.notifyEmail) await notifyShopOfGroceryOrder(shopSetting.notifyEmail, emailData);
-
-    res.status(201).json({ order: dto });
+    const checkoutUrl = await startSimpleCheckout("grocery", order);
+    res.status(201).json({ order: groceryOrderDTO(order), payment: { checkoutUrl } });
   } catch (err) {
     if (err instanceof GroceryCapacityError) {
       const messages: Record<string, string> = {
@@ -967,6 +936,26 @@ publicRouter.post("/orders/:ref/deposit-checkout", depositCheckoutLimiter, async
     }
     console.error(`[payments] could not start checkout for ${order.ref}`, e);
     res.status(502).json({ error: "We couldn't open the payment page just now. Please try again in a minute." });
+  }
+});
+
+// Bread (KDB-) and deli counter (KDS-) orders: the order page's lookup and "Pay" button.
+// The ref is the capability, as for boards; contact details come back masked.
+publicRouter.get("/simple-orders/:ref", async (req, res) => {
+  const kind = simpleKindForRef(req.params.ref);
+  const order = kind ? await loadSimpleOrder(kind, req.params.ref) : null;
+  if (!kind || !order) return res.status(404).json({ error: "Order not found" });
+  res.json(publicSimpleOrderDTO(kind, order));
+});
+
+publicRouter.post("/simple-orders/:ref/checkout", depositCheckoutLimiter, async (req, res) => {
+  const kind = simpleKindForRef(req.params.ref);
+  if (!kind) return res.status(404).json({ error: "Order not found" });
+  try {
+    res.json({ checkoutUrl: await retrySimpleCheckout(kind, req.params.ref) });
+  } catch (e) {
+    if (e instanceof SimplePayError) return res.status(e.status).json({ error: e.message });
+    throw e;
   }
 });
 

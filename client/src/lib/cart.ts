@@ -19,7 +19,7 @@ export interface Cart {
   occasion?: Occasion;
   src?: string;
   // Subscribe & Save intent carried from the board page through to checkout. Undefined =
-  // a normal one-off order. No card is taken — the owner sets the schedule up manually.
+  // a normal one-off order. Only the first board is paid at checkout — the owner sets the rest of the schedule up manually.
   subscription?: { frequency: SubscriptionFrequency };
   // "event" (Plan My Event) suggests add-on quantities from headcount; "direct" from the
   // board's feeds midpoint. Purely a suggestion hint — nothing is auto-added.
