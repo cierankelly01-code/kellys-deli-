@@ -1,9 +1,11 @@
 import { env } from "./lib/env";
 import { createApp } from "./app";
 import { startReminderWorker } from "./lib/occasion-reminders";
+import { startUnpaidOrderWorker } from "./lib/unpaid-orders";
 
 const app = createApp();
 startReminderWorker();
+startUnpaidOrderWorker();
 
 // Bind 0.0.0.0 so the port is reachable from outside the container (VPS/Docker).
 app.listen(env.port, "0.0.0.0", () => {

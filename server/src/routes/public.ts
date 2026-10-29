@@ -23,6 +23,7 @@ import { recommendBoards, capacity as boardCapacity, type RecBoard } from "../li
 import { headcountGuide } from "../lib/headcount-guide";
 import { genRef, genBreadRef, genGroceryRef, randomReferralCode } from "../lib/ref";
 import { createDepositCheckout, expireCheckout, DepositAlreadyPaidError, type DepositCheckout } from "../lib/payments";
+import { sendOrderEmails } from "../lib/order-emails";
 import rateLimit from "express-rate-limit";
 import { env, stripeEnabled } from "../lib/env";
 import {
@@ -1209,41 +1210,11 @@ publicRouter.post("/orders", async (req, res) => {
       checkout = { provider: "stub", sessionId: `stub_${order.ref}`, url: null };
     }
     await prisma.order.update({ where: { id: order.id }, data: { depositIntentId: checkout.sessionId } });
-    await notifyOrderReceived(
-      { name: order.customerName, phone: order.phone, email: order.email },
-      {
-        ref: order.ref,
-        total: pricing.total,
-        deposit: pricing.deposit,
-        collectionDate: formatDate(order.collectionOrDeliveryDate),
-        locationName: order.location.name,
-        // The confirmation shows what they actually ordered, photos and all.
-        boards: order.items.map((i) => ({
-          name: i.platter.name,
-          qty: i.quantity,
-          lineTotal: Number(i.unitPrice) * i.quantity,
-          imageUrl: i.platter.imageUrl,
-          meta: i.platter.serves ? `Feeds ${i.platter.serves}` : null,
-        })),
-        addOns: order.addOns.map((a) => ({
-          name: a.name,
-          qty: a.quantity,
-          lineTotal: Number(a.unitPrice) * a.quantity,
-        })),
-      },
-    );
-    await alertShopOfOrder(
-      { name: order.customerName, phone: order.phone, email: order.email },
-      {
-        ref: order.ref,
-        total: pricing.total,
-        deposit: pricing.deposit,
-        collectionDate: formatDate(order.collectionOrDeliveryDate),
-        locationName: order.location.name,
-        boards: order.items.map((i) => ({ name: i.platter.name, qty: i.quantity, lineTotal: Number(i.unitPrice) * i.quantity })),
-        addOns: order.addOns.map((a) => ({ name: a.name, qty: a.quantity, lineTotal: Number(a.unitPrice) * a.quantity })),
-      },
-    );
+    // Sent to Stripe: nothing goes out until the deposit is paid — the webhook sends the
+    // confirmation and the shop's alert then, and an unpaid order is released after an
+    // hour (unpaid-orders.ts). Without a payment page (Stripe off, or down just now) the
+    // shop has to chase the deposit, so both emails go now, as before Stripe.
+    if (!checkout.url) await sendOrderEmails(order);
     res.status(201).json({ order: orderDTO(order), pricing, freebie, payment: { checkoutUrl: checkout.url } });
   } catch (err) {
     if (err instanceof CapacityError) return res.status(409).json({ error: "That date is fully booked at this location" });

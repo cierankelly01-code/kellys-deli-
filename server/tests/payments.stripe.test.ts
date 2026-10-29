@@ -327,4 +327,70 @@ d("Stripe deposits — third review", () => {
     expect(res.status).toBe(200);
     expect(sessions.get(order.depositIntentId!)!.status).toBe("expired");
   });
+  it("sends no confirmation until the deposit is paid, then confirms to customer and shop", async () => {
+    await prisma.setting.upsert({ where: { key: "orderNotifyEmail" }, update: { value: "shop-test@example.com" }, create: { key: "orderNotifyEmail", value: "shop-test@example.com" } });
+    const logs = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const { ref, pence } = await placeOrder();
+      const mails = () => logs.mock.calls.map((c) => String(c[0])).filter((l) => l.startsWith("[notify:email") && l.includes(ref));
+      expect(mails()).toEqual([]);
+      expect((await postWebhook(paidEvent(ref, pence))).body.handled).toBe(true);
+      expect(mails().some((l) => l.includes("stripe-test@example.com") && l.includes(`Order ${ref} confirmed`))).toBe(true);
+      expect(mails().some((l) => l.includes("shop-test@example.com") && l.includes("deposit paid"))).toBe(true);
+    } finally {
+      logs.mockRestore();
+      await prisma.setting.delete({ where: { key: "orderNotifyEmail" } }).catch(() => {});
+    }
+  });
+
+  it("still emails straight away when there's no payment page (Stripe down)", async () => {
+    create.mockRejectedValueOnce(new Error("Stripe unavailable"));
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const logs = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const { ref } = await placeOrder();
+      expect(logs.mock.calls.some((c) => String(c[0]).startsWith("[notify:email") && String(c[0]).includes(`Order request ${ref} received`))).toBe(true);
+    } finally {
+      logs.mockRestore();
+      errors.mockRestore();
+    }
+  });
+
+  it("releases an unpaid order's date after the hold, but not while its page is open, paid, or never went to Stripe", async () => {
+    const { releaseUnpaidOrders, UNPAID_HOLD_MINUTES } = await import("../src/lib/unpaid-orders");
+    const old = new Date(Date.now() - (UNPAID_HOLD_MINUTES + 1) * 60_000);
+    const backdate = (ref: string) => prisma.order.update({ where: { ref }, data: { createdAt: old } });
+    const session = async (ref: string) => sessions.get((await prisma.order.findUnique({ where: { ref } }))!.depositIntentId!)!;
+
+    const abandoned = (await placeOrder()).ref;
+    await backdate(abandoned);
+    (await session(abandoned)).status = "expired";
+
+    const stillPaying = (await placeOrder()).ref; // reopened late: page still open
+    await backdate(stillPaying);
+
+    const paidJustNow = (await placeOrder()).ref; // paid, webhook not here yet
+    await backdate(paidJustNow);
+    (await session(paidJustNow)).status = "complete";
+
+    const recent = (await placeOrder()).ref;
+    (await session(recent)).status = "expired";
+
+    create.mockRejectedValueOnce(new Error("Stripe unavailable"));
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const noPage = (await placeOrder()).ref; // shop chases this deposit by hand
+    errors.mockRestore();
+    await backdate(noPage);
+
+    const logs = vi.spyOn(console, "log").mockImplementation(() => {});
+    try { while ((await releaseUnpaidOrders()).length) { /* drain older rows from earlier runs */ } } finally { logs.mockRestore(); }
+
+    const status = async (ref: string) => (await prisma.order.findUnique({ where: { ref } }))!.status;
+    expect(await status(abandoned)).toBe("cancelled");
+    expect((await getOrder(abandoned)).canPayOnline).toBe(false);
+    expect(await status(stillPaying)).toBe("new");
+    expect(await status(paidJustNow)).toBe("new");
+    expect(await status(recent)).toBe("new");
+    expect(await status(noPage)).toBe("new");
+  });
 });

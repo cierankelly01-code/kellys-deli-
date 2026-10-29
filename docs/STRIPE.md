@@ -10,6 +10,8 @@ Bread, lunch and deli counter orders are pay-on-collection and never go to Strip
 - `server/src/lib/payments.ts` is the only file that talks to Stripe.
 - `POST /api/orders` saves the order first, then creates a Checkout Session for the deposit. The amount always comes from the server's own pricing. If Stripe is down, the order is still saved and the customer can pay later from the confirmation page.
 - `POST /api/orders/:ref/deposit-checkout` lets the customer pay or retry from the confirmation page.
+- **Nothing is confirmed until the deposit is paid.** An order sent to Stripe sends no email or SMS when it's placed. The customer's confirmation and the shop's "new order" email go out from the webhook once Stripe says paid. If Stripe couldn't open a payment page (down at that moment), both emails go straight away as before, and the shop chases the deposit.
+- **Unpaid orders free their date after an hour** (`server/src/lib/unpaid-orders.ts`, checked every 5 minutes). A Stripe order still unpaid an hour after it was placed, whose payment page has closed, is set to **Cancelled** with a note saying why. Orders from before Stripe, or with no payment page, are never touched.
 - `POST /api/payments/webhook` checks Stripe's signature and ignores test-mode events when live keys are set (and vice versa). On `checkout.session.completed` (or `async_payment_succeeded`) with `payment_status: "paid"`, it marks the deposit paid once and emails the customer and the shop. It only does this if the amount Stripe collected exactly matches what the order owes and the order isn't cancelled. On `charge.refunded` (full refund) it marks the deposit refunded.
 - Anything odd emails the shop with **ACTION NEEDED**:
   - a wrong amount, a payment on a cancelled order, or a second payment on an already-paid order: nothing is changed;
@@ -66,7 +68,7 @@ Never paste these keys into chat, email or the code. They only go in Coolify (an
 2. You land on Stripe's page. Pay with card `4242 4242 4242 4242`, any future expiry, any CVC, any postcode.
 3. You come back to the confirmation page, which should say **"Deposit paid — you're booked in!"** within a few seconds.
 4. In admin → Orders, the order shows the deposit as **paid**.
-5. Also try: close Stripe's page without paying → the confirmation page offers **"Pay £X deposit"**.
+5. Also try: close Stripe's page without paying. The order page says **"Your date isn't booked yet"** and offers **"Pay £X deposit"**, and no email arrives. About an hour later the order shows as **Cancelled** in admin.
 6. **Tidy up:** in admin → Orders, set every test order to **Cancelled**. Otherwise they sit on the prep sheet and use up a collection slot.
 
 ### 4. Go live

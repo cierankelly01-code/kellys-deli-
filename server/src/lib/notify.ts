@@ -103,13 +103,17 @@ export interface OrderNotifyInput {
   boards?: OrderEmailLine[]; addOns?: OrderEmailLine[];
   /** Override the online-deposit wording (tasting bookings are never paid online). */
   payOnline?: boolean;
+  /** Sent from the Stripe webhook: the deposit is paid and the date is confirmed. */
+  depositPaid?: boolean;
 }
 
 export async function notifyOrderReceived(t: NotifyTarget, o: OrderNotifyInput): Promise<void> {
   const balance = Math.max(0, Math.round((o.total - o.deposit) * 100) / 100);
   // SMS stays a single line — it is charged per segment and read at a glance.
-  const sms =
-    `Thanks ${t.name} — your Kelly's Deli order request ${o.ref} is in. ` +
+  const sms = o.depositPaid
+    ? `Thanks ${t.name} — we've received your £${o.deposit.toFixed(2)} deposit for Kelly's Deli order ${o.ref}. ` +
+      `Your collection on ${o.collectionDate} at ${o.locationName} is confirmed. The balance (£${balance.toFixed(2)}) is payable on collection.`
+    : `Thanks ${t.name} — your Kelly's Deli order request ${o.ref} is in. ` +
     `Collection ${o.collectionDate} at ${o.locationName}. Total £${o.total.toFixed(2)}. ` +
     ((o.payOnline ?? stripeEnabled())
       ? `Pay the 25% deposit (£${o.deposit.toFixed(2)}) securely online to confirm your date: ${env.publicUrl}/confirm/${encodeURIComponent(o.ref)} `
@@ -127,10 +131,12 @@ export async function notifyOrderReceived(t: NotifyTarget, o: OrderNotifyInput):
     deposit: o.deposit,
     balance,
     payOnline: o.payOnline ?? stripeEnabled(),
+    depositPaid: o.depositPaid ?? false,
   };
+  const subject = o.depositPaid ? `Order ${o.ref} confirmed — deposit received` : `Order request ${o.ref} received — Kelly's Deli`;
   await Promise.all([
     sendSms(t.phone, sms),
-    sendEmail(t.email, `Order request ${o.ref} received — Kelly's Deli`, orderReceivedText(data), orderReceivedHtml(data)),
+    sendEmail(t.email, subject, orderReceivedText(data), orderReceivedHtml(data)),
   ]);
 }
 
@@ -162,8 +168,10 @@ export async function notifyShopOfOrder(shopEmail: string, t: NotifyTarget, o: O
     deposit: o.deposit,
     balance,
     payOnline: o.payOnline ?? stripeEnabled(),
+    depositPaid: o.depositPaid ?? false,
   };
-  await sendEmail(shopEmail, `New order ${o.ref} — ${o.collectionDate}`, orderShopAlertText(d), orderShopAlertHtml(d));
+  const subject = o.depositPaid ? `New order ${o.ref} (deposit paid) — ${o.collectionDate}` : `New order ${o.ref} — ${o.collectionDate}`;
+  await sendEmail(shopEmail, subject, orderShopAlertText(d), orderShopAlertHtml(d));
 }
 
 /** Sent to the shop's own inbox (BreadShopSetting.notifyEmail) on every new bread order. */
@@ -192,24 +200,6 @@ export async function notifyReferralOffer(t: NotifyTarget, referralCode: string,
     `Know an office that needs lunch? Share your code ${referralCode} (${shareLink}) — ` +
     `you both get £15 off your next order.`;
   await Promise.all([sendSms(t.phone, msg), sendEmail(t.email, "Get £15 off — refer a friend", msg)]);
-}
-
-/** Sent from the Stripe webhook once a board order's deposit is paid online. */
-export async function notifyDepositPaid(
-  t: NotifyTarget,
-  o: { ref: string; deposit: number; balance: number; collectionDate: string; locationName: string },
-  shopEmail: string | null,
-): Promise<void> {
-  const msg =
-    `Thanks ${t.name} — we've received your £${o.deposit.toFixed(2)} deposit for Kelly's Deli order ${o.ref}. ` +
-    `Your collection on ${o.collectionDate} at ${o.locationName} is confirmed. The balance (£${o.balance.toFixed(2)}) is payable on collection.`;
-  await Promise.all([
-    sendSms(t.phone, msg),
-    sendEmail(t.email, `Deposit received — order ${o.ref} confirmed`, msg),
-    shopEmail
-      ? sendEmail(shopEmail, `Deposit paid online — ${o.ref}`, `${t.name} paid the £${o.deposit.toFixed(2)} deposit for ${o.ref} by card (Stripe). Collection ${o.collectionDate} at ${o.locationName}. Don't take the deposit again.`)
-      : Promise.resolve(),
-  ]);
 }
 
 /**

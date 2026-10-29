@@ -139,7 +139,7 @@ export default function Confirm() {
     <div className="app">
       <Header />
       <div className="confirm-hero center">
-        <div className="tick">✓</div>
+        {order.status !== "cancelled" && <div className="tick">✓</div>}
         {order.depositStatus === "paid" ? (
           <>
             <h1>Deposit paid — you&apos;re booked in!</h1>
@@ -165,11 +165,21 @@ export default function Confirm() {
                 : "Thanks — we're just confirming your payment with Stripe. This page updates by itself in a few seconds."}
             </p>
           </>
+        ) : order.status === "cancelled" ? (
+          <>
+            <h1>This order wasn&apos;t booked</h1>
+            <p className="confirm-copy">
+              Order {order.ref} has been cancelled, so we&apos;re not holding a date for it. If the deposit wasn&apos;t paid
+              in time, you&apos;re welcome to order again. Questions? Email hello@kellysdeli.co.uk.
+            </p>
+            <Link className="btn" to="/">Order again</Link>
+          </>
         ) : order.canPayOnline ? (
           <>
-            <h1>Your order request is in!</h1>
+            <h1>{cancelledAtStripe ? "Your date isn't booked yet" : "Nearly there: pay your deposit"}</h1>
             <p className="confirm-copy">
-              Pay your 25% deposit securely online to confirm your date. The balance is payable on collection.
+              Your date is confirmed once the 25% deposit is paid. We&apos;ll hold it for an hour while you pay. The
+              balance is payable on collection.
             </p>
             {cancelledAtStripe && <p className="notice warn">Your payment wasn&apos;t completed. You can try again below.</p>}
             <button className="btn" onClick={payDeposit} disabled={paying}>

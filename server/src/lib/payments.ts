@@ -120,6 +120,23 @@ export async function createDepositCheckout(input: DepositCheckoutInput): Promis
   return { provider: "stripe", sessionId: session.id, url: session.url, reused: false };
 }
 
+/**
+ * Stripe's view of a Checkout Session: "open" (still payable), "complete" (paid, or about
+ * to be: the webhook marks the order), "expired", or "unknown" (Stripe has no such session,
+ * e.g. a test-mode one after switching to live keys; it can't be paid either). Network or
+ * auth errors throw, so a caller never mistakes "couldn't ask" for "expired".
+ */
+export async function checkoutStatus(sessionId: string): Promise<"open" | "complete" | "expired" | "unknown"> {
+  try {
+    const s = await stripe().checkout.sessions.retrieve(sessionId);
+    const st = s.status as string | null;
+    return st === "open" || st === "complete" || st === "expired" ? st : "unknown";
+  } catch (e) {
+    if (e instanceof Stripe.errors.StripeInvalidRequestError && e.code === "resource_missing") return "unknown";
+    throw e;
+  }
+}
+
 /** Close a Checkout Session so it can't be paid (e.g. one that lost a race). Best effort. */
 export async function expireCheckout(sessionId: string): Promise<void> {
   if (!stripeEnabled() || !sessionId.startsWith("cs_")) return;

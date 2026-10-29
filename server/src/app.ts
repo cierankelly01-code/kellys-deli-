@@ -15,8 +15,8 @@ import { emailMode } from "./lib/notify";
 import { prisma } from "./lib/prisma";
 import { parseWebhook } from "./lib/payments";
 import { seoHtmlHandler } from "./lib/seo-pages";
-import { notifyDepositPaid, notifyShopPaymentProblem } from "./lib/notify";
-import { formatDate } from "./lib/capacity";
+import { notifyShopPaymentProblem } from "./lib/notify";
+import { sendOrderEmails, orderEmailInclude } from "./lib/order-emails";
 
 const SITE = "https://www.kellysdeli.co.uk";
 
@@ -126,7 +126,7 @@ export function createApp(): Express {
       const ref = result.paidOrderRef!;
       const order = await prisma.order.findUnique({
         where: { ref },
-        include: { location: true },
+        include: orderEmailInclude,
       });
       if (!order) {
         console.error(`[payments:webhook] paid session for unknown order ${ref}`);
@@ -159,12 +159,8 @@ export function createApp(): Express {
       if (order.status !== "new" && order.status !== "deposit_requested") {
         await problem(ref, `The deposit was paid online, but the order was already marked "${order.status}". If you also took the deposit another way, refund one of them.`);
       }
-      const balance = Math.max(0, Math.round((Number(order.total) - Number(order.deposit)) * 100) / 100);
-      await notifyDepositPaid(
-        { name: order.customerName, phone: order.phone, email: order.email },
-        { ref, deposit: Number(order.deposit), balance, collectionDate: formatDate(order.collectionOrDeliveryDate), locationName: order.location.name },
-        await shopEmail(),
-      ).catch((err) => console.error("[payments:webhook] deposit-paid notice failed", err));
+      // The order's first emails: online orders send nothing until the deposit is paid.
+      await sendOrderEmails(order, { depositPaid: true });
       res.status(200).json({ received: true, handled: true });
     } catch (e) {
       // 500 so Stripe retries: the payment is real, we just failed to record it.

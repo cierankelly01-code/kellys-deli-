@@ -65,6 +65,9 @@ export interface OrderEmailData {
   /** Online deposits (Stripe) are on: the customer pays from their order page, not by a
    * link we send. Wording in both emails follows this so neither says the wrong thing. */
   payOnline?: boolean;
+  /** The deposit has been paid online: this is the confirmation, not a request. Online
+   * orders send nothing until Stripe confirms the deposit (see the webhook). */
+  depositPaid?: boolean;
 }
 
 const orderPage = (ref: string) => `${SITE}/confirm/${encodeURIComponent(ref)}`;
@@ -160,10 +163,12 @@ export function orderReceivedHtml(d: OrderEmailData): string {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
     <tr><td style="padding:28px 28px 0;">
       <h1 style="margin:0 0 6px;font-family:${SERIF};font-size:26px;line-height:1.2;font-weight:normal;color:${C.ink};">
-        Thanks ${esc(d.customerName)} — that&#39;s with us.
+        ${d.depositPaid ? `Thanks ${esc(d.customerName)} — you&#39;re booked in.` : `Thanks ${esc(d.customerName)} — that&#39;s with us.`}
       </h1>
       <p style="margin:0 0 18px;font-family:${SANS};font-size:15px;line-height:1.6;color:${C.inkSoft};">
-        We&#39;ve got your order request and we&#39;re on it. Here&#39;s everything, so you can check it over.
+        ${d.depositPaid
+          ? `We&#39;ve got your ${money(d.deposit)} deposit and your date is confirmed. Here&#39;s everything, so you can check it over.`
+          : `We&#39;ve got your order request and we&#39;re on it. Here&#39;s everything, so you can check it over.`}
       </p>
 
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px;">
@@ -183,7 +188,9 @@ export function orderReceivedHtml(d: OrderEmailData): string {
       <div style="border-top:1px solid ${C.line};padding-top:10px;"></div>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
         ${totalsRow("Order total", money(d.total), { strong: true })}
-        ${totalsRow("Deposit to confirm", money(d.deposit), { note: d.payOnline ? "25% — pay securely online" : "25% — we'll be in touch to take it" })}
+        ${d.depositPaid
+          ? totalsRow("Deposit paid", money(d.deposit), { note: "25% — paid by card" })
+          : totalsRow("Deposit to confirm", money(d.deposit), { note: d.payOnline ? "25% — pay securely online" : "25% — we'll be in touch to take it" })}
         ${totalsRow("Balance on collection", money(d.balance))}
       </table>
     </td></tr>
@@ -201,7 +208,9 @@ export function orderReceivedHtml(d: OrderEmailData): string {
       <p style="margin:0 0 8px;font-family:${SANS};font-size:15px;font-weight:600;color:${C.ink};">What happens next</p>
       <p style="margin:0 0 6px;font-family:${SANS};font-size:15px;line-height:1.7;color:${C.inkSoft};">
         ${
-          d.payOnline
+          d.depositPaid
+            ? `Your date is confirmed. Just pay the ${money(d.balance)} balance when you collect.`
+            : d.payOnline
             ? `If you haven&#39;t already, pay the ${money(d.deposit)} deposit securely online from <a href="${esc(orderPage(d.ref))}" style="color:${C.ink};">your order page</a>. Once that&#39;s paid your date is confirmed and locked in.`
             : `We&#39;ll be in touch shortly to take the ${money(d.deposit)} deposit. Once that&#39;s paid your date is confirmed and locked in.`
         }
@@ -219,7 +228,7 @@ export function orderReceivedHtml(d: OrderEmailData): string {
     </td></tr>
   </table>`;
 
-  return layout(inner, `Order ${d.ref} — ${money(d.total)}, collection ${d.collectionDate}`);
+  return layout(inner, `${d.depositPaid ? "Confirmed: order" : "Order"} ${d.ref} — ${money(d.total)}, collection ${d.collectionDate}`);
 }
 
 /** Plain-text alternative. Must be readable on its own — some people only see this. */
@@ -228,7 +237,7 @@ export function orderReceivedText(d: OrderEmailData): string {
     .map((l) => `  - ${l.name}${l.qty > 1 ? ` x${l.qty}` : ""}  ${money(l.lineTotal)}`)
     .join("\n");
   return [
-    `Thanks ${d.customerName} — that's with us.`,
+    d.depositPaid ? `Thanks ${d.customerName} — you're booked in.` : `Thanks ${d.customerName} — that's with us.`,
     ``,
     `Your reference: ${d.ref}`,
     ``,
@@ -236,12 +245,14 @@ export function orderReceivedText(d: OrderEmailData): string {
     lines,
     ``,
     `Order total: ${money(d.total)}`,
-    `Deposit to confirm (25%): ${money(d.deposit)}`,
+    d.depositPaid ? `Deposit paid (25%, by card): ${money(d.deposit)}` : `Deposit to confirm (25%): ${money(d.deposit)}`,
     `Balance on collection: ${money(d.balance)}`,
     ``,
     `Collection: ${d.collectionDate} — ${d.locationName}`,
     ``,
-    ...(d.payOnline
+    ...(d.depositPaid
+      ? [`Your date is confirmed. Just pay the ${money(d.balance)} balance when you collect.`]
+      : d.payOnline
       ? [`What happens next: if you haven't already, pay the ${money(d.deposit)} deposit`, `securely online at ${orderPage(d.ref)} — once that's paid your date is confirmed.`]
       : [`What happens next: we'll be in touch shortly to take the`, `${money(d.deposit)} deposit. Once that's paid your date is confirmed.`]),
     ``,
@@ -576,7 +587,7 @@ export function orderShopAlertText(d: OrderEmailData): string {
     .map((l) => `  - ${l.name}${l.qty > 1 ? ` x${l.qty}` : ""}  ${money(l.lineTotal)}`)
     .join("\n");
   return [
-    `NEW ORDER — ${d.ref}`,
+    d.depositPaid ? `NEW ORDER, DEPOSIT PAID — ${d.ref}` : `NEW ORDER — ${d.ref}`,
     ``,
     `Collection: ${d.collectionDate} — ${d.locationName}`,
     ``,
@@ -588,7 +599,9 @@ export function orderShopAlertText(d: OrderEmailData): string {
     lines,
     ``,
     `Total: ${money(d.total)}`,
-    d.payOnline
+    d.depositPaid
+      ? `Deposit (25%): ${money(d.deposit)} — PAID by card (Stripe). Don't take it again.`
+      : d.payOnline
       ? `Deposit (25%): ${money(d.deposit)} — customer pays online (Stripe); admin shows when it's paid. Don't take it twice.`
       : `Deposit to collect (25%): ${money(d.deposit)}`,
     `Balance on collection: ${money(d.balance)}`,
@@ -602,7 +615,7 @@ export function orderShopAlertHtml(d: OrderEmailData): string {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
     <tr><td style="padding:24px 24px 0;">
       <h1 style="margin:0 0 14px;font-family:${SERIF};font-size:22px;font-weight:normal;color:${C.ink};">
-        New order — ${esc(d.ref)}
+        ${d.depositPaid ? "New order, deposit paid" : "New order"} — ${esc(d.ref)}
       </h1>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.cream};border-radius:10px;margin:0 0 18px;">
         <tr><td style="padding:14px 16px;font-family:${SANS};font-size:15px;line-height:1.8;color:${C.ink};">
@@ -620,7 +633,9 @@ export function orderShopAlertHtml(d: OrderEmailData): string {
       <div style="border-top:1px solid ${C.line};padding-top:10px;"></div>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
         ${totalsRow("Total", money(d.total))}
-        ${d.payOnline
+        ${d.depositPaid
+          ? totalsRow("Deposit paid by card", money(d.deposit), { strong: true, note: "Paid by Stripe. Don't take it again." })
+          : d.payOnline
           ? totalsRow("Deposit (paid online)", money(d.deposit), { strong: true, note: "Customer pays by Stripe — admin shows when it's paid. Don't take it twice." })
           : totalsRow("Deposit to collect", money(d.deposit), { strong: true })}
         ${totalsRow("Balance on collection", money(d.balance))}
