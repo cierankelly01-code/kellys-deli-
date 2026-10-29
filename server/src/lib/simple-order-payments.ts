@@ -14,6 +14,7 @@ import { breadOrderDTO, groceryOrderDTO, maskPhone, maskEmail } from "./serializ
 import { notifyBreadOrderReceived, notifyShopOfBreadOrder, notifyGroceryOrderReceived, notifyShopOfGroceryOrder } from "./notify";
 import type { BreadOrderEmailData } from "./emailTemplate";
 import { UNPAID_HOLD_MINUTES } from "./unpaid-orders";
+import { pingPaidOrder } from "./telegram";
 
 export type SimpleKind = "bread" | "grocery";
 
@@ -78,6 +79,17 @@ export async function sendSimpleOrderEmails(k: SimpleKind, o: SimpleOrder, opts:
     if (dto.email) await (k === "bread" ? notifyBreadOrderReceived : notifyGroceryOrderReceived)(dto.email, data);
   } catch (err) {
     console.error(`[orders] customer notice failed for ${o.ref}`, err);
+  }
+  // The owner's phone ping, once per online payment (webhook retries stop above).
+  if (opts.paid) {
+    await pingPaidOrder({
+      kind: k === "bread" ? "bread" : "deli",
+      ref: dto.ref,
+      paid: dto.total,
+      locationName: data.locationName,
+      collectionDate: dto.collectionDate,
+      items: data.items.map((i) => ({ name: i.name, qty: i.quantity })),
+    });
   }
   try {
     const to = await shopInbox(k, o.locationId);
