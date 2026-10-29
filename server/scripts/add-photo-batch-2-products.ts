@@ -18,7 +18,7 @@ const prisma = new PrismaClient();
 
 const isStockPlaceholder = (url: string | null) => !url || url.includes("images.unsplash.com");
 
-const newGroceries: { id: string; department: string; name: string; price?: number; unitLabel?: string }[] = [
+const newGroceries: { id: string; department: string; name: string; price?: number; unitLabel?: string; image?: string }[] = [
   { id: "grocery-cake-cherry-flapjack", department: "cakes", name: "Cherry Flapjack" },
   { id: "grocery-cake-rocky-road", department: "cakes", name: "Rocky Road" },
   { id: "grocery-cake-lemon-tart", department: "cakes", name: "Lemon Tart" },
@@ -26,9 +26,9 @@ const newGroceries: { id: string; department: string; name: string; price?: numb
   { id: "grocery-sandwich-focaccia", department: "sandwiches", name: "Focaccia Sandwich" },
   { id: "grocery-meat-pastrami", department: "meats", name: "Pastrami" },
   // Salads range is a flat £25/kg (Cieran, 2026-10-26) — still inactive until he confirms.
-  { id: "grocery-salad-waldorf", department: "salads", name: "Waldorf Salad", price: 25, unitLabel: "per 1kg" },
-  { id: "grocery-salad-pear-blue-cheese", department: "salads", name: "Pear & Blue Cheese Salad", price: 25, unitLabel: "per 1kg" },
-  { id: "grocery-salad-roast-potato-caesar", department: "salads", name: "Roast Potato Caesar Salad", price: 25, unitLabel: "per 1kg" },
+  { id: "grocery-salad-waldorf", department: "salads", name: "Waldorf Salad", price: 25, unitLabel: "per 1kg", image: "salad-waldorf" },
+  { id: "grocery-salad-pear-blue-cheese", department: "salads", name: "Pear & Blue Cheese Salad", price: 25, unitLabel: "per 1kg", image: "salad-pear-blue-cheese" },
+  { id: "grocery-salad-roast-potato-caesar", department: "salads", name: "Roast Potato Caesar Salad", price: 25, unitLabel: "per 1kg", image: "salad-roast-potato-caesar" },
 ];
 
 const newBreads: { id: string; name: string }[] = [
@@ -60,7 +60,7 @@ async function main() {
           id: g.id, department: g.department, name: g.name,
           description: null, unitLabel: g.unitLabel ?? null,
           price: g.price ?? 0, active: false, sortOrder: gSort++,
-          imageUrl: `/images/${g.id}.webp`,
+          imageUrl: `/images/${g.image ?? g.id}.webp`, // salad photos are named without the grocery- prefix
         },
       });
       console.log(`created grocery draft: ${g.id} (${g.department})`);
