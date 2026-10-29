@@ -1263,7 +1263,7 @@ function promoFor(locationName: string, dateStr: string, remaining: number): str
     `📣 Last-minute catering at Kelly's Deli ${locationName}! We've still got room for ` +
     `${remaining} order${remaining === 1 ? "" : "s"} on ${humanDate(dateStr)}. ` +
     `Platters for home, office & events — the same local produce our regulars trust. ` +
-    `DM us or call the shop to grab a slot before it's gone. 🥪`
+    `DM us or pop in to grab a slot before it's gone. 🥪`
   );
 }
 

@@ -59,6 +59,21 @@ async function getSetting(key: string): Promise<string | null> {
   return s?.value ?? null;
 }
 
+/**
+ * Weekdays a shop is shut. A shop with no hours of its own uses the site-wide
+ * "openingHours" setting, the same fallback the storefront displays, so clearing a
+ * shop's hours (or opening a shop without them) can't quietly reopen closed days.
+ */
+async function shopClosedWeekdays(locationHours: unknown): Promise<number[]> {
+  if (locationHours && typeof locationHours === "object") return closedWeekdaysFromHours(locationHours);
+  const raw = await getSetting("openingHours");
+  try {
+    return closedWeekdaysFromHours(raw ? JSON.parse(raw) : null);
+  } catch {
+    return [];
+  }
+}
+
 /** Configured collection lead time in hours (Setting "orderLeadTimeHours"), default 48. */
 async function getLeadHours(): Promise<number> {
   const raw = await getSetting("orderLeadTimeHours");
@@ -841,7 +856,7 @@ publicRouter.get("/availability", async (req, res) => {
   // offers a date the order would then be refused for (it used a hard-coded 48h and
   // ignored closed days, so Sundays and Mondays showed as bookable).
   const leadHours = await getLeadHours();
-  const closed = closedWeekdaysFromHours(location.openingHours);
+  const closed = await shopClosedWeekdays(location.openingHours);
   res.json({ locationId, capacity: location.weeklyCapacity, days: buildAvailability(fromDate, span, location.weeklyCapacity, bookedByDate, now, leadHours, closed) });
 });
 
@@ -960,7 +975,8 @@ publicRouter.post("/orders", async (req, res) => {
   if (!meetsLeadTime(input.collectionOrDeliveryDate, now, leadHours)) {
     return res.status(400).json({ error: `Orders need at least ${leadHours} hours notice` });
   }
-  if (closedWeekdaysFromHours(location.openingHours).includes(parseDate(input.collectionOrDeliveryDate).getUTCDay())) {
+  const closedDays = await shopClosedWeekdays(location.openingHours);
+  if (closedDays.includes(parseDate(input.collectionOrDeliveryDate).getUTCDay())) {
     return res.status(400).json({ error: `${location.name} is closed that day — please choose another collection date` });
   }
 
@@ -1036,7 +1052,7 @@ publicRouter.post("/orders", async (req, res) => {
       const booked = await tx.order.count({
         where: { locationId: input.locationId, collectionOrDeliveryDate: parseDate(input.collectionOrDeliveryDate), type: { in: ["platter", "gift"] }, status: { not: "cancelled" } },
       });
-      if (!canBook(input.collectionOrDeliveryDate, location.weeklyCapacity, booked, now, leadHours, closedWeekdaysFromHours(location.openingHours))) throw new CapacityError();
+      if (!canBook(input.collectionOrDeliveryDate, location.weeklyCapacity, booked, now, leadHours, closedDays)) throw new CapacityError();
 
       const ref = await uniqueRef(tx);
       const referralCode = await uniqueReferralCode(tx);

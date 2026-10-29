@@ -76,7 +76,7 @@ export default function ShopLocation({ slug }: { slug: string }) {
               ))}
             </dl>
           ) : (
-            <p className="muted">{loadFailed ? "We couldn't load today's hours. Please refresh." : loc === undefined ? "Loading hours…" : "Call us for today's hours."}</p>
+            <p className="muted">{loadFailed ? "We couldn't load today's hours. Please refresh." : loc === undefined ? "Loading hours…" : "Email hello@kellysdeli.co.uk for today's hours."}</p>
           )}
         </section>
       </div>

@@ -267,6 +267,8 @@ export interface DayAvailability {
   remaining: number;
   status: DayStatus;
   bookable: boolean;
+  /** Why a "closed" day is closed: the shop is shut, or it's inside the notice window. */
+  reason?: "shop_closed" | "too_soon";
 }
 
 export interface AvailabilityResponse {

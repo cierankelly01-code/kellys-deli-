@@ -5,6 +5,7 @@ import { usePageTitle } from "../lib/title";
 import { Header } from "../components/Header";
 import { Stars } from "../components/Trust";
 import { family } from "../lib/seoContent";
+import { WhyUs } from "../components/WhyUs";
 
 
 const DEFAULT_ABOUT = "Proper food from the people you know — grazing boards for collection, made fresh.";
@@ -48,7 +49,7 @@ function fmtHoursLine(hours: Record<string, string> | null): string | null {
 }
 
 const VALUES = [
-  { h: "Local, named suppliers", p: "We buy from people we know, not a catalogue — so we can tell you exactly where something came from, not just “local produce.”" },
+  { h: "Suppliers we've met", p: "Everything Mark and Fiona buy for the shop, they go out, meet the supplier and try the food first. If it isn't up to our standard, it doesn't go on sale." },
   { h: "Made to order, not made ahead", p: "Nothing sits pre-built waiting for a customer. Your board is made once you've booked your date." },
   { h: "The same way, every time", p: "No seasonal shortcuts, no substituting down when something's dear — if it's on the board, it's the real thing." },
 ];
@@ -110,6 +111,8 @@ export default function OurStory() {
           </div>
         ))}
       </section>
+
+      <WhyUs />
 
       <section className="os-visit" data-reveal>
         <h2 className="section-h">Come and see us</h2>

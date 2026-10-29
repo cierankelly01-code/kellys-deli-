@@ -12,8 +12,10 @@ export interface DayAvailability {
   capacity: number;
   booked: number;
   remaining: number;
-  status: DayStatus; // closed = inside the 48h notice window
-  bookable: boolean; // true only if it meets notice AND has room
+  status: DayStatus; // closed = shop shut that day, or inside the notice window
+  bookable: boolean; // true only if the shop is open, it meets notice AND has room
+  /** Why a "closed" day is closed, so the calendar can say "Shop closed" vs "too soon". */
+  reason?: "shop_closed" | "too_soon";
 }
 
 /** Parse a 'YYYY-MM-DD' string as UTC midnight. */
@@ -46,17 +48,21 @@ export function meetsNotice(dateStr: string, now: Date): boolean {
 
 const HOURS_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const; // index = getUTCDay()
 
+// The whole value must say "closed": "8:00-16:00 (closed 12-1)" is a trading day.
+const CLOSED_TEXT = /^(closed|shut|not open|n\/?a|-|–|—)$/i;
+
 /**
  * Weekdays (0 = Sunday) a shop is shut, read from its admin-set opening hours: a day
- * marked "Closed", blank or missing is shut. No hours at all = unknown, so nothing is
- * blocked. Opening on a new day is just an hours change in admin.
+ * that's blank, missing, or just says Closed/Shut/N/A/"-" is shut. Callers pass the
+ * site-wide hours when a shop has none of its own (see shopHours in routes/public.ts);
+ * with no hours anywhere nothing is blocked. Opening a new day is an hours change in admin.
  */
 export function closedWeekdaysFromHours(hours: unknown): number[] {
   if (!hours || typeof hours !== "object") return [];
   const h = hours as Record<string, unknown>;
   return HOURS_KEYS.flatMap((k, i) => {
     const v = typeof h[k] === "string" ? (h[k] as string).trim() : "";
-    return !v || /closed/i.test(v) ? [i] : [];
+    return !v || CLOSED_TEXT.test(v) ? [i] : [];
   });
 }
 
@@ -84,6 +90,7 @@ export function getDayAvailability(
     remaining,
     status,
     bookable: notice && remaining > 0,
+    ...(!shopOpen ? { reason: "shop_closed" as const } : !notice ? { reason: "too_soon" as const } : {}),
   };
 }
 

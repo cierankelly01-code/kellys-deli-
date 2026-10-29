@@ -198,7 +198,7 @@ export function orderReceivedHtml(d: OrderEmailData): string {
         We&#39;ll be in touch shortly with a secure link for the ${money(d.deposit)} deposit. Once that&#39;s paid your date is confirmed and locked in.
       </p>
       <p style="margin:0 0 22px;font-family:${SANS};font-size:15px;line-height:1.7;color:${C.inkSoft};">
-        Anything to change — more people, fewer, a dietary need — just reply to this email or ring us. We&#39;d rather sort it now than on the day.
+        Anything to change — more people, fewer, a dietary need — just reply to this email. We&#39;d rather sort it now than on the day.
       </p>
     </td></tr>
 
@@ -236,7 +236,7 @@ export function orderReceivedText(d: OrderEmailData): string {
     `${money(d.deposit)} deposit. Once that's paid your date is confirmed.`,
     ``,
     `Anything to change — more people, fewer, a dietary need — just reply to`,
-    `this email or ring us.`,
+    `this email.`,
     ``,
     `View your order: ${SITE}/confirm/${encodeURIComponent(d.ref)}`,
     ``,
@@ -323,7 +323,7 @@ export function breadOrderReceivedHtml(d: BreadOrderEmailData): string {
 
     <tr><td style="padding:22px 28px 30px;">
       <p style="margin:0;font-family:${SANS};font-size:15px;line-height:1.7;color:${C.inkSoft};">
-        Anything to change — just reply to this email or ring us. We&#39;d rather sort it now than on the day.
+        Anything to change — just reply to this email. We&#39;d rather sort it now than on the day.
       </p>
     </td></tr>
   </table>`;
@@ -347,7 +347,7 @@ export function breadOrderReceivedText(d: BreadOrderEmailData): string {
     `Collection: ${d.collectionDate} — ${d.locationName}`,
     d.notes ? `Notes: ${d.notes}` : "",
     ``,
-    `Anything to change — just reply to this email or ring us.`,
+    `Anything to change — just reply to this email.`,
     ``,
     `Kelly's Deli — 1 Slater Road, Bentley Heath, Solihull B93 8AQ`,
     `kellysdeli.co.uk · hello@kellysdeli.co.uk`,
@@ -471,7 +471,7 @@ export function groceryOrderReceivedHtml(d: GroceryOrderEmailData): string {
 
     <tr><td style="padding:22px 28px 30px;">
       <p style="margin:0;font-family:${SANS};font-size:15px;line-height:1.7;color:${C.inkSoft};">
-        Anything to change — just reply to this email or ring us. We&#39;d rather sort it now than on the day.
+        Anything to change — just reply to this email. We&#39;d rather sort it now than on the day.
       </p>
     </td></tr>
   </table>`;
@@ -495,7 +495,7 @@ export function groceryOrderReceivedText(d: GroceryOrderEmailData): string {
     `Collection: ${d.collectionDate} — ${d.locationName}`,
     d.notes ? `Notes: ${d.notes}` : "",
     ``,
-    `Anything to change — just reply to this email or ring us.`,
+    `Anything to change — just reply to this email.`,
     ``,
     `Kelly's Deli — 1 Slater Road, Bentley Heath, Solihull B93 8AQ`,
     `kellysdeli.co.uk · hello@kellysdeli.co.uk`,

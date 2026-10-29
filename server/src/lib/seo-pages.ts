@@ -434,7 +434,7 @@ async function routePage(path: string, locs: Location[]): Promise<SeoPage> {
     return {
       status: 200,
       title: "Fresh Bread to Pre-order — Kelly's Deli",
-      description: "Bread baked fresh every day and delivered to Kelly's Deli by our own baker. Pre-order for collection in Bentley Heath, Solihull or Stratford-upon-Avon.",
+      description: "Our bread is baked fresh every day and delivered to us by our own baker. Pre-order for collection in Bentley Heath, Solihull or Stratford-upon-Avon.",
       path,
       jsonLd: [breadcrumb([["Bread", path]])],
       body: frame(

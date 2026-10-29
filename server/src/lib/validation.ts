@@ -317,7 +317,7 @@ export type BundleUpsertInput = z.infer<typeof bundleUpsertSchema>;
 
 // --- Gift voucher request (lands in admin; payment arranged offline until Stripe) ---
 export const giftVoucherSchema = z.object({
-  amount: z.number().positive("Enter an amount").max(1000, "For amounts over £1000, please give us a call"),
+  amount: z.number().positive("Enter an amount").max(1000, "For amounts over £1000, please email hello@kellysdeli.co.uk"),
   buyerName: z.string().min(1, "Your name is required").max(120),
   buyerEmail: z.string().email("A valid email is required"),
   buyerPhone: z.string().max(30).optional(),
