@@ -37,11 +37,12 @@ Written 29 Oct 2026. What the site now does, and what only the owner can do.
 - Family-run: Mark and Fiona Kelly and their five children (Liam, Abigail, Katie, Cieran, Simone) all work in the business. Mark and Fiona meet every supplier and taste the food before it goes on sale.
 - Bread: "baked fresh every day and delivered to us by our own baker" (his wording). Cakes and salads made fresh every day; crusty cobs made up throughout the day.
 - Over 1,000 parties catered (his estimate).
-- Neither shop has a phone number. Removed from the site files; **the number is still in the live database: clear it in admin** (Menu → shop details).
+- Neither shop has a phone number. Removed from the site files and emails; a migration (`20261029120000_clear_shop_phones`) clears the old number from the live database when the deploy's migrations run.
 - No board collection on Sunday or Monday "as it stands". The calendar now reads each shop's opening hours, so changing the hours in admin is all it takes to open a new day.
 - Deposits: Stripe is coming. Until it's wired, the copy says "we'll be in touch to take a 25% deposit".
 
 ## Still open
+0. Bread and Deli Counter have their own "closed days" settings, separate from shop hours. Tick Sunday and Monday in admin → Bread settings and Groceries settings, or bread and lunch can still be booked for those days.
 1. Is the Stratford address exactly 13 Wood Street, CV37 6JF?
 2. Is delivery offered for big events, and from which shop?
 3. Which occasions can we name: christenings, hen dos, Christmas, wakes?
