@@ -30,6 +30,26 @@ If the database `Setting` row `sitePassword` isn't empty, the whole public site 
 4. The server reads `index.html` once at boot, so an HTML/meta change needs the new container to start (any deploy does that).
 5. Public pages changed, and the gate is off? `node server/scripts/indexnow.mjs`.
 
+## Phone ping per paid order (Telegram)
+Every order paid online (boards, bread `KDB-`, deli `KDS-`) sends one Telegram message to the owner's private chat: a random funny headline sized to the order (under £20, £20–£99, £100+; the pools are `HEADLINES` in `server/src/lib/telegram.ts`), then `£85.00 — Sarah Jones`, then `KD-7Q2M4X · Bentley Heath · Sat 14 Nov`, then the items. It goes out with the paid confirmation email, so once per payment, never for an unpaid order or a deposit marked paid in admin. It has the customer's name only, never their phone or email, and is sent as plain text. If the chat is ever a group, everyone in it sees customer names. Off until both env vars are set; if Telegram is down the order and emails carry on and the server logs `[notify:telegram]`.
+
+Setup, once (about 5 minutes, on the phone):
+1. In Telegram, open a chat with **@BotFather**, send `/newbot`, give it a name (e.g. `Kelly's Deli Orders`) and a username ending in `bot`. BotFather replies with the bot's token. Keep it private: anyone with it can post as the bot.
+2. Open a chat with your new bot and press **Start** (or send it any message). A bot can't message you until you've done this.
+3. Find your chat id: in a browser, open `https://api.telegram.org/bot<TOKEN>/getUpdates` (your token in place of `<TOKEN>`). In the reply, the number after `"chat":{"id":` is the chat id. Empty `"result":[]`? Send the bot another message and reload.
+4. Check the pair works: open `https://api.telegram.org/bot<TOKEN>/sendMessage?chat_id=<CHAT_ID>&text=test`. The bot should message you "test".
+5. Coolify → the app → Environment Variables: add `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`. Save, then **Redeploy** (env changes only apply to a new container).
+6. The next paid order pings the phone. To switch it off, delete either variable and redeploy.
+
+**Cash-register sound (optional, on the phone).** A bot can't choose the sound, but Telegram lets you set a custom tone for the bot's chat:
+1. Download a free, short cash-register sound (e.g. from pixabay.com/sound-effects, search "cash register"; Pixabay's licence allows this). It must be under 5 seconds and under 300 KB, as MP3.
+2. Send the file to the bot chat (or to Saved Messages).
+3. Long-press the audio in the chat → **Save for Notifications**.
+4. Open the bot chat → tap its name at the top → **Notifications** → **Sound** → pick the new sound.
+The sound file stays on the phone; it's never in this repo.
+
+Pings to a group instead: add the bot to the group, send `/start@<botusername>` in it, and use the group's chat id from `getUpdates` (it starts with `-`).
+
 ## Local testing (never against prod)
 ```bash
 node server/scripts/start-db.mjs

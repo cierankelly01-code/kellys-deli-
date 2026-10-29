@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { formatDate } from "./capacity";
 import { notifyOrderReceived, notifyShopOfOrder, notifyShopDepositPaid, type OrderNotifyInput } from "./notify";
+import { pingPaidOrder } from "./telegram";
 
 /** The board order as loaded for its emails: boards with their platter, add-ons, shop. */
 export interface OrderForEmail {
@@ -66,6 +67,20 @@ export async function sendOrderEmails(
   const input = notifyInput(o, depositPaid, opts.depositPaidBy ?? "card");
   const target = { name: o.customerName, phone: o.phone, email: o.email };
   await notifyOrderReceived(target, input).catch((err) => console.error(`[orders] customer notice failed for ${o.ref}`, err));
+  // The owner's phone ping, once per online payment: this point is reached once for it
+  // (webhook retries stop above). Not for a deposit the shop took by phone; they know.
+  if (depositPaid && (opts.depositPaidBy ?? "card") === "card") {
+    await pingPaidOrder({
+      kind: "board",
+      ref: o.ref,
+      customerName: o.customerName,
+      paid: input.deposit,
+      total: input.total,
+      locationName: input.locationName,
+      collectionDate: input.collectionDate,
+      items: [...o.items.map((i) => ({ name: i.platter.name, qty: i.quantity })), ...o.addOns.map((a) => ({ name: a.name, qty: a.quantity }))],
+    });
+  }
   try {
     const to = await shopInbox();
     if (!to) return;
