@@ -42,34 +42,12 @@ export default function PlatterDetail() {
     navigate(`/platter/${v.id}`, { replace: true });
   };
 
-  // Per-board Product structured data — Google rich results + something concrete for
-  // AI answer engines to cite. Injected when the board loads, removed on unmount.
+  // Product structured data is rendered by the server (server/src/lib/seo-pages.ts), once,
+  // so it isn't duplicated here. Retargeting signal — no-ops without consent.
   useEffect(() => {
     if (!platter) return;
     const price = platter.fixedPrice ?? platter.fromPrice ?? 0;
-    // Retargeting signal — no-ops without consent. Fires once per board view.
     trackViewContent({ id: platter.id, name: platter.name, value: price || undefined });
-    const data: Record<string, unknown> = {
-      "@context": "https://schema.org",
-      "@type": "Product",
-      name: platter.name,
-      description: platter.description.replace(/\s*\[CHECK PRICE.*?\]\s*$/i, ""),
-      brand: { "@type": "Brand", name: "Kelly's Deli" },
-      offers: {
-        "@type": "Offer",
-        priceCurrency: "GBP",
-        price: String(price),
-        availability: "https://schema.org/InStock",
-        url: window.location.href,
-        seller: { "@type": "Organization", name: "Kelly's Deli" },
-      },
-    };
-    if (platter.imageUrl) data.image = platter.imageUrl;
-    const el = document.createElement("script");
-    el.type = "application/ld+json";
-    el.text = JSON.stringify(data);
-    document.head.appendChild(el);
-    return () => { el.remove(); };
   }, [platter]);
 
   const order = () => {

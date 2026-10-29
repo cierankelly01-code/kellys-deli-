@@ -5,13 +5,13 @@ import { addBoard } from "../lib/cart";
 import { openCartDrawer } from "../components/CartDrawer";
 import { gbp } from "../lib/format";
 import { usePageTitle } from "../lib/title";
+import { officeFaq } from "../lib/seoContent";
 import { Header } from "../components/Header";
 import { CorporateEnquiryForm } from "../components/CorporateEnquiryForm";
 import { Stars } from "../components/Trust";
 import { morphNavigate } from "../lib/motion";
 import { groupVariants, cheapestVariant, type ProductGroup } from "../lib/variants";
 
-const SITE = "https://www.kellysdeli.co.uk";
 
 const QUICK_ANSWERS: Array<{ label: string; value: (c: CategoryCounts | null) => string }> = [
   { label: "People", value: () => "Each size shows how many it serves — ask us if you need help." },
@@ -25,32 +25,8 @@ const QUICK_ANSWERS: Array<{ label: string; value: (c: CategoryCounts | null) =>
   { label: "Invoices & repeats", value: () => "Weekly, fortnightly or monthly — tell us in your enquiry." },
 ];
 
-const OFFICE_FAQ: Array<{ q: string; a: string }> = [
-  {
-    q: "Do you do office catering near Solihull?",
-    a: "Yes — Kelly's Deli is a family-run deli in Bentley Heath, Solihull, and we cater platters and boards for offices across Solihull, Knowle and Dorridge for meetings, team lunches and workplace gatherings.",
-  },
-  {
-    q: "How much notice do you need for a meeting or office lunch?",
-    a: "At least 48 hours for a standard order. For a larger one-off event or a regular weekly lunch, get in touch as early as you can so we can reserve your date.",
-  },
-  {
-    q: "Can you deliver to our office, or is it collection only?",
-    a: "Office platters can be collected from Bentley Heath. Delivery is available for regular office orders — tell us your postcode and how often you need food, and we'll confirm availability and any delivery cost.",
-  },
-  {
-    q: "Can you invoice monthly instead of paying per order?",
-    a: "For regular office lunches we can arrange monthly invoicing — tell us how often you need feeding in your enquiry and we'll set it up with you.",
-  },
-  {
-    q: "Can you cater for dietary requirements and allergies?",
-    a: "Yes. Tell us about allergies or dietary needs when you enquire and we'll talk through what we can provide before anything is booked.",
-  },
-  {
-    q: "How many platters do we need for our office?",
-    a: "Each board's size shows how many it feeds. As a rough guide, plan a light platter per 3-4 people if it's alongside other food, or per 2-3 people if it's the main lunch — tell us your headcount and we'll help you get it right.",
-  },
-];
+// Shared with the server, which renders the same Q&A + FAQPage schema for crawlers.
+const OFFICE_FAQ: Array<{ q: string; a: string }> = officeFaq;
 
 function priceFeeds(g: ProductGroup): string {
   const target = g.hasChoice ? cheapestVariant(g) : g.lead;
@@ -75,50 +51,8 @@ export default function OfficeCatering() {
     true,
   );
 
-  // Service + FAQPage structured data — Google rich results and a concrete, extractable
-  // answer set for AI assistants asked "office catering near Solihull" or similar.
-  useEffect(() => {
-    const service = {
-      "@context": "https://schema.org",
-      "@type": "Service",
-      serviceType: "Office catering",
-      name: "Kelly's Deli office catering",
-      description: "Boards and platters for meetings, team lunches and workplace gatherings, prepared by Kelly's Deli in Bentley Heath, Solihull.",
-      provider: { "@type": "LocalBusiness", name: "Kelly's Deli", "@id": `${SITE}/#business` },
-      areaServed: [
-        { "@type": "City", name: "Solihull" },
-        { "@type": "Place", name: "Bentley Heath" },
-        { "@type": "Place", name: "Knowle" },
-        { "@type": "Place", name: "Dorridge" },
-      ],
-      url: `${SITE}/office-catering`,
-    };
-    const faq = {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      mainEntity: OFFICE_FAQ.map((f) => ({
-        "@type": "Question",
-        name: f.q,
-        acceptedAnswer: { "@type": "Answer", text: f.a },
-      })),
-    };
-    const breadcrumb = {
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "Home", item: `${SITE}/` },
-        { "@type": "ListItem", position: 2, name: "Office catering", item: `${SITE}/office-catering` },
-      ],
-    };
-    const nodes = [service, faq, breadcrumb].map((data) => {
-      const el = document.createElement("script");
-      el.type = "application/ld+json";
-      el.text = JSON.stringify(data);
-      document.head.appendChild(el);
-      return el;
-    });
-    return () => nodes.forEach((n) => n.remove());
-  }, []);
+  // Service + FAQPage + breadcrumb structured data is rendered once by the server
+  // (server/src/lib/seo-pages.ts) from the same officeFaq this page shows.
 
   const startOrder = (p: Platter) => {
     addBoard(p.id);

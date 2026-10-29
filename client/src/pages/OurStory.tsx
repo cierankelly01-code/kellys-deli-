@@ -5,7 +5,6 @@ import { usePageTitle } from "../lib/title";
 import { Header } from "../components/Header";
 import { Stars } from "../components/Trust";
 
-const SITE = "https://www.kellysdeli.co.uk";
 
 const DEFAULT_ABOUT = "Proper food from the people you know — grazing boards for collection, made fresh.";
 const DEFAULT_MISSION = "The deli your grandparents would recognise — local produce, no shortcuts, boards built the same way every time.";
@@ -74,20 +73,7 @@ export default function OurStory() {
     true,
   );
 
-  useEffect(() => {
-    const data = {
-      "@context": "https://schema.org",
-      "@type": "AboutPage",
-      name: "Our story — Kelly's Deli",
-      url: `${SITE}/our-story`,
-      about: { "@type": "LocalBusiness", name: "Kelly's Deli", "@id": `${SITE}/#business` },
-    };
-    const el = document.createElement("script");
-    el.type = "application/ld+json";
-    el.text = JSON.stringify(data);
-    document.head.appendChild(el);
-    return () => { el.remove(); };
-  }, []);
+  // AboutPage structured data is rendered once by the server (server/src/lib/seo-pages.ts).
 
   return (
     <div className="app app-wide our-story-page">

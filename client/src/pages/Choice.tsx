@@ -13,6 +13,7 @@ import { groupVariants, cheapestVariant, type ProductGroup } from "../lib/varian
 import { Bundles } from "../components/Bundles";
 import { ReminderCapture } from "../components/ReminderCapture";
 import { DeliVideos } from "../components/DeliVideos";
+import { locationCopy } from "../lib/seoContent";
 
 const DAY_LABELS: Array<{ key: keyof OpeningHours; label: string }> = [
   { key: "mon", label: "Mon" }, { key: "tue", label: "Tue" }, { key: "wed", label: "Wed" },
@@ -99,37 +100,70 @@ export default function Choice() {
   // One tile per board, not one per size (see lib/variants).
   const signature = groupVariants(boards ?? []).slice(0, 6);
 
-  const catImage = (slug: string, fallback: string) => shopCats.find((c) => c.slug === slug)?.heroImageUrl || fallback;
+  // An admin-set category hero wins, unless it's a stock-library photo: the tiles only
+  // ever show real food from the shop.
+  const catImage = (slug: string, fallback: string) => {
+    const hero = shopCats.find((c) => c.slug === slug)?.heroImageUrl;
+    return hero && !/unsplash\.com|pexels\.com/i.test(hero) ? hero : fallback;
+  };
 
-  // The six doors into the shop — the first thing on the page, so "what can I actually
-  // get here?" never needs a scroll to answer. Replaces the old boards-first hero.
-  const MAIN_CATEGORIES: Array<{ label: string; eyebrow: string; to: string; image: string }> = [
-    { label: "Lunch", eyebrow: "Order for tomorrow", to: "/lunch", image: "/images/grocery-ham-cheese.webp" },
-    { label: "Bread", eyebrow: "Fresh-baked, pre-order", to: "/bread", image: "/images/bread-granary-coburg.webp" },
+  // The seven doors into the shop — the first thing on the page, so "what can I actually
+  // get here?" never needs a scroll to answer. Events leads as the big tile: party food is
+  // what people ask Google and ChatGPT for. Real <Link>s, not buttons, so crawlers can
+  // follow them. Every fallback photo is a different real shot from the shop.
+  // `pos` is the photo's focal point: several shop shots have the food low in the frame.
+  const MAIN_CATEGORIES: Array<{ label: string; eyebrow: string; to: string; image: string; size?: "feature" | "wide"; pos?: string }> = [
+    { label: "Events & Parties", eyebrow: "Birthdays, showers & celebrations", to: "/shop/hosting", image: catImage("hosting", "/images/board-mezze.webp"), size: "feature" },
+    { label: "Lunch", eyebrow: "Sandwiches, ordered ahead", to: "/lunch", image: "/images/grocery-ham-cheese.webp", pos: "50% 72%" },
+    { label: "Bread", eyebrow: "Pre‑order for collection", to: "/bread", image: "/images/bread-crusty-cobs.webp" },
     { label: "Deli Counter", eyebrow: "Click & collect", to: "/groceries", image: "/images/groceries-counter.webp" },
-    { label: "At Home Dining", eyebrow: "A night in, sorted", to: "/shop/at-home", image: catImage("at-home", "/images/board-grazing-table.webp") },
-    { label: "Events", eyebrow: "Birthdays & celebrations", to: "/shop/hosting", image: catImage("hosting", "/images/board-ultimate.webp") },
-    { label: "Office & Catering", eyebrow: "Meetings & team lunches", to: "/office-catering", image: catImage("office-corporate", "/images/board-antipasti.webp") },
-    { label: "Boards & Catering", eyebrow: "Any occasion", to: "/platters", image: "/images/catering-counter.webp" },
+    { label: "At Home Dining", eyebrow: "A night in, sorted", to: "/shop/at-home", image: catImage("at-home", "/images/open-sandwich.webp"), pos: "50% 75%" },
+    { label: "Office & Catering", eyebrow: "Meetings & team lunches", to: "/office-catering", image: catImage("office-corporate", "/images/board-ploughmans.webp"), size: "wide", pos: "50% 55%" },
+    { label: "Boards & Catering", eyebrow: "Every board, with what it feeds", to: "/platters", image: "/images/catering-counter.webp", size: "wide" },
   ];
 
   return (
     <div className="choice">
       <Header />
 
-      <section className="main-cats-section" data-reveal>
+      <section className="main-cats-section" data-reveal aria-labelledby="main-cats-h">
         <p className="deli-eyebrow main-cats-eyebrow">A little something worth sharing</p>
-        <h1 className="main-cats-h">What can we get you?</h1>
-        <div className="main-cats-grid">
+        <h1 id="main-cats-h" className="main-cats-h">What can we get you?</h1>
+        <ul className="main-cats-grid">
           {MAIN_CATEGORIES.map((c, i) => (
-            <button key={c.label} className="main-cat-card" data-reveal data-reveal-delay={String(i % 3)} onClick={() => go(c.to)}>
-              <img src={c.image} alt="" loading={i < 3 ? "eager" : "lazy"} />
-              <span className="main-cat-caption">
-                <span className="main-cat-eyebrow">{c.eyebrow}</span>
-                <span className="main-cat-name">{c.label}</span>
-              </span>
-            </button>
+            <li key={c.label} className={`main-cat-cell${c.size ? ` is-${c.size}` : ""}`} data-reveal data-reveal-delay={String(i % 3)}>
+              <Link to={`${c.to}${suffix}`} className="main-cat-card" aria-label={`${c.label}: ${c.eyebrow}`}>
+                <img src={c.image} alt="" loading={i < 4 ? "eager" : "lazy"} style={c.pos ? { objectPosition: c.pos } : undefined} />
+                <span className="main-cat-caption">
+                  <span className="main-cat-index" aria-hidden="true">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="main-cat-eyebrow">{c.eyebrow}</span>
+                  <span className="main-cat-name">{c.label}<span className="main-cat-arrow" aria-hidden="true">→</span></span>
+                </span>
+              </Link>
+            </li>
           ))}
+        </ul>
+        <div className="main-cats-foot">
+          <p className="main-cats-guide">
+            Planning a party? <Link className="u-link" to="/party-food-solihull">How much food you’ll need, and how to order →</Link>
+          </p>
+          {/* Below the food, not above it: ordering is open whenever the shops aren't. */}
+          {shopsWithHours.some(({ location }) => locationCopy(location.slug)) && (
+            <ul className="main-cats-shops" aria-label="Our shops today">
+              {shopsWithHours.filter(({ location }) => locationCopy(location.slug)).map(({ location, hours }) => {
+                const status = computeOpenStatus(hours);
+                return (
+                  <li key={location.id}>
+                    <Link to={`/${location.slug}`} className="main-cats-shop">
+                      <span className={`status-dot ${status.open ? "open" : "closed"}`} aria-hidden="true" />
+                      <span className="main-cats-shop-name">{location.name}</span>
+                      <span className="main-cats-shop-status">{status.text}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
       </section>
 

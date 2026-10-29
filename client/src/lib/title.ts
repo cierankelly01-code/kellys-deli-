@@ -25,6 +25,12 @@ function setCanonical(href: string) {
   el.setAttribute("href", href);
 }
 
+// The server writes the right canonical for the URL it served (e.g. a board's other sizes
+// point at the lead size). Keep it for that URL; only build one for client-side navigation.
+const FIRST_PATH = window.location.pathname;
+const FIRST_CANONICAL = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href ?? null;
+const canonicalFor = (pathname: string) => (pathname === FIRST_PATH && FIRST_CANONICAL ? FIRST_CANONICAL : SITE + pathname);
+
 /**
  * Sets the browser-tab / search-result title for a page, and (optionally) the
  * meta description. Also keeps the canonical URL in step with the current route.
@@ -39,11 +45,11 @@ export function usePageTitle(title?: string, description?: string, exact = false
     document.title = title ? (exact ? title : `${title} — Kelly's Deli`) : DEFAULT;
     setMeta("description", description || DEFAULT_DESC);
     // pathname only (no query/hash) so /order?x=1 doesn't fragment the canonical.
-    setCanonical(SITE + window.location.pathname);
+    setCanonical(canonicalFor(window.location.pathname));
     return () => {
       document.title = DEFAULT;
       setMeta("description", DEFAULT_DESC);
-      setCanonical(SITE + "/");
+      setCanonical(canonicalFor("/"));
     };
   }, [title, description]);
 }

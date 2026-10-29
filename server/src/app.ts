@@ -14,6 +14,7 @@ import { UPLOAD_DIR, storageMode } from "./lib/uploads";
 import { emailMode } from "./lib/notify";
 import { prisma } from "./lib/prisma";
 import { parseWebhook } from "./lib/payments";
+import { seoHtmlHandler } from "./lib/seo-pages";
 
 const SITE = "https://www.kellysdeli.co.uk";
 
@@ -184,18 +185,43 @@ export function createApp(): Express {
       { loc: "/office-catering", changefreq: "monthly", priority: "0.7" },
       { loc: "/groceries", changefreq: "weekly", priority: "0.7" },
       { loc: "/bread", changefreq: "weekly", priority: "0.6" },
+      { loc: "/lunch", changefreq: "weekly", priority: "0.7" },
+      { loc: "/party-food-solihull", changefreq: "monthly", priority: "0.9" },
+      { loc: "/bentley-heath", changefreq: "monthly", priority: "0.9" },
+      { loc: "/stratford-upon-avon", changefreq: "monthly", priority: "0.9" },
       { loc: "/privacy", changefreq: "yearly", priority: "0.2" },
       { loc: "/terms", changefreq: "yearly", priority: "0.2" },
     ];
-    let categoryUrls: Array<{ loc: string; changefreq: string; priority: string }> = [];
+    let dynamicUrls: Array<{ loc: string; changefreq: string; priority: string; lastmod?: Date }> = [];
     try {
-      const cats = await prisma.category.findMany({ where: { active: true }, select: { slug: true } });
-      categoryUrls = cats.map((c) => ({ loc: `/shop/${c.slug}`, changefreq: "weekly", priority: "0.8" }));
+      const [cats, boards] = await Promise.all([
+        prisma.category.findMany({ where: { active: true }, select: { slug: true, updatedAt: true } }),
+        prisma.platter.findMany({
+          where: { active: true },
+          select: { id: true, updatedAt: true, variantGroup: true },
+          orderBy: [{ variantOrder: "asc" }, { createdAt: "asc" }],
+        }),
+      ]);
+      // One URL per board: other sizes of the same board canonicalise to the lead size.
+      const seenGroups = new Set<string>();
+      const leads = boards.filter((b) => {
+        if (!b.variantGroup) return true;
+        if (seenGroups.has(b.variantGroup)) return false;
+        seenGroups.add(b.variantGroup);
+        return true;
+      });
+      dynamicUrls = [
+        ...cats.map((c) => ({ loc: `/shop/${c.slug}`, changefreq: "weekly", priority: "0.8", lastmod: c.updatedAt })),
+        ...leads.map((b) => ({ loc: `/platter/${b.id}`, changefreq: "weekly", priority: "0.6", lastmod: b.updatedAt })),
+      ];
     } catch (e) {
-      console.error("[sitemap] could not load categories", e);
+      console.error("[sitemap] could not load categories/boards", e);
     }
-    const urls = [...staticUrls, ...categoryUrls]
-      .map((u) => `  <url><loc>${xmlEscape(SITE + u.loc)}</loc><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`)
+    const urls = [...staticUrls, ...dynamicUrls]
+      .map(
+        (u: { loc: string; changefreq: string; priority: string; lastmod?: Date }) =>
+          `  <url><loc>${xmlEscape(SITE + u.loc)}</loc>${u.lastmod ? `<lastmod>${u.lastmod.toISOString().slice(0, 10)}</lastmod>` : ""}<changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`
+      )
       .join("\n");
     res.setHeader("Content-Type", "application/xml");
     res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`);
@@ -223,10 +249,14 @@ export function createApp(): Express {
   };
   app.use(async (req, res, next) => {
     // Admin login/API and the health check bypass the gate entirely.
+    // robots.txt and llms.txt stay readable too: a 401 there tells crawlers nothing,
+    // and they're the files that say what we'd like indexed once the gate comes off.
     if (
       req.path.startsWith("/api/auth") ||
       req.path.startsWith("/api/admin") ||
-      req.path === "/api/health"
+      req.path === "/api/health" ||
+      req.path === "/robots.txt" ||
+      req.path === "/llms.txt"
     ) {
       return next();
     }
@@ -270,10 +300,11 @@ export function createApp(): Express {
         })
       );
       // SPA fallback: client-side routes get index.html; API/uploads 404 as JSON-land paths.
-      app.get("*", (req, res, next) => {
-        if (req.path.startsWith("/api") || req.path.startsWith("/uploads")) return next();
-        res.sendFile(path.join(clientDist, "index.html"));
-      });
+      // Each route's real content is rendered into the HTML first (see lib/seo-pages.ts) so
+      // crawlers that don't run JavaScript still read it. If that fails for any reason the
+      // plain shell goes out instead: a DB blip must never take the shop offline.
+      // index.html is read once: every deploy is a fresh container with a fresh build.
+      app.get("*", seoHtmlHandler(fs.readFileSync(path.join(clientDist, "index.html"), "utf8")));
     } else {
       console.warn("[app] client/dist not found — running API-only (no static client).");
     }

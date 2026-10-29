@@ -14,7 +14,6 @@ import { ReminderCapture } from "../components/ReminderCapture";
 import { morphNavigate } from "../lib/motion";
 import { groupVariants, cheapestVariant, type ProductGroup } from "../lib/variants";
 
-const SITE = "https://www.kellysdeli.co.uk";
 
 function priceFeeds(g: ProductGroup): string {
   const target = g.hasChoice ? cheapestVariant(g) : g.lead;
@@ -51,58 +50,7 @@ export default function ShopCategory() {
     !!cat?.seoTitle,
   );
 
-  // Structured data: CollectionPage + ItemList of the assigned boards, and a breadcrumb.
-  // Injected when the category loads (search landing pages), removed on unmount.
-  useEffect(() => {
-    if (!cat) return;
-    // One entry per product, not per size — otherwise the same board is listed to search
-    // engines two or three times, which is exactly the duplication the grouping removed.
-    const boards = groupVariants(cat.boards ?? []).map((g) => g.lead);
-    const itemList = {
-      "@context": "https://schema.org",
-      "@type": "CollectionPage",
-      name: cat.seoTitle ?? cat.name,
-      description: cat.seoDescription ?? cat.description ?? undefined,
-      url: `${SITE}/shop/${cat.slug}`,
-      isPartOf: { "@type": "WebSite", name: "Kelly's Deli", url: SITE },
-      mainEntity: {
-        "@type": "ItemList",
-        numberOfItems: boards.length,
-        itemListElement: boards.map((b, i) => ({
-          "@type": "ListItem",
-          position: i + 1,
-          item: {
-            "@type": "Product",
-            name: b.name,
-            url: `${SITE}/platter/${b.id}`,
-            ...(b.imageUrl ? { image: b.imageUrl } : {}),
-            offers: {
-              "@type": "Offer",
-              priceCurrency: "GBP",
-              price: String(b.fixedPrice ?? b.fromPrice ?? 0),
-              availability: "https://schema.org/InStock",
-            },
-          },
-        })),
-      },
-    };
-    const breadcrumb = {
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "Shop", item: `${SITE}/shop` },
-        { "@type": "ListItem", position: 2, name: cat.name, item: `${SITE}/shop/${cat.slug}` },
-      ],
-    };
-    const nodes = [itemList, breadcrumb].map((data) => {
-      const el = document.createElement("script");
-      el.type = "application/ld+json";
-      el.text = JSON.stringify(data);
-      document.head.appendChild(el);
-      return el;
-    });
-    return () => nodes.forEach((n) => n.remove());
-  }, [cat]);
+  // Structured data (breadcrumb etc.) is rendered once by the server: server/src/lib/seo-pages.ts.
 
   const startOrder = (p: Platter) => {
     addBoard(p.id);

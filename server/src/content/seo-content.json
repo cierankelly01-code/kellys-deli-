@@ -1,0 +1,74 @@
+{
+  "_readme": "Copy shared by the React pages and the server-rendered HTML that search engines and AI assistants read. Only put TRUE, checkable facts here: every line is something ChatGPT or Google may quote back to a customer. whyUs items need a source note so the next person can re-check them. Claim-checked 29 Oct 2026.",
+  "faq": [
+    { "q": "How much notice do you need?", "a": "At least 48 hours before your collection date for boards and platters. The calendar on the order page shows dates that meet that notice and aren't fully booked." },
+    { "q": "How does payment work?", "a": "A 25% deposit secures your board or platter order — we'll be in touch by text or email to confirm and arrange it. The balance is due on collection, nothing extra is charged automatically. Your deposit is fully refundable up to 48 hours before." },
+    { "q": "Can you cater for allergies?", "a": "There's a notes field on the order form for allergies or dietary requirements, and we'll confirm with you directly before your collection date. We can't guarantee any item is completely free from a given allergen." },
+    { "q": "Can I change or cancel an order?", "a": "Get in touch as soon as you can with your order reference and we'll sort it out — the earlier you let us know, the more flexible we can be." }
+  ],
+  "officeFaq": [
+    { "q": "Do you do office catering near Solihull?", "a": "Yes — Kelly's Deli is a family-run deli in Bentley Heath, Solihull, and we cater platters and boards for offices across Solihull, Knowle and Dorridge for meetings, team lunches and workplace gatherings." },
+    { "q": "How much notice do you need for a meeting or office lunch?", "a": "At least 48 hours for a standard order. For a larger one-off event or a regular weekly lunch, get in touch as early as you can so we can reserve your date." },
+    { "q": "Can you deliver to our office, or is it collection only?", "a": "Office platters can be collected from Bentley Heath. Delivery is available for regular office orders — tell us your postcode and how often you need food, and we'll confirm availability and any delivery cost." },
+    { "q": "Can you invoice monthly instead of paying per order?", "a": "For regular office lunches we can arrange monthly invoicing — tell us how often you need feeding in your enquiry and we'll set it up with you." },
+    { "q": "Can you cater for dietary requirements and allergies?", "a": "Tell us about allergies or dietary needs when you enquire and we'll talk through what we can provide before anything is booked. We can't guarantee any item is completely free from a given allergen." },
+    { "q": "How many platters do we need for our office?", "a": "Each board's size shows how many it feeds. As a rough guide, plan a light platter per 3-4 people if it's alongside other food, or per 2-3 people if it's the main lunch — tell us your headcount and we'll help you get it right." }
+  ],
+  "whyUs": [
+    { "fact": "Two shops: Bentley Heath in Solihull, and Stratford-upon-Avon. Order online and pick the shop you'll collect from.", "source": "Location table + checkout shop picker" },
+    { "fact": "Every board is made to order once you've booked your date. Nothing sits pre-built waiting for a customer.", "source": "Our Story values, live since July 2026" },
+    { "fact": "Boards list how many people they feed, so you can match the food to the guest list before you order.", "source": "Platter.feedsMin/feedsMax/serves" },
+    { "fact": "Boards and platters need just 48 hours' notice.", "source": "capacity.ts MIN_NOTICE_HOURS + Terms" },
+    { "fact": "Bread, sandwiches and salads come from the same shop, so you can sort the whole table in one go.", "source": "Bread + Groceries catalogues" }
+  ],
+  "locations": {
+    "bentley-heath": {
+      "title": "Kelly's Deli Bentley Heath, Solihull — Deli, Grazing Boards & Party Platters",
+      "description": "Kelly's Deli at 1 Slater Road, Bentley Heath, Solihull B93 8AQ. Grazing boards, party platters, bread and a deli counter for collection, close to Knowle, Dorridge and Solihull.",
+      "h1": "Kelly's Deli, Bentley Heath",
+      "lede": "Our shop on Slater Road in Bentley Heath, on the doorstep of Knowle and Dorridge. Order a grazing board, party platter, bread or lunch online, then collect it from the counter.",
+      "nearby": ["Bentley Heath", "Knowle", "Dorridge", "Solihull", "Hockley Heath", "Widney Manor"],
+      "areaServedSchema": ["Solihull", "Bentley Heath", "Knowle", "Dorridge"],
+      "mapQuery": "Kelly's Deli 1 Slater Road Solihull B93 8AQ"
+    },
+    "stratford-upon-avon": {
+      "title": "Kelly's Deli Stratford-upon-Avon — Deli, Grazing Boards & Party Platters",
+      "description": "Kelly's Deli at 13 Wood Street, Stratford-upon-Avon CV37 6JF. Grazing boards, party platters, bread and a deli counter for collection in the town centre.",
+      "h1": "Kelly's Deli, Stratford-upon-Avon",
+      "lede": "Our town-centre shop on Wood Street, Stratford-upon-Avon. Order a grazing board, party platter, bread or lunch online, then collect it from the counter.",
+      "nearby": ["Stratford-upon-Avon town centre", "Shottery", "Tiddington"],
+      "areaServedSchema": ["Stratford-upon-Avon", "Warwickshire"],
+      "mapQuery": "Kelly's Deli 13 Wood Street Stratford-upon-Avon CV37 6JF"
+    }
+  },
+  "partyGuide": {
+    "path": "/party-food-solihull",
+    "title": "Party Food in Solihull — Grazing Boards & Platters to Order | Kelly's Deli",
+    "description": "Hosting a party in Solihull or Stratford-upon-Avon? Kelly's Deli makes grazing boards and party platters to order. See what feeds how many, prices, and how to collect with 48 hours' notice.",
+    "h1": "Hosting a party in Solihull? Here's the food sorted.",
+    "answer": "Kelly's Deli is an independent deli in Bentley Heath, Solihull (with a second shop in Stratford-upon-Avon) that makes grazing boards and party platters to order. Pick boards to cover your guest list, choose a collection date at least 48 hours ahead, and collect them ready to put on the table.",
+    "sections": [
+      {
+        "h": "How much party food do I need?",
+        "p": "Start from your headcount. Boards on our site say how many they feed, so add them up until you cover the guest list. Not sure? Tell us your numbers and we'll help you get it right. The table below is live from our menu."
+      },
+      {
+        "h": "How far ahead should I order?",
+        "p": "At least 48 hours before you collect. Book big parties as early as you can so we can reserve your date. The order calendar shows dates that meet our notice and aren't fully booked."
+      },
+      {
+        "h": "Where do I collect, and how do I pay?",
+        "p": "From either shop: 1 Slater Road, Bentley Heath, Solihull B93 8AQ, or 13 Wood Street, Stratford-upon-Avon CV37 6JF. You pick the shop and the day when you order. A 25% deposit confirms a board or platter order and the balance is paid on collection. For a larger event, ask us about delivery."
+      },
+      {
+        "h": "How do I tell you about allergies?",
+        "p": "Use the notes box when you order and we'll confirm the details with you before collection day. We can't guarantee any item is completely free from a given allergen."
+      },
+      {
+        "h": "What about the rest of the table?",
+        "p": "Pre-order bread, add salads from the deli counter, or order sandwiches for a lighter spread. Feeding the office instead? See our office catering."
+      }
+    ],
+    "occasions": ["Birthdays", "Baby showers", "Family gatherings", "Celebrations", "Office lunches & meetings"]
+  }
+}

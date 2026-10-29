@@ -78,9 +78,11 @@
   font-style: italic; font-weight: 400; font-size: var(--statement); line-height: 1.12;
   letter-spacing: -0.015em; color: var(--navy);
 }
-.choice .trust-strip .stars-widget { justify-content: center; margin: 0; font-size: 1rem; }
+.choice .trust-strip .stars-widget { min-height: 44px; justify-content: center; margin: 0 auto; font-size: 1rem; }
 .choice .trust-strip .stars-widget .stars { font-size: 1rem; }
-.choice .trust-strip span:not(.statement-line) { display: none; }
+/* Direct children only: the descendant version also hid the stars and "47 Google
+   reviews" inside the rating link, leaving a bare "4.7" on the live homepage. */
+.choice .trust-strip > span:not(.statement-line) { display: none; }
 .choice .app-wide { max-width: 1440px; padding-inline: var(--space-gutter); }
 .choice .occasion-section, .choice .board-section { margin: var(--space-section) 0; }
 .choice .shelf-head { align-items: end; gap: 24px; margin-bottom: 36px; }

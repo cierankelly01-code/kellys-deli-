@@ -3,6 +3,8 @@
 User-agent: *
 Allow: /
 Disallow: /admin
+Disallow: /order
+Disallow: /confirm/
 
 # AI answer engines — explicitly welcomed so ChatGPT, Gemini, Perplexity, Claude
 # and others can read the deli's info and recommend/cite it in their answers.

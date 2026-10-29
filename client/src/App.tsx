@@ -17,6 +17,8 @@ import Lunch from "./pages/Lunch";
 import Groceries from "./pages/Groceries";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
+import ShopLocation from "./pages/ShopLocation";
+import PartyGuide from "./pages/PartyGuide";
 import { Footer } from "./components/Footer";
 import { CartDrawer } from "./components/CartDrawer";
 import NotFound from "./pages/NotFound";
@@ -95,6 +97,9 @@ export default function App() {
         <Route path="/groceries" element={<Groceries />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
+        <Route path="/bentley-heath" element={<ShopLocation slug="bentley-heath" />} />
+        <Route path="/stratford-upon-avon" element={<ShopLocation slug="stratford-upon-avon" />} />
+        <Route path="/party-food-solihull" element={<PartyGuide />} />
         <Route path="*" element={<NotFound />} />
       </Route>
 

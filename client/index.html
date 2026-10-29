@@ -17,13 +17,14 @@
     <meta property="og:description" content="Family-run deli with shops in Bentley Heath (Solihull) and Stratford-upon-Avon. Charcuterie &amp; grazing boards and catering platters for collection, made fresh." />
     <meta property="og:url" content="https://www.kellysdeli.co.uk/" />
     <meta property="og:locale" content="en_GB" />
-    <!-- TODO: swap for a hosted photo of a real Kelly's Deli board (Supabase Storage URL) for on-brand link previews. -->
-    <meta property="og:image" content="https://images.unsplash.com/photo-1567496295302-b8dbcd2913b6?auto=format&fit=crop&w=1200&h=630&q=70" />
-    <meta property="og:image:alt" content="A Kelly's Deli grazing board of charcuterie, cheese and fruit" />
+    <meta property="og:image" content="https://www.kellysdeli.co.uk/images/og-kellys-deli.jpg" />
+    <meta property="og:image:alt" content="Olives, hummus, stuffed peppers and vine leaves on the Kelly's Deli counter" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Kelly's Deli — Grazing Boards &amp; Platters, Bentley Heath &amp; Stratford-upon-Avon" />
     <meta name="twitter:description" content="Family-run deli with shops in Bentley Heath (Solihull) and Stratford-upon-Avon. Charcuterie &amp; grazing boards and catering platters for collection, made fresh." />
-    <meta name="twitter:image" content="https://images.unsplash.com/photo-1567496295302-b8dbcd2913b6?auto=format&fit=crop&w=1200&h=630&q=70" />
+    <meta name="twitter:image" content="https://www.kellysdeli.co.uk/images/og-kellys-deli.jpg" />
 
     <!-- Structured data: local business. Read by Google (rich results / Maps) AND by
          AI answer engines (ChatGPT, Gemini, Perplexity) when deciding what to recommend. -->
@@ -50,10 +51,11 @@
           "name": "Kelly's Deli — Bentley Heath",
           "branchOf": { "@id": "https://www.kellysdeli.co.uk/#organization" },
           "description": "Kelly's Deli in Bentley Heath, Solihull — charcuterie, cheese and grazing boards, catering platters and grazing tables for collection. A 25% deposit secures your order; 48 hours' notice.",
-          "url": "https://www.kellysdeli.co.uk/",
+          "url": "https://www.kellysdeli.co.uk/bentley-heath",
+          "hasMap": "https://www.google.com/maps/search/?api=1&query=Kelly%27s+Deli+1+Slater+Road+Solihull+B93+8AQ",
           "telephone": "+441564703441",
           "email": "hello@kellysdeli.co.uk",
-          "image": "https://images.unsplash.com/photo-1567496295302-b8dbcd2913b6?auto=format&fit=crop&w=1200&h=630&q=70",
+          "image": "https://www.kellysdeli.co.uk/images/og-kellys-deli.jpg",
           "priceRange": "££",
           "servesCuisine": ["British", "Grazing boards", "Charcuterie", "Catering"],
           "currenciesAccepted": "GBP",
@@ -90,9 +92,10 @@
           "name": "Kelly's Deli — Stratford-upon-Avon",
           "branchOf": { "@id": "https://www.kellysdeli.co.uk/#organization" },
           "description": "Kelly's Deli in Stratford-upon-Avon — charcuterie, cheese and grazing boards, catering platters and grazing tables for collection. A 25% deposit secures your order; 48 hours' notice.",
-          "url": "https://www.kellysdeli.co.uk/",
+          "url": "https://www.kellysdeli.co.uk/stratford-upon-avon",
+          "hasMap": "https://www.google.com/maps/search/?api=1&query=Kelly%27s+Deli+13+Wood+Street+Stratford-upon-Avon+CV37+6JF",
           "email": "hello@kellysdeli.co.uk",
-          "image": "https://images.unsplash.com/photo-1567496295302-b8dbcd2913b6?auto=format&fit=crop&w=1200&h=630&q=70",
+          "image": "https://www.kellysdeli.co.uk/images/og-kellys-deli.jpg",
           "priceRange": "££",
           "servesCuisine": ["British", "Grazing boards", "Charcuterie", "Catering"],
           "currenciesAccepted": "GBP",
@@ -132,7 +135,7 @@
         {
           "@type": "Question",
           "name": "How do I order a grazing board from Kelly's Deli?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Choose a board or catering platter online at kellysdeli.co.uk, pick your collection date and pay a 25% deposit to secure it. We ask for at least 48 hours' notice so everything is made fresh." }
+          "acceptedAnswer": { "@type": "Answer", "text": "Choose a board or catering platter online at kellysdeli.co.uk and pick your collection shop and date. We'll then be in touch to take a 25% deposit, which confirms your order. We ask for at least 48 hours' notice so everything is made fresh." }
         },
         {
           "@type": "Question",
@@ -162,7 +165,7 @@
         {
           "@type": "Question",
           "name": "Do you do office catering near Solihull?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Yes. Kelly's Deli caters platters for meetings, team lunches and workplace gatherings across Solihull, Knowle and Dorridge, with standing weekly or monthly orders and invoicing available. See kellysdeli.co.uk/office-catering." }
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. Kelly's Deli caters platters for meetings, team lunches and workplace gatherings across Solihull, Knowle and Dorridge, with standing weekly or monthly orders and invoicing where agreed. See kellysdeli.co.uk/office-catering." }
         }
       ]
     }
@@ -170,6 +173,24 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Styles the server-rendered page snapshot (see server/src/lib/seo-pages.ts) for the
+         moment before the app loads, and for crawlers and readers that never run JS. -->
+    <style>
+      body { margin: 0; background: #faf7f0; }
+      .seo-snapshot { font: 17px/1.6 Mulish, system-ui, sans-serif; color: #142e44; background: #faf7f0; min-height: 100vh; }
+      .seo-top { text-align: center; padding: 22px 16px 14px; border-bottom: 1px solid #ddd9cf; }
+      .seo-brand { display: block; font: 400 2rem/1 Fraunces, Georgia, serif; color: #102b46; text-decoration: none; letter-spacing: -.02em; }
+      .seo-top nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 18px; margin-top: 14px; font-size: .82rem; }
+      .seo-top nav a { color: #142e44; text-decoration: none; }
+      .seo-main { max-width: 880px; margin: 0 auto; padding: 28px 20px 64px; }
+      .seo-snapshot h1, .seo-snapshot h2, .seo-snapshot h3 { font-family: Fraunces, Georgia, serif; font-weight: 400; line-height: 1.15; color: #102b46; }
+      .seo-snapshot h1 { font-size: clamp(2rem, 5vw, 3rem); letter-spacing: -.025em; margin: 8px 0 14px; }
+      .seo-snapshot a { color: #102b46; }
+      .seo-snapshot table { border-collapse: collapse; width: 100%; }
+      .seo-snapshot th, .seo-snapshot td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #ddd9cf; }
+      .seo-snapshot dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 16px; }
+      .seo-snapshot dd { margin: 0; }
+    </style>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Mulish:wght@400;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>

@@ -49,6 +49,9 @@ export function Footer() {
                 );
               })
             )}
+            <Link className="u-link" to="/bentley-heath">Bentley Heath shop</Link>
+            <Link className="u-link" to="/stratford-upon-avon">Stratford-upon-Avon shop</Link>
+            <Link className="u-link" to="/party-food-solihull">Party food guide</Link>
             <Link className="u-link" to="/our-story">Our story</Link>
           </div>
           <div className="footer-col">
