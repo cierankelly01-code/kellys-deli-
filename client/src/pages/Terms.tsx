@@ -10,7 +10,7 @@ export default function Terms() {
       <Header />
       <article className="legal">
         <h1>Terms &amp; Conditions</h1>
-        <p className="muted">Last updated: 7 July 2026</p>
+        <p className="muted">Last updated: 29 October 2026</p>
 
         <p>
           These terms apply when you place an order with Kelly&apos;s Deli through this website. By
@@ -40,9 +40,11 @@ export default function Terms() {
             never see or store your card details. Your order is confirmed once it&apos;s paid.
           </li>
           <li>
-            If online payment isn&apos;t available when you order, you pay when you collect, and we&apos;ll tell
-            you so on your order page.
+            If online payment isn&apos;t available when you order a board or platter, we&apos;ll be in touch to
+            arrange payment, and your date is confirmed once it&apos;s paid. For bread, lunch and deli counter orders,
+            you pay when you collect. Your order page tells you which applies.
           </li>
+          <li>Tasting sessions: a 25% deposit, taken by phone when we confirm your booking.</li>
           <li>Orders placed before 29 October 2026 keep the terms they were placed on (a deposit, with the balance paid on collection).</li>
         </ul>
 

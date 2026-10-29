@@ -86,7 +86,7 @@ export default function SimpleOrderConfirm() {
           <>
             <h1>Your order has been refunded</h1>
             <p className="confirm-copy">
-              We&apos;ve refunded {gbp(order.total)} for order {order.ref}. It can take a few days to reach your account.
+              We&apos;ve refunded {gbp(order.total)} for order {order.ref}. It can take 5 to 10 working days to show on your statement, depending on your bank.
               Questions? Email hello@kellysdeli.co.uk.
             </p>
           </>
@@ -121,10 +121,17 @@ export default function SimpleOrderConfirm() {
             <p className="muted small">Card payment by Stripe. We never see your card details.</p>
             {payError && <p className="notice danger" role="alert">{payError}</p>}
           </>
-        ) : (
+        ) : order.paymentStatus === "none" ? (
           <>
             <h1>You&apos;re booked in!</h1>
-            <p className="confirm-copy">Pay when you collect — we&apos;ll text you if anything changes.</p>
+            <p className="confirm-copy">Pay when you collect — we&apos;ll be in touch if anything changes.</p>
+          </>
+        ) : (
+          <>
+            <h1>We&apos;re still waiting on your payment</h1>
+            <p className="confirm-copy">
+              This order can&apos;t be paid online right now. Email hello@kellysdeli.co.uk quoting {order.ref} and we&apos;ll sort it out.
+            </p>
           </>
         )}
         <p className="confirm-collection">

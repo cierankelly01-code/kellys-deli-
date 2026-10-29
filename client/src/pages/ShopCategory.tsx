@@ -150,7 +150,7 @@ export default function ShopCategory() {
       {!cat.isCorporate && (
         <div className="cat-subscribe-note" data-reveal>
           <span className="csn-badge" aria-hidden="true">↻</span>
-          <span>Order it on repeat and <strong>save 10%</strong> — pick weekly, fortnightly or monthly on any board. No card taken now; we set the schedule up with you.</span>
+          <span>Order it on repeat and <strong>save 10%</strong> — pick weekly, fortnightly or monthly on any board. You pay for your first board when you order; we set the rest of the schedule up with you.</span>
         </div>
       )}
 

@@ -158,7 +158,7 @@ export default function Lunch() {
           <p className="confirm-collection">Collection <strong>{formatDateLong(confirmed.collectionDate)}</strong> — {confirmed.locationName}</p>
           <p className="confirm-copy">
             Pay on collection — we&apos;ll text you if anything changes.
-            {confirmed.isSubscription && " We'll be in touch to set up your standing order — no card needed now."}
+            {confirmed.isSubscription && " We'll be in touch to set up your standing order."}
           </p>
           <div className="ref-badge">Order reference<strong>{confirmed.ref}</strong></div>
         </div>

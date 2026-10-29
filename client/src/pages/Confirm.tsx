@@ -170,8 +170,8 @@ function BoardConfirm() {
           <>
             <h1>{inFull ? "Your payment has been refunded" : "Your deposit has been refunded"}</h1>
             <p className="confirm-copy">
-              We&apos;ve refunded {gbp(order.deposit)} for order {order.ref}. It can take a few days to reach
-              your account. Questions? Email hello@kellysdeli.co.uk.
+              We&apos;ve refunded {gbp(order.deposit)} for order {order.ref}. It can take 5 to 10 working days to show on your statement, depending on
+              your bank. Questions? Email hello@kellysdeli.co.uk.
             </p>
           </>
         ) : backFromStripe ? (

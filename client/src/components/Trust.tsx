@@ -43,7 +43,7 @@ export function TrustChips() {
           <path d="M4 5v4h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       ),
-      label: "Refundable to 48 hrs",
+      label: "Full refund up to 48 hrs before",
     },
     {
       icon: (

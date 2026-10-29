@@ -6,7 +6,6 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "changeme123";
 
 /** Parse a "£12.34" / "£12" string to a number. */
 const money = (s: string) => parseFloat(s.replace(/[^0-9.]/g, ""));
-const roundTo5p = (n: number) => Math.round((Math.round(n / 0.05) * 0.05) * 100) / 100;
 
 /** After an add-to-basket, reach /order — via the Smart Cart drawer (board/PDP adds open
  * it) or directly (the event planner navigates straight there). */
@@ -29,7 +28,7 @@ async function completeOrder(page: Page): Promise<string> {
   await pickCollectionDate(page);
   await page.getByRole("button", { name: "Review order" }).click();
   await expect(page.locator("p.deposit-policy")).toBeVisible();
-  await page.getByRole("button", { name: "Place order request" }).click();
+  await page.getByRole("button", { name: /^Order and pay/ }).click();
   await expect(page).toHaveURL(/\/confirm\//);
   await expect(page.getByRole("heading", { name: "Your order request is in!" })).toBeVisible();
   const url = page.url();
@@ -93,13 +92,11 @@ test.describe("customer flows", () => {
     await page.getByLabel("Email").fill("totals@example.com");
     await pickCollectionDate(page);
     await page.getByRole("button", { name: "Review order" }).click();
-    // Deposit must be 25% of total, rounded to nearest 5p; balance = total − deposit.
+    // Paid in full since 29 Oct 2026: no deposit or balance rows, the button shows the total.
     const total = money(await page.locator(".review-row.total span").last().innerText());
-    const deposit = money(await page.locator(".review-row", { hasText: "Deposit due" }).locator("span").last().innerText());
-    const balance = money(await page.locator(".review-row", { hasText: "Balance on collection" }).locator("span").last().innerText());
-    expect(deposit).toBeCloseTo(roundTo5p(total * 0.25), 2);
-    expect(balance).toBeCloseTo(Math.round((total - deposit) * 100) / 100, 2);
-    await page.getByRole("button", { name: "Place order request" }).click();
+    await expect(page.locator(".review-row", { hasText: "Deposit due" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Order and pay/ })).toContainText(`£${total.toFixed(2)}`);
+    await page.getByRole("button", { name: /^Order and pay/ }).click();
     await expect(page).toHaveURL(/\/confirm\//);
   });
 });
@@ -113,7 +110,7 @@ test.describe("admin", () => {
     await expect(page).toHaveURL(/\/admin$/);
   }
 
-  test("admin login shows itemised orders with deposit + balance and cycles status", async ({ page }) => {
+  test("admin login shows itemised orders with their payment and cycles status", async ({ page }) => {
     // Seed an order first via the customer flow.
     await page.goto("/platters");
     await orderBoardSize(page, "Large Platter", /Small/);
@@ -124,8 +121,8 @@ test.describe("admin", () => {
     await page.getByRole("link", { name: "Orders", exact: true }).click();
     const firstCard = page.locator(".order-card").first();
     await expect(firstCard).toBeVisible();
-    await expect(firstCard.getByText(/deposit due \(25%\)/i)).toBeVisible();
-    await expect(firstCard.getByText(/balance/i)).toBeVisible();
+    await expect(firstCard.getByText(/deposit due/i)).toHaveCount(0);
+    await expect(firstCard.getByText(/balance/i)).toHaveCount(0);
     // Cycle status through the flow.
     for (const label of ["Deposit requested", "Confirmed", "Collected"]) {
       await firstCard.getByRole("button", { name: label, exact: true }).click();

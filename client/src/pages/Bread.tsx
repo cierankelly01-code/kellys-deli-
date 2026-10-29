@@ -160,7 +160,7 @@ export default function Bread() {
     <div className="app order-page">
       <Header />
       <h1 className="page-h">Order bread for collection</h1>
-      <p className="muted">Baked fresh every day and delivered to us by our own baker. Pre-order your bread and collect it from your local shop — pay when you pick it up.</p>
+      <p className="muted">Baked fresh every day and delivered to us by our own baker. Pre-order your bread and collect it from your local shop. You pay securely online when you order.</p>
 
       {loadError && <div className="notice danger">{loadError}</div>}
 

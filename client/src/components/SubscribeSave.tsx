@@ -2,7 +2,7 @@ import { SUBSCRIPTION_FREQUENCIES, FREQUENCY_LABELS, type SubscriptionFrequency 
 
 /**
  * Subscribe & Save picker. Payment-READY, not payment-live: opting in flags a recurring
- * intent and applies the discount, but takes NO card — the copy says exactly that. Used on
+ * intent and applies the discount, charges only the first board at checkout — the copy says exactly that. Used on
  * the board page and in checkout; the choice is carried through the cart.
  */
 export function SubscribeSave({
@@ -46,8 +46,8 @@ export function SubscribeSave({
           </div>
           <p className="ss-honest">
             {invoiced
-              ? "No card needed now — we'll set your schedule up with you and invoice monthly. You confirm every delivery before it's made."
-              : "No card taken now — we'll set your schedule up with you and confirm each board before we make it. Pause, skip or cancel any time."}
+              ? "You pay for your first board when you order. We'll set the rest of your schedule up with you, and you confirm every delivery before it's made."
+              : "You pay for your first board when you order. Nothing else bills automatically: we'll set your schedule up with you and confirm each board before we make it. Pause, skip or cancel any time."}
           </p>
         </div>
       )}
