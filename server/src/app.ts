@@ -150,6 +150,10 @@ export function createApp(): Express {
         // DIFFERENT payment means the customer has been charged twice.
         if (order.depositIntentId && result.intentId && order.depositIntentId !== result.intentId) {
           await problem(ref, `This order's deposit was paid TWICE (payments ${order.depositIntentId} and ${result.intentId}). Refund one of them.`);
+        } else if (order.depositStatus === "paid" && !order.confirmationSentAt && order.depositIntentId === result.intentId) {
+          // Stripe retrying a payment we recorded but crashed before confirming: the emails
+          // are the only confirmation the customer gets, so send them now (claimed once).
+          await sendOrderEmails(order, { depositPaid: true });
         }
         return res.status(200).json({ received: true, handled: false });
       }

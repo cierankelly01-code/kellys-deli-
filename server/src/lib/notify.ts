@@ -105,6 +105,7 @@ export interface OrderNotifyInput {
   payOnline?: boolean;
   /** Sent from the Stripe webhook: the deposit is paid and the date is confirmed. */
   depositPaid?: boolean;
+  depositPaidBy?: "card" | "shop";
 }
 
 export async function notifyOrderReceived(t: NotifyTarget, o: OrderNotifyInput): Promise<void> {
@@ -132,6 +133,7 @@ export async function notifyOrderReceived(t: NotifyTarget, o: OrderNotifyInput):
     balance,
     payOnline: o.payOnline ?? stripeEnabled(),
     depositPaid: o.depositPaid ?? false,
+    depositPaidBy: o.depositPaidBy,
   };
   const subject = o.depositPaid ? `Order ${o.ref} confirmed — deposit received` : `Order request ${o.ref} received — Kelly's Deli`;
   await Promise.all([
@@ -169,6 +171,7 @@ export async function notifyShopOfOrder(shopEmail: string, t: NotifyTarget, o: O
     balance,
     payOnline: o.payOnline ?? stripeEnabled(),
     depositPaid: o.depositPaid ?? false,
+    depositPaidBy: o.depositPaidBy,
   };
   const subject = o.depositPaid ? `New order ${o.ref} (deposit paid) — ${o.collectionDate}` : `New order ${o.ref} — ${o.collectionDate}`;
   await sendEmail(shopEmail, subject, orderShopAlertText(d), orderShopAlertHtml(d));

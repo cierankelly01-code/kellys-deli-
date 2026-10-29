@@ -68,6 +68,9 @@ export interface OrderEmailData {
   /** The deposit has been paid online: this is the confirmation, not a request. Online
    * orders send nothing until Stripe confirms the deposit (see the webhook). */
   depositPaid?: boolean;
+  /** How the deposit was paid: online by card (Stripe), or taken by the shop (phone or
+   * bank) and marked paid in admin. Only "card" may say card or Stripe. */
+  depositPaidBy?: "card" | "shop";
 }
 
 const orderPage = (ref: string) => `${SITE}/confirm/${encodeURIComponent(ref)}`;
@@ -189,7 +192,7 @@ export function orderReceivedHtml(d: OrderEmailData): string {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
         ${totalsRow("Order total", money(d.total), { strong: true })}
         ${d.depositPaid
-          ? totalsRow("Deposit paid", money(d.deposit), { note: "25% — paid by card" })
+          ? totalsRow("Deposit paid", money(d.deposit), { note: d.depositPaidBy === "shop" ? "25% — received, thank you" : "25% — paid by card" })
           : totalsRow("Deposit to confirm", money(d.deposit), { note: d.payOnline ? "25% — pay securely online" : "25% — we'll be in touch to take it" })}
         ${totalsRow("Balance on collection", money(d.balance))}
       </table>
@@ -245,7 +248,7 @@ export function orderReceivedText(d: OrderEmailData): string {
     lines,
     ``,
     `Order total: ${money(d.total)}`,
-    d.depositPaid ? `Deposit paid (25%, by card): ${money(d.deposit)}` : `Deposit to confirm (25%): ${money(d.deposit)}`,
+    d.depositPaid ? `Deposit paid (25%${d.depositPaidBy === "shop" ? "" : ", by card"}): ${money(d.deposit)}` : `Deposit to confirm (25%): ${money(d.deposit)}`,
     `Balance on collection: ${money(d.balance)}`,
     ``,
     `Collection: ${d.collectionDate} — ${d.locationName}`,
@@ -600,7 +603,7 @@ export function orderShopAlertText(d: OrderEmailData): string {
     ``,
     `Total: ${money(d.total)}`,
     d.depositPaid
-      ? `Deposit (25%): ${money(d.deposit)} — PAID by card (Stripe). Don't take it again.`
+      ? `Deposit (25%): ${money(d.deposit)} — ${d.depositPaidBy === "shop" ? "PAID (marked paid in admin)" : "PAID by card (Stripe)"}. Don't take it again.`
       : d.payOnline
       ? `Deposit (25%): ${money(d.deposit)} — customer pays online (Stripe); admin shows when it's paid. Don't take it twice.`
       : `Deposit to collect (25%): ${money(d.deposit)}`,
@@ -634,7 +637,7 @@ export function orderShopAlertHtml(d: OrderEmailData): string {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
         ${totalsRow("Total", money(d.total))}
         ${d.depositPaid
-          ? totalsRow("Deposit paid by card", money(d.deposit), { strong: true, note: "Paid by Stripe. Don't take it again." })
+          ? totalsRow(d.depositPaidBy === "shop" ? "Deposit paid" : "Deposit paid by card", money(d.deposit), { strong: true, note: d.depositPaidBy === "shop" ? "Marked paid in admin." : "Paid by Stripe. Don't take it again." })
           : d.payOnline
           ? totalsRow("Deposit (paid online)", money(d.deposit), { strong: true, note: "Customer pays by Stripe — admin shows when it's paid. Don't take it twice." })
           : totalsRow("Deposit to collect", money(d.deposit), { strong: true })}
