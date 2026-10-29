@@ -162,7 +162,7 @@ export function createApp(): Express {
         } else if (order.depositStatus === "paid" && !order.confirmationSentAt && order.depositIntentId === result.intentId) {
           // Stripe retrying a payment we recorded but crashed before confirming: the emails
           // are the only confirmation the customer gets, so send them now (claimed once).
-          await sendOrderEmails(order, { depositPaid: true });
+          await sendOrderEmails(order, { depositPaid: true, onlyIfFirst: true });
         }
         return res.status(200).json({ received: true, handled: false });
       }

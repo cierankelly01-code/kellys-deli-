@@ -55,10 +55,14 @@ async function shopInbox(): Promise<string | null> {
  * "you're booked in" and the shop a short "deposit paid" note, not a second "new order".
  * The order is already committed when this runs: a mail failure is logged, never thrown.
  */
-export async function sendOrderEmails(o: OrderForEmail, opts: { depositPaid?: boolean; depositPaidBy?: "card" | "shop" } = {}): Promise<void> {
+export async function sendOrderEmails(
+  o: OrderForEmail,
+  opts: { depositPaid?: boolean; depositPaidBy?: "card" | "shop"; onlyIfFirst?: boolean } = {},
+): Promise<void> {
   const depositPaid = opts.depositPaid ?? false;
   const first = (await prisma.order.updateMany({ where: { id: o.id, confirmationSentAt: null }, data: { confirmationSentAt: new Date() } })).count > 0;
-  if (!first && !depositPaid) return;
+  // onlyIfFirst: a catch-up send (webhook retry) that must not repeat what another caller sent.
+  if (!first && (!depositPaid || opts.onlyIfFirst)) return;
   const input = notifyInput(o, depositPaid, opts.depositPaidBy ?? "card");
   const target = { name: o.customerName, phone: o.phone, email: o.email };
   await notifyOrderReceived(target, input).catch((err) => console.error(`[orders] customer notice failed for ${o.ref}`, err));
