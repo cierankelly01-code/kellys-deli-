@@ -17,6 +17,7 @@ import { parseWebhook } from "./lib/payments";
 import { seoHtmlHandler } from "./lib/seo-pages";
 import { notifyShopPaymentProblem } from "./lib/notify";
 import { sendOrderEmails, orderEmailInclude } from "./lib/order-emails";
+import { recordSimplePayment, recordSimpleRefund, simpleKindForRef } from "./lib/simple-order-payments";
 
 const SITE = "https://www.kellysdeli.co.uk";
 
@@ -121,9 +122,16 @@ export function createApp(): Express {
       // A full refund made in the Stripe dashboard shows on the order too.
       if (result.refundedIntentId) {
         const r = await prisma.order.updateMany({ where: { depositIntentId: result.refundedIntentId, depositStatus: "paid" }, data: { depositStatus: "refunded" } });
-        return res.status(200).json({ received: true, handled: r.count > 0 });
+        const simple = await recordSimpleRefund(result.refundedIntentId);
+        return res.status(200).json({ received: true, handled: r.count + simple > 0 });
       }
       const ref = result.paidOrderRef!;
+      // Bread (KDB-) and deli counter (KDS-) orders have their own handler; boards below.
+      const simpleKind = simpleKindForRef(ref);
+      if (simpleKind) {
+        const handled = await recordSimplePayment(simpleKind, result, problem);
+        return res.status(200).json({ received: true, handled });
+      }
       const order = await prisma.order.findUnique({
         where: { ref },
         include: orderEmailInclude,

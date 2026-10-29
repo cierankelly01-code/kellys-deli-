@@ -65,7 +65,8 @@ export interface LineTotals {
 }
 
 /**
- * Live totals for a set of board + add-on lines. Deposit is 25% rounded to the nearest 5p.
+ * Live totals for a set of board + add-on lines. Orders are paid in full upfront, so the
+ * amount paid now (`deposit`, named for the server field) is the whole total.
  * `boards` / `addOns` carry a unitPrice + quantity (already resolved from the catalogue).
  */
 export function computeTotals(
@@ -75,7 +76,7 @@ export function computeTotals(
   const boardsTotal = money(boards.reduce((s, b) => s + b.unitPrice * b.quantity, 0));
   const addOnsTotal = money(addOns.reduce((s, a) => s + a.unitPrice * a.quantity, 0));
   const total = money(boardsTotal + addOnsTotal);
-  const deposit = roundTo5p(total * 0.25);
-  const balance = money(total - deposit);
+  const deposit = total;
+  const balance = 0;
   return { boardsTotal, addOnsTotal, total, deposit, balance };
 }

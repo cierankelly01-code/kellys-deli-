@@ -142,6 +142,13 @@ export default function Groceries() {
         email: email.trim() || undefined,
         notes: notes.trim() || undefined,
       });
+      // Paid in full online: off to Stripe. The order page confirms once it's paid. No
+      // payment page (Stripe off or down) means pay on collection, confirmed right here.
+      const checkoutUrl = res.payment?.checkoutUrl;
+      if (checkoutUrl?.startsWith("https://checkout.stripe.com/")) {
+        window.location.assign(checkoutUrl);
+        return;
+      }
       setConfirmed(res.order);
     } catch (e: any) {
       // A slot that filled up (or a shop that just closed the day) between page load and
@@ -270,7 +277,7 @@ export default function Groceries() {
           {lines.length > 0 && (
             <div className="running-total" style={{ marginTop: 24 }}>
               <div><span className="muted">Basket ({totalQty} item{totalQty === 1 ? "" : "s"})</span> <strong>{gbp(total)}</strong></div>
-              <div className="muted small">Pay on collection</div>
+              <div className="muted small">Paid securely online when you order</div>
             </div>
           )}
 
@@ -308,11 +315,11 @@ export default function Groceries() {
             {error && <p className="form-error" role="alert">{error}</p>}
             <div className="step-actions">
               <button className="btn" disabled={!formValid || submitting || totalQty === 0} onClick={submit}>
-                {submitting ? "Placing…" : totalQty === 0 ? "Add items to order" : "Place order"}
+                {submitting ? "Placing…" : totalQty === 0 ? "Add items to order" : "Order and pay"}
               </button>
             </div>
             {date && selectedDay?.bookable && (
-              <p className="muted small">Collection {formatDate(date)} — pay in shop, no card needed now.</p>
+              <p className="muted small">Collection {formatDate(date)} — you pay securely online when you order. Fully refundable if you cancel 48 hours or more before collection.</p>
             )}
           </section>
         </div>

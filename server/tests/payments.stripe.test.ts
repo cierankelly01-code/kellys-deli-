@@ -106,18 +106,18 @@ async function placeOrder() {
 const getOrder = async (ref: string) => (await request(app).get(`/api/orders/${ref}`)).body;
 
 d("Stripe deposits", () => {
-  it("sends the customer to Stripe for 25% of the board price (to the nearest 5p), cards only", async () => {
+  it("sends the customer to Stripe for the full board price, cards only", async () => {
     create.mockClear();
     const { body } = await placeOrder();
-    // Independent of the app's own maths: 25% of the price, to the nearest 5p, in pence.
-    const expectedPence = Math.round((board.fixedPrice * 100 * 0.25) / 5) * 5;
+    // Independent of the app's own maths: the whole price, in pence (paid in full since 29 Oct 2026).
+    const expectedPence = Math.round(board.fixedPrice * 100);
     const args = create.mock.calls[0][0];
     expect(body.payment.checkoutUrl).toMatch(/^https:\/\/checkout\.stripe\.com\//);
     expect(args.line_items?.[0].price_data?.unit_amount).toBe(expectedPence);
     expect(args.line_items?.[0].price_data?.currency).toBe("gbp");
     expect(args.allowed_payment_method_types).toEqual(["card"]);
     expect(args.expires_at).toBeGreaterThan(Date.now() / 1000 + 30 * 60 - 5);
-    expect(args.metadata).toEqual({ orderRef: body.order.ref, kind: "deposit" });
+    expect(args.metadata).toEqual({ orderRef: body.order.ref, kind: "order" });
     expect(args.success_url).toContain(`/confirm/${body.order.ref}?paid=1`);
   });
 
@@ -336,7 +336,7 @@ d("Stripe deposits — third review", () => {
       expect(mails()).toEqual([]);
       expect((await postWebhook(paidEvent(ref, pence))).body.handled).toBe(true);
       expect(mails().some((l) => l.includes("stripe-test@example.com") && l.includes(`Order ${ref} confirmed`))).toBe(true);
-      expect(mails().some((l) => l.includes("shop-test@example.com") && l.includes("deposit paid"))).toBe(true);
+      expect(mails().some((l) => l.includes("shop-test@example.com") && l.includes("(paid)"))).toBe(true);
     } finally {
       logs.mockRestore();
       await prisma.setting.delete({ where: { key: "orderNotifyEmail" } }).catch(() => {});
@@ -453,7 +453,7 @@ d("Stripe deposits — third review", () => {
       logs.mockClear();
       expect((await postWebhook(paidEvent(ref, pence))).body.handled).toBe(true);
       const shop = logs.mock.calls.map((c) => String(c[0])).filter((l) => l.includes("shop-test@example.com") && l.includes(ref));
-      expect(shop.some((l) => l.includes(`Deposit paid — ${ref}`))).toBe(true);
+      expect(shop.some((l) => l.includes(`Paid — ${ref}`))).toBe(true);
       expect(shop.some((l) => l.includes("New order"))).toBe(false);
     } finally {
       logs.mockRestore();

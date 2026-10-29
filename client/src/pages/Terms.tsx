@@ -32,22 +32,25 @@ export default function Terms() {
           booked; availability is shown when you order.
         </p>
 
-        <h2>Prices, deposits and payment</h2>
+        <h2>Prices and payment</h2>
         <ul>
           <li>Prices are shown on the website and include VAT where applicable.</li>
-          <li>A deposit is taken to secure your order; the balance is due on collection or delivery.</li>
           <li>
-            Where online payment is offered at checkout, the deposit is paid by card through our payment provider,
-            Stripe; we never see or store your card details. Otherwise, deposits are arranged directly with us.
-            Balances are paid on collection.
+            You pay for your order in full when you place it, by card through our payment provider, Stripe; we
+            never see or store your card details. Your order is confirmed once it&apos;s paid.
           </li>
+          <li>
+            If online payment isn&apos;t available when you order, you pay when you collect, and we&apos;ll tell
+            you so on your order page.
+          </li>
+          <li>Orders placed before 29 October 2026 keep the terms they were placed on (a deposit, with the balance paid on collection).</li>
         </ul>
 
         <h2>Changes, cancellations and refunds</h2>
         <p>
-          Need to change or cancel? Contact us as soon as possible, quoting your order reference. Because
-          our food is freshly prepared to order, we may be unable to refund a deposit if you cancel inside
-          the 48-hour notice window. We&apos;ll always try to be fair and reasonable, and this does not
+          Need to change or cancel? Contact us as soon as possible, quoting your order reference. If you cancel
+          48 hours or more before collection, we&apos;ll refund you in full. Because our food is freshly prepared
+          to order, we can&apos;t refund cancellations made less than 48 hours before collection. This does not
           affect your legal rights if something is wrong with your order.
         </p>
 

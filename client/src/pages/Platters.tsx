@@ -25,7 +25,7 @@ function priceFeeds(g: ProductGroup): string {
 export default function Platters() {
   usePageTitle(
     "Order a board",
-    "Browse Kelly's Deli grazing and charcuterie boards — charcuterie, cheese, savoury and smoked salmon in small, medium and large. Collection from the deli in Solihull, 25% deposit, 48 hours' notice.",
+    "Browse Kelly's Deli grazing and charcuterie boards — charcuterie, cheese, savoury and smoked salmon in small, medium and large. Collection from the deli in Solihull, pay online when you order, 48 hours' notice.",
   );
   const navigate = useNavigate();
   const [boards, setBoards] = useState<Platter[] | null>(null);

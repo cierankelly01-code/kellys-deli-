@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import request from "supertest";
 import { createApp } from "../src/app";
-import { roundTo5p, toMoney } from "../src/lib/money";
+import { toMoney } from "../src/lib/money";
 
 // Real-DB integration tests (v2 line-item orders). Run with DATABASE_URL set, after `npm run db:seed`.
 const hasDb = !!process.env.DATABASE_URL;
@@ -50,13 +50,13 @@ d("POST /api/orders (v2 line items + add-ons)", () => {
     src: "qr",
   });
 
-  it("creates a single-board order with a KD- ref, 25% deposit (nearest 5p), and balance", async () => {
+  it("creates a single-board order with a KD- ref, paid in full (no balance)", async () => {
     const res = await request(app).post("/api/orders").send(base());
     expect(res.status).toBe(201);
     expect(res.body.order.ref).toMatch(/^KD-[2-9A-Z]{6}$/);
     expect(res.body.pricing.total).toBe(signature.fixedPrice);
-    expect(res.body.pricing.deposit).toBe(roundTo5p(signature.fixedPrice * 0.25));
-    expect(res.body.pricing.balance).toBe(toMoney(signature.fixedPrice - res.body.pricing.deposit));
+    expect(res.body.pricing.deposit).toBe(signature.fixedPrice); // paid in full when ordering (29 Oct 2026)
+    expect(res.body.pricing.balance).toBe(0);
     expect(res.body.order.type).toBe("platter");
     expect(res.body.order.items).toHaveLength(1);
     expect(res.body.order.items[0].platterId).toBe(signature.id);
@@ -86,8 +86,8 @@ d("POST /api/orders (v2 line items + add-ons)", () => {
     expect(res.status).toBe(201);
     const expectedTotal = toMoney(signature.fixedPrice + perPerson.price * headcount + perOrder.price * 1);
     expect(res.body.pricing.total).toBe(expectedTotal);
-    expect(res.body.pricing.deposit).toBe(roundTo5p(expectedTotal * 0.25));
-    expect(res.body.pricing.balance).toBe(toMoney(expectedTotal - res.body.pricing.deposit));
+    expect(res.body.pricing.deposit).toBe(expectedTotal);
+    expect(res.body.pricing.balance).toBe(0);
     expect(res.body.order.addOns).toHaveLength(2);
     const addOnNames = res.body.order.addOns.map((a: any) => a.name);
     expect(addOnNames).toContain(perPerson.name);
@@ -108,7 +108,7 @@ d("POST /api/orders (v2 line items + add-ons)", () => {
     expect(res.status).toBe(201);
     const expectedTotal = toMoney(large.fixedPrice * 2 + cheese.fixedPrice * 1);
     expect(res.body.pricing.total).toBe(expectedTotal);
-    expect(res.body.pricing.deposit).toBe(roundTo5p(expectedTotal * 0.25));
+    expect(res.body.pricing.deposit).toBe(expectedTotal);
     expect(res.body.order.items).toHaveLength(2);
     expect(res.body.order.occasion).toBe("Corporate");
     // primary board = first item

@@ -43,7 +43,7 @@ export default function Privacy() {
         <ul>
           <li>Our website and database hosting providers (which store your order securely).</li>
           <li>Our email provider, to send you order confirmations.</li>
-          <li>When you pay a deposit online, Stripe, our card payment provider — they take your card details directly on their own secure page; we never see or store your card number. We share your order reference, deposit amount, collection shop and date, and email address with them.</li>
+          <li>When you pay online, Stripe, our card payment provider — they take your card details directly on their own secure page; we never see or store your card number. We share your order reference, the amount, and your collection shop and date with them. Stripe asks for your email on its own page.</li>
           <li>
             If you accept advertising cookies (see below), the advertising and analytics providers we use —
             Meta (Facebook and Instagram), TikTok and Google Analytics — receive information about your visit

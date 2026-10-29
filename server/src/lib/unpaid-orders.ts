@@ -10,7 +10,7 @@ import { checkoutStatus } from "./payments";
  */
 export const UNPAID_HOLD_MINUTES = 60;
 
-const RELEASED_NOTE = `Released automatically: the deposit wasn't paid online within ${UNPAID_HOLD_MINUTES} minutes.`;
+const RELEASED_NOTE = `Released automatically: it wasn't paid online within ${UNPAID_HOLD_MINUTES} minutes.`;
 
 /**
  * Cancel online-deposit orders older than the hold whose Stripe page can no longer be
@@ -56,7 +56,37 @@ export async function releaseUnpaidOrders(now = new Date()): Promise<string[]> {
     });
     if (r.count > 0) released.push(o.ref);
   }
+  released.push(...(await releaseUnpaidSimpleOrders("bread", cutoff)), ...(await releaseUnpaidSimpleOrders("grocery", cutoff)));
   if (released.length) console.log(`[orders] released ${released.length} unpaid order(s): ${released.join(", ")}`);
+  return released;
+}
+
+/** The same release for bread (KDB-) and deli counter (KDS-) orders, which are paid in full online. */
+async function releaseUnpaidSimpleOrders(kind: "bread" | "grocery", cutoff: Date): Promise<string[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- two delegates, one shape
+  const table: any = kind === "bread" ? prisma.breadOrder : prisma.groceryOrder;
+  const candidates: { id: string; ref: string; paymentIntentId: string | null; notes: string | null }[] = await table.findMany({
+    where: { status: "pending", paymentStatus: "pending", paymentIntentId: { startsWith: "cs_" }, confirmationSentAt: null, createdAt: { lt: cutoff } },
+    select: { id: true, ref: true, paymentIntentId: true, notes: true },
+    orderBy: { createdAt: "asc" },
+    take: 50,
+  });
+  const released: string[] = [];
+  for (const o of candidates) {
+    let status;
+    try {
+      status = await checkoutStatus(o.paymentIntentId!);
+    } catch (e) {
+      console.error(`[orders] couldn't check payment page for ${o.ref}; will retry`, e instanceof Error ? e.message : e);
+      continue;
+    }
+    if (status === "open" || status === "complete") continue;
+    const r = await table.updateMany({
+      where: { id: o.id, status: "pending", paymentStatus: "pending", paymentIntentId: o.paymentIntentId, confirmationSentAt: null },
+      data: { status: "cancelled", notes: [o.notes, RELEASED_NOTE].filter(Boolean).join("\n") },
+    });
+    if (r.count > 0) released.push(o.ref);
+  }
   return released;
 }
 

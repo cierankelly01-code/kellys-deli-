@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, type CategoryCounts, type Platter, type RecommendResponse } from "../lib/api";
-import { feedsCapacity, feedsRange, roundTo5p } from "../lib/addOnPricing";
+import { feedsCapacity, feedsRange } from "../lib/addOnPricing";
 import { saveCart } from "../lib/cart";
 import { gbp } from "../lib/format";
 import { usePageTitle } from "../lib/title";
@@ -147,8 +147,6 @@ export default function PlanEvent() {
   // Judged against the top of the printed range — the same number on the board card.
   const undercatered = feeds.max < headcount;
   const perHead = headcount > 0 ? totalPrice / headcount : 0;
-  const deposit = roundTo5p(totalPrice * 0.25);
-  const balance = Math.round((totalPrice - deposit) * 100) / 100;
 
   const setQty = (id: string, qty: number) => {
     const next = new Map(combo);
@@ -272,7 +270,7 @@ export default function PlanEvent() {
 
           <ul className="pl-trust">
             <li><strong>48 hours&apos;</strong> notice is all we need</li>
-            <li><strong>25% deposit</strong> confirms it — balance on collection</li>
+            <li><strong>Pay online</strong> when you order — fully refundable up to 48 hours before</li>
             {rating && reviews
               ? <li><strong>{rating}★</strong> from {reviews} Google reviews</li>
               : <li><strong>Independent</strong> and family-run since day one</li>}
@@ -361,7 +359,7 @@ export default function PlanEvent() {
             </button>
             {totalPrice > 0 && (
               <p className="pl-micro">
-                <strong>{gbp(deposit)}</strong> confirms it — {gbp(balance)} on collection.
+                <strong>{gbp(totalPrice)}</strong>, paid when you place the order.
                 Nothing charged yet.
               </p>
             )}

@@ -488,6 +488,14 @@ model BreadOrder {
   email          String?
   notes          String? // free text, 200 chars enforced by zod
   status         String           @default("pending") // pending | confirmed | collected | cancelled
+  // Online payment (Stripe Checkout), whole order paid upfront. "none" = pay on collection
+  // (orders from before Stripe, or placed while it was down). See lib/simple-order-payments.ts.
+  paymentStatus      String    @default("none") // none | pending | paid | refunded
+  paymentIntentId    String? // cs_ while a payment page is open, pi_ once paid
+  paidAt             DateTime?
+  // When the customer and shop were first emailed. Unpaid online orders stay null and are
+  // released (cancelled) after the unpaid hold; see lib/unpaid-orders.ts.
+  confirmationSentAt DateTime?
   items          BreadOrderItem[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
@@ -607,6 +615,14 @@ model GroceryOrder {
   email          String?
   notes          String?
   status         String             @default("pending") // pending | confirmed | collected | cancelled
+  // Online payment (Stripe Checkout), whole order paid upfront. "none" = pay on collection
+  // (orders from before Stripe, or placed while it was down). See lib/simple-order-payments.ts.
+  paymentStatus      String    @default("none") // none | pending | paid | refunded
+  paymentIntentId    String? // cs_ while a payment page is open, pi_ once paid
+  paidAt             DateTime?
+  // When the customer and shop were first emailed. Unpaid online orders stay null and are
+  // released (cancelled) after the unpaid hold; see lib/unpaid-orders.ts.
+  confirmationSentAt DateTime?
   items          GroceryOrderItem[]
   // Subscribe & Save recurring intent (payment-ready, not payment-live — mirrors Order).
   // Item unitPrice snapshots stay at full price; this is subtracted from the total at serialize time.

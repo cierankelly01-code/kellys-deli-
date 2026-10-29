@@ -587,7 +587,8 @@ adminRouter.patch("/bread/orders/:id/status", async (req, res) => {
   if (!exists) return res.status(404).json({ error: "Order not found" });
   const updated = await prisma.breadOrder.update({
     where: { id: req.params.id },
-    data: { status: parsed.data.status },
+    // Handled by hand: never released as unpaid (see unpaid-orders.ts).
+    data: { status: parsed.data.status, confirmationSentAt: exists.confirmationSentAt ?? new Date() },
     include: BREAD_ORDER_INCLUDE,
   });
   res.json(breadOrderDTO(updated));
@@ -932,7 +933,8 @@ adminRouter.patch("/groceries/orders/:id/status", async (req, res) => {
   if (!exists) return res.status(404).json({ error: "Order not found" });
   const updated = await prisma.groceryOrder.update({
     where: { id: req.params.id },
-    data: { status: parsed.data.status },
+    // Handled by hand: never released as unpaid (see unpaid-orders.ts).
+    data: { status: parsed.data.status, confirmationSentAt: exists.confirmationSentAt ?? new Date() },
     include: GROCERY_ORDER_INCLUDE,
   });
   res.json(groceryOrderDTO(updated));

@@ -101,15 +101,15 @@ export async function createDepositCheckout(input: DepositCheckoutInput): Promis
           currency: "gbp",
           unit_amount: toPence(input.amount),
           product_data: {
-            name: `25% deposit — Kelly's Deli order ${input.orderRef}`,
+            name: `Kelly's Deli order ${input.orderRef}`,
             ...(input.summary ? { description: input.summary } : {}),
           },
         },
       },
     ],
     client_reference_id: input.orderRef,
-    metadata: { orderRef: input.orderRef, kind: "deposit" },
-    payment_intent_data: { metadata: { orderRef: input.orderRef, kind: "deposit" } },
+    metadata: { orderRef: input.orderRef, kind: "order" },
+    payment_intent_data: { metadata: { orderRef: input.orderRef, kind: "order" } },
     // No customer_email: the order ref is a shareable link, and a Checkout page pre-filled
     // with the customer's full email would reveal it to anyone holding the ref (the public
     // order page deliberately masks it). Stripe asks for an email on its own page.
@@ -157,6 +157,8 @@ export interface WebhookResult {
   intentId?: string;
   /** The Checkout Session that was paid (cs_…). */
   sessionId?: string;
+  /** The email the customer typed on Stripe's page (bread and deli counter orders may not have one). */
+  customerEmail?: string;
   /** A payment intent that Stripe says has been fully refunded. */
   refundedIntentId?: string;
 }
@@ -190,13 +192,15 @@ export function parseWebhook(rawBody: Buffer, signature: string | undefined): We
     // A completed session can still be unpaid (e.g. a delayed bank method); only "paid" counts.
     if (s.payment_status !== "paid") return { handled: false };
     const ref = s.metadata?.orderRef ?? s.client_reference_id ?? undefined;
-    if (!ref || s.metadata?.kind !== "deposit") return { handled: false };
+    // "deposit": sessions opened before orders were paid in full (29 Oct 2026).
+    if (!ref || (s.metadata?.kind !== "order" && s.metadata?.kind !== "deposit")) return { handled: false };
     return {
       handled: true,
       paidOrderRef: ref,
       amountPaidPence: s.amount_total ?? undefined,
       intentId: typeof s.payment_intent === "string" ? s.payment_intent : s.payment_intent?.id,
       sessionId: s.id,
+      customerEmail: s.customer_details?.email ?? undefined,
     };
   }
   return { handled: false };

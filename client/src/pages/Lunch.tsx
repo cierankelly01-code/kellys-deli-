@@ -133,6 +133,13 @@ export default function Lunch() {
         isSubscription: subFreq ? true : undefined,
         subscriptionFrequency: subFreq || undefined,
       });
+      // Paid in full online: off to Stripe. The order page confirms once it's paid. No
+      // payment page (Stripe off or down) means pay on collection, confirmed right here.
+      const checkoutUrl = res.payment?.checkoutUrl;
+      if (checkoutUrl?.startsWith("https://checkout.stripe.com/")) {
+        window.location.assign(checkoutUrl);
+        return;
+      }
       setConfirmed(res.order);
     } catch (e: any) {
       setError(e?.message || "Couldn't place your order. Please try again.");
@@ -253,7 +260,7 @@ export default function Lunch() {
           {items.length > 0 && (
             <div className="running-total" style={{ marginTop: 24 }}>
               <div><span className="muted">Your lunch</span> <strong>{gbp(total)}</strong></div>
-              <div className="muted small">Pay on collection{subPct > 0 ? ` · ${subPct}% subscribe & save applied` : ""}</div>
+              <div className="muted small">Paid securely online when you order{subPct > 0 ? ` · ${subPct}% subscribe & save applied` : ""}</div>
             </div>
           )}
 
@@ -292,11 +299,11 @@ export default function Lunch() {
             {error && <p className="form-error" role="alert">{error}</p>}
             <div className="step-actions">
               <button className="btn" disabled={!formValid || submitting} onClick={submit}>
-                {submitting ? "Placing…" : items.length === 0 ? "Choose your lunch" : "Order lunch"}
+                {submitting ? "Placing…" : items.length === 0 ? "Choose your lunch" : "Order and pay"}
               </button>
             </div>
             {date && selectedDay?.bookable && (
-              <p className="muted small">Collection {formatDate(date)} — pay in shop, no card needed now.</p>
+              <p className="muted small">Collection {formatDate(date)} — you pay securely online when you order. Fully refundable if you cancel 48 hours or more before collection.</p>
             )}
           </section>
         </>

@@ -234,12 +234,12 @@ describe("priceLineItemOrder", () => {
       subscriptionDiscount: 0,
       discount: 0,
       total: 100,
-      deposit: 25,
-      balance: 75,
+      deposit: 100,
+      balance: 0,
     });
   });
   it("prices a board + per-person add-ons and rounds the deposit to 5p", () => {
-    // board £45 + cutlery £1.50 × 15 = £67.50; 25% = £16.875 → £16.90 deposit; balance £50.60
+    // board £45 + cutlery £1.50 × 15 = £67.50, paid in full when ordering (29 Oct 2026)
     expect(
       priceLineItemOrder([{ unitPrice: 45, quantity: 1 }], [{ unitPrice: 1.5, quantity: 15 }], false),
     ).toEqual({
@@ -249,8 +249,8 @@ describe("priceLineItemOrder", () => {
       subscriptionDiscount: 0,
       discount: 0,
       total: 67.5,
-      deposit: 16.9,
-      balance: 50.6,
+      deposit: 67.5,
+      balance: 0,
     });
   });
   it("applies a referral discount before computing the deposit", () => {
@@ -264,8 +264,8 @@ describe("priceLineItemOrder", () => {
       subscriptionDiscount: 0,
       discount: 15,
       total: 63,
-      deposit: 15.75,
-      balance: 47.25,
+      deposit: 63,
+      balance: 0,
     });
   });
   it("prices a multi-board event combination", () => {
@@ -279,8 +279,8 @@ describe("priceLineItemOrder", () => {
       subscriptionDiscount: 0,
       discount: 0,
       total: 255,
-      deposit: 63.75,
-      balance: 191.25,
+      deposit: 255,
+      balance: 0,
     });
   });
   it("applies Subscribe & Save % before the referral and deposit", () => {
@@ -294,8 +294,8 @@ describe("priceLineItemOrder", () => {
       subscriptionDiscount: 12,
       discount: 0,
       total: 108,
-      deposit: 27,
-      balance: 81,
+      deposit: 108,
+      balance: 0,
     });
   });
   it("stacks Subscribe & Save then a referral discount", () => {
@@ -309,8 +309,8 @@ describe("priceLineItemOrder", () => {
       subscriptionDiscount: 10,
       discount: 15,
       total: 75,
-      deposit: 18.75,
-      balance: 56.25,
+      deposit: 75,
+      balance: 0,
     });
   });
 });

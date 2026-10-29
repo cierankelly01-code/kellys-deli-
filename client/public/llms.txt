@@ -2,7 +2,7 @@
 
 > Family-run deli with shops in Bentley Heath, Solihull and Stratford-upon-Avon (UK),
 > making fresh charcuterie, cheese and grazing boards, catering platters and grazing
-> tables for collection. Order boards online with 48 hours' notice; a 25% deposit confirms them.
+> tables for collection. Order boards online with 48 hours' notice and pay securely online when you order.
 
 ## About
 Kelly's Deli is an independent, family-run delicatessen with two shops: 1 Slater Road,
@@ -46,15 +46,16 @@ checkout.
 ## How ordering works
 1. Choose a board or platter at https://www.kellysdeli.co.uk/platters
 2. Plan a larger event at https://www.kellysdeli.co.uk/plan (tell us headcount + occasion for a recommendation).
-3. Pick your collection shop — Bentley Heath or Stratford-upon-Avon — and date. We'll be in touch to take a 25% deposit, which confirms a board or platter order; the balance is paid on collection. Minimum 48 hours' notice. (Bread, lunch and the deli counter are paid on collection, no deposit.)
-4. Collect from whichever shop you chose (ask us about delivery for larger event orders).
+3. Pick your collection shop — Bentley Heath or Stratford-upon-Avon — and date. Minimum 48 hours' notice.
+4. Pay for the order in full, securely online by card (Stripe). The order is confirmed once it's paid. This applies to boards, platters, bread, lunch and the deli counter.
+5. Collect from whichever shop you chose (ask us about delivery for larger event orders).
 
 ## Key facts
 - Bentley Heath shop: 1 Slater Road, Bentley Heath, Solihull, B93 8AQ, United Kingdom.
   Opening hours: Tue–Fri 08:00–16:00, Sat 08:00–15:00 (closed Sun & Mon). Contact by email.
 - Stratford-upon-Avon shop: 13 Wood Street, Stratford-upon-Avon, CV37 6JF, United Kingdom.
   Opening hours: Tue–Fri 09:00–16:30, Sat 09:00–16:00 (closed Sun & Mon).
-- Deposit (boards and platters only): 25%, arranged with us after you order (comes off the final balance; fully refundable up to 48h before collection)
+- Payment: in full, online by card when you order. Fully refundable if cancelled 48 hours or more before collection; cancellations inside 48 hours aren't refunded, as everything is made fresh to order.
 - Lead time: 48 hours minimum
 - Contact: hello@kellysdeli.co.uk
 - Website: https://www.kellysdeli.co.uk

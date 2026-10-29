@@ -139,13 +139,13 @@ export default function PlatterDetail() {
           </button>
           <p className="buy-reassure">
             {subFreq
-              ? "No card taken now — we'll set your schedule up with you and confirm each board."
-              : "25% deposit confirms your order · balance on collection · fully refundable up to 48 hrs before"}
+              ? "You pay for your first board when you order — we'll set your schedule up with you and confirm each board."
+              : "Pay securely online when you order · fully refundable up to 48 hrs before collection"}
           </p>
 
           <p className="prebook-hint muted">
             🎂 <strong>Planning ahead?</strong> Pick a future date at checkout to book this for a birthday or celebration —
-            25% locks it in, and you can add a gift note.
+            paying when you order locks it in, and you can add a gift note.
           </p>
           <DeadlineChip />
 

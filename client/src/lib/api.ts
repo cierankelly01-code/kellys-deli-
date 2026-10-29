@@ -457,6 +457,8 @@ export interface GroceryOrderDTO {
   email: string | null;
   notes: string | null;
   status: GroceryOrderStatus;
+  paymentStatus: PaymentStatus;
+  paidAt: string | null;
   items: GroceryOrderItemDTO[];
   isSubscription: boolean;
   subscriptionFrequency: SubscriptionFrequency | null;
@@ -502,6 +504,22 @@ export interface BreadOrderItemDTO {
 }
 
 export type BreadOrderStatus = "pending" | "confirmed" | "collected" | "cancelled";
+export type PaymentStatus = "none" | "pending" | "paid" | "refunded";
+
+/** Public view of a bread (KDB-) or deli counter (KDS-) order, for the order page. */
+export interface SimpleOrderView {
+  kind: "bread" | "grocery";
+  ref: string;
+  customerName: string;
+  locationName: string | null;
+  collectionDate: string;
+  status: string;
+  items: { id: string; name: string; quantity: number; unitPrice: number; lineTotal: number }[];
+  total: number;
+  paymentStatus: PaymentStatus;
+  canPayOnline: boolean;
+  holdEndsAt: string | null;
+}
 
 export interface BreadOrderDTO {
   id: string;
@@ -514,6 +532,9 @@ export interface BreadOrderDTO {
   email: string | null;
   notes: string | null;
   status: BreadOrderStatus;
+  /** none = pay on collection; pending = waiting on its online payment. */
+  paymentStatus: PaymentStatus;
+  paidAt: string | null;
   items: BreadOrderItemDTO[];
   total: number;
   createdAt: string;
@@ -607,9 +628,13 @@ export const api = {
     req<Array<{ headcount: number; boards: Array<{ id: string; name: string; qty: number; feedsEach: number }>; feeds: number; price: number }>>(
       "/api/headcount-guide",
     ),
-  /** Open Stripe Checkout for an order's deposit (when online payment is switched on). */
+  /** Open Stripe Checkout for a board order's payment (when online payment is switched on). */
   depositCheckout: (ref: string) =>
     req<{ checkoutUrl: string | null }>(`/api/orders/${encodeURIComponent(ref)}/deposit-checkout`, { method: "POST" }),
+  /** Bread (KDB-) and deli counter (KDS-) orders: the order page's lookup and Pay button. */
+  getSimpleOrder: (ref: string) => req<SimpleOrderView>(`/api/simple-orders/${encodeURIComponent(ref)}`),
+  simpleCheckout: (ref: string) =>
+    req<{ checkoutUrl: string | null }>(`/api/simple-orders/${encodeURIComponent(ref)}/checkout`, { method: "POST" }),
   reorder: (contact: string) => req<ReorderResult>(`/api/reorder?contact=${encodeURIComponent(contact)}`),
   // Validate a referral code against the buyer's contact before promising the discount.
   checkReferral: (code: string, phone: string, email: string) => {
@@ -627,7 +652,7 @@ export const api = {
       return req<BreadAvailabilityResponse>(`/api/bread/availability?${q.toString()}`);
     },
     createOrder: (body: CreateBreadOrderInput) =>
-      req<{ order: BreadOrderDTO }>("/api/bread/orders", { method: "POST", body: JSON.stringify(body) }),
+      req<{ order: BreadOrderDTO; payment?: { checkoutUrl: string | null } }>("/api/bread/orders", { method: "POST", body: JSON.stringify(body) }),
   },
 
   groceries: {
@@ -640,6 +665,6 @@ export const api = {
       return req<GroceryAvailabilityResponse>(`/api/groceries/availability?${q.toString()}`);
     },
     createOrder: (body: CreateGroceryOrderInput) =>
-      req<{ order: GroceryOrderDTO }>("/api/groceries/orders", { method: "POST", body: JSON.stringify(body) }),
+      req<{ order: GroceryOrderDTO; payment?: { checkoutUrl: string | null } }>("/api/groceries/orders", { method: "POST", body: JSON.stringify(body) }),
   },
 };

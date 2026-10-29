@@ -320,7 +320,7 @@ export async function buildSeoPage(rawPath: string): Promise<SeoPage> {
 }
 
 async function routePage(path: string, locs: Location[]): Promise<SeoPage> {
-  // The payment answer follows whether online deposits (Stripe) are switched on.
+  // The payment answer follows whether online payment (Stripe) is switched on.
   const faq = siteFaq();
   const rating = await ratingHtml();
 
@@ -474,7 +474,7 @@ async function routePage(path: string, locs: Location[]): Promise<SeoPage> {
       jsonLd: [breadcrumb([["Bread", path]])],
       body: frame(
         "Bread, pre-ordered",
-        `<p>Our bread is baked fresh every day and delivered to us by our own baker. Pick your loaves, pick a collection day, and we'll have them waiting at the counter. Pay on collection.</p>${list(
+        `<p>Our bread is baked fresh every day and delivered to us by our own baker. Pick your loaves, pick a collection day, and we'll have them waiting at the counter. You pay securely online when you order.</p>${list(
           bread.map((b) => `${esc(b.name)} — ${esc(gbp(Number(b.price)))}${b.description ? `. ${esc(cleanDesc(b.description))}` : ""}`)
         )}`,
         locs
@@ -508,7 +508,7 @@ async function routePage(path: string, locs: Location[]): Promise<SeoPage> {
       jsonLd: [breadcrumb([[lunch ? "Lunch" : "Deli counter", path]])],
       body: frame(
         lunch ? "Lunch, ordered ahead" : "The deli counter, click & collect",
-        `<p>${lunch ? "Order ahead and collect from your chosen shop." : "Order from the counter online and collect from your chosen shop."} Pay on collection.</p>${depts}`,
+        `<p>${lunch ? "Order ahead and collect from your chosen shop." : "Order from the counter online and collect from your chosen shop."} You pay securely online when you order.</p>${depts}`,
         locs
       ),
     };
@@ -614,7 +614,7 @@ async function routePage(path: string, locs: Location[]): Promise<SeoPage> {
       crumb: "Plan an event",
     },
     "/privacy": { title: "Privacy — Kelly's Deli", description: "How Kelly's Deli handles your personal data.", h1: "Privacy", p: "How we collect and use your details when you order.", crumb: "Privacy" },
-    "/terms": { title: "Terms — Kelly's Deli", description: "Ordering terms for Kelly's Deli.", h1: "Terms", p: "Ordering, deposits, collection and cancellations.", crumb: "Terms" },
+    "/terms": { title: "Terms — Kelly's Deli", description: "Ordering terms for Kelly's Deli.", h1: "Terms", p: "Ordering, payment, collection and cancellations.", crumb: "Terms" },
   };
   if (STATIC[path]) {
     const s = STATIC[path];
