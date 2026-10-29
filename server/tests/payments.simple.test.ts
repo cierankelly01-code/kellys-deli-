@@ -78,7 +78,7 @@ const paidEvent = (ref: string, pence: number, intent = `pi_test_${Math.random()
 async function place(kind: "bread" | "groceries", opts: { email?: string; quantity?: number } = {}) {
   const res = await request(app).post(`/api/${kind}/orders`).send({
     locationId, collectionDate: farDate(),
-    items: [{ productId: kind === "bread" ? products.bread : products.grocery, quantity: opts.quantity ?? 2 }],
+    items: [{ productId: kind === "bread" ? products.bread : products.grocery, quantity: opts.quantity ?? 6 }], // 6: above the minimum other test files briefly set (5)
     customerName: "Pay Tester", phone: uniqMobile(), ...(opts.email ? { email: opts.email } : {}),
   });
   expect(res.body.error ?? null).toBeNull();
@@ -95,22 +95,22 @@ d("Bread and deli counter orders, paid in full online", () => {
       const { order, payment } = await place("bread", { email: "baker@example.com" });
       expect(payment.checkoutUrl).toMatch(/^https:\/\/checkout\.stripe\.com\//);
       const s = [...sessions.values()].find((x) => x.args.client_reference_id === order.ref)!;
-      expect(s.args.line_items?.[0].price_data?.unit_amount).toBe(700); // 2 × £3.50
+      expect(s.args.line_items?.[0].price_data?.unit_amount).toBe(2100); // 6 × £3.50
       expect(mailsFor(logs, order.ref)).toEqual([]);
       const view = (await request(app).get(`/api/simple-orders/${order.ref}`)).body;
       expect(view).toMatchObject({ paymentStatus: "pending", canPayOnline: true, customerName: "Pay" });
       expect(view.holdEndsAt).toEqual(expect.any(String));
 
-      expect((await postWebhook(paidEvent(order.ref, 700))).body.handled).toBe(true);
+      expect((await postWebhook(paidEvent(order.ref, 2100))).body.handled).toBe(true);
       expect((await request(app).get(`/api/simple-orders/${order.ref}`)).body).toMatchObject({ paymentStatus: "paid", canPayOnline: false });
       expect(mailsFor(logs, order.ref).some((l) => l.includes("baker@example.com") && l.includes("Paid in full"))).toBe(true);
     } finally { logs.mockRestore(); }
   });
 
   it("charges a deli counter order its full total and keeps the email Stripe collected when none was given", async () => {
-    const { order } = await place("groceries", { quantity: 3 });
-    expect(order.total).toBe(12.75);
-    expect((await postWebhook(paidEvent(order.ref, 1275))).body.handled).toBe(true);
+    const { order } = await place("groceries", { quantity: 7 });
+    expect(order.total).toBe(29.75);
+    expect((await postWebhook(paidEvent(order.ref, 2975))).body.handled).toBe(true);
     const row = await prisma.groceryOrder.findUnique({ where: { ref: order.ref } });
     expect(row).toMatchObject({ paymentStatus: "paid", email: "from-stripe@example.com" });
     expect(row!.confirmationSentAt).not.toBeNull();
@@ -134,7 +134,7 @@ d("Bread and deli counter orders, paid in full online", () => {
 
   it("marks the order refunded when Stripe refunds it in full", async () => {
     const { order } = await place("bread");
-    await postWebhook(paidEvent(order.ref, 700, "pi_test_simple_refund"));
+    await postWebhook(paidEvent(order.ref, 2100, "pi_test_simple_refund"));
     await postWebhook({ id: "evt_r", object: "event", livemode: false, type: "charge.refunded", data: { object: { id: "ch_test", object: "charge", refunded: true, payment_intent: "pi_test_simple_refund" } } });
     expect((await prisma.breadOrder.findUnique({ where: { ref: order.ref } }))!.paymentStatus).toBe("refunded");
   });
@@ -158,7 +158,7 @@ d("Bread and deli counter orders, paid in full online", () => {
       const { order } = await place("bread", { email: "early@example.com" });
       const id = (await prisma.breadOrder.findUnique({ where: { ref: order.ref } }))!.id;
       await request(app).patch(`/api/admin/bread/orders/${id}/status`).set("Authorization", `Bearer ${token}`).send({ status: "confirmed" });
-      expect((await postWebhook(paidEvent(order.ref, 700))).body.handled).toBe(true);
+      expect((await postWebhook(paidEvent(order.ref, 2100))).body.handled).toBe(true);
       expect(mailsFor(logs, order.ref).some((l) => l.includes("early@example.com") && l.includes("Paid in full"))).toBe(true);
     } finally { logs.mockRestore(); }
   });

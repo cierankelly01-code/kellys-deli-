@@ -55,6 +55,11 @@ export default function Terms() {
           to order, we can&apos;t refund cancellations made less than 48 hours before collection. This does not
           affect your legal rights if something is wrong with your order.
         </p>
+        <p>
+          The usual 14-day right to cancel an online purchase doesn&apos;t apply to our food, because it&apos;s
+          perishable and made to order (Consumer Contracts Regulations 2013, regulation 28). Our own refund rule
+          above applies instead.
+        </p>
 
         <h2>Collection and delivery</h2>
         <p>

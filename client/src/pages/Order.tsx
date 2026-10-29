@@ -350,7 +350,6 @@ export default function Order() {
                 value={subFreq}
                 onChange={setSubscription}
                 discountPct={counts?.subscribeSaveDiscountPct ?? 10}
-                invoiced={occasion === "Corporate"}
               />
             </div>
           )}

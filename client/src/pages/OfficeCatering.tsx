@@ -22,7 +22,7 @@ const QUICK_ANSWERS: Array<{ label: string; value: (c: CategoryCounts | null) =>
     value: (c) => (c?.corporateNextDayDelivery ? "Next working day for regular office orders." : "Ask us to confirm availability and cost."),
   },
   { label: "Dietary needs", value: () => "Tell us what you need before you book and we'll confirm what we can do." },
-  { label: "Invoices & repeats", value: () => "Weekly, fortnightly or monthly — tell us in your enquiry." },
+  { label: "Repeat orders", value: () => "Weekly, fortnightly or monthly — tell us in your enquiry." },
 ];
 
 // Shared with the server, which renders the same Q&A + FAQPage schema for crawlers.
@@ -47,7 +47,7 @@ export default function OfficeCatering() {
 
   usePageTitle(
     "Office catering in Solihull",
-    "Boards and platters for meetings, team lunches and workplace gatherings, from Kelly's Deli in Bentley Heath, Solihull. 48 hours' notice, dietary needs confirmed before you book, invoicing available for regular orders.",
+    "Boards and platters for meetings, team lunches and workplace gatherings, from Kelly's Deli in Bentley Heath, Solihull. 48 hours' notice, dietary needs confirmed before you book, and standing orders for regular lunches.",
     true,
   );
 
@@ -165,7 +165,7 @@ export default function OfficeCatering() {
         </div>
         <div className="office-info-card">
           <h2 className="step-h">Ordering regularly?</h2>
-          <p>Set up a standing weekly, fortnightly or monthly lunch and we'll invoice monthly where that's agreed. Tell us how often you need feeding and whether you need an invoice — we'll set it up with you directly, nothing is billed automatically.</p>
+          <p>Set up a standing weekly, fortnightly or monthly lunch. Tell us how often you need feeding and we'll set it up with you directly. Each order is paid online when it's placed; nothing is billed automatically.</p>
         </div>
       </section>
 
