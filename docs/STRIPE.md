@@ -41,16 +41,20 @@ Do this **while the "coming soon" password is still on**. With test keys in plac
    ```
    STRIPE_SECRET_KEY
    ```
-   with your `sk_test_…` value, and:
+   with your `sk_test_…` value,
    ```
    STRIPE_WEBHOOK_SECRET
    ```
-   with your `whsec_…` value. Then **Redeploy**.
+   with your `whsec_…` value, and, **only while testing**:
+   ```
+   STRIPE_ALLOW_TEST_MODE
+   ```
+   with the value `1`. Then **Redeploy**. Without that last one, the live site refuses test keys on purpose, so nobody can "pay" with the test card. **Delete it again when you switch to live keys.**
 5. Check it's on:
    ```
    curl -s https://www.kellysdeli.co.uk/api/payments/status
    ```
-   It should say `{"enabled":true}`.
+   It should say `{"enabled":true,"mode":"test"}` (and `"mode":"live"` after step 4).
 
 Never paste these keys into chat, email or the code. They only go in Coolify (and your password manager).
 
@@ -63,7 +67,7 @@ Never paste these keys into chat, email or the code. They only go in Coolify (an
 
 ### 4. Go live
 1. Finish Stripe's business verification.
-2. Turn **Test mode off**, then repeat steps 2.2–2.4 with the **live** keys (`sk_live_…` and a new live webhook signing secret) in Coolify. Redeploy.
+2. Turn **Test mode off**, then repeat steps 2.2–2.4 with the **live** keys (`sk_live_…` and a new live webhook signing secret) in Coolify. **Delete `STRIPE_ALLOW_TEST_MODE`.** Redeploy. Orders that opened a test-mode payment page simply get a fresh live one when the customer taps Pay.
 3. Place one real small order, pay it, and refund it from the Stripe dashboard. That proves the whole path.
 4. Update `client/public/llms.txt`, "How ordering works" step 3, to "pay the 25% deposit online by card" (it's a static file, so it doesn't switch on its own).
 
