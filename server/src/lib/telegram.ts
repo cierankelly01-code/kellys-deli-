@@ -21,7 +21,49 @@ export interface OrderPing {
   items: { name: string; qty: number }[];
 }
 
-const KIND_LABEL: Record<OrderPing["kind"], string> = { board: "ORDER", bread: "BREAD ORDER", deli: "DELI ORDER" };
+// The headline is picked at random from a pool sized to the order (owner: "make it funny").
+// Kept clean: it may be read out at the counter. Tiered on the order total.
+export const HEADLINES = {
+  /** Under £20. */
+  small: [
+    "🥖 Small but mighty! A cob has found a home.",
+    "🧀 Ding! Someone's snack game just levelled up.",
+    "🍞 Bread money is still money.",
+    "🥪 A humble order, but a noble one.",
+    "🥐 Every crumb counts. Ka-ching (quietly).",
+    "🫙 One jar at a time, we take over the Midlands.",
+    "🍪 Little order, big appetite.",
+    "🧈 Small order, big potential. Butter them up.",
+  ],
+  /** £20 to £99.99. */
+  medium: [
+    "💷 KA-CHING! The cheese drawer approves.",
+    "🥂 Another board leaves the nest.",
+    "🔔 Order up! Fiona's going to want to see this.",
+    "🫒 Olives are being counted as we speak.",
+    "🧀 Brie-lliant news: a new order's in.",
+    "🥓 Somebody's having a proper spread this weekend.",
+    "🍇 Grapes on standby. This one's a goodun.",
+    "🥖 Cheese, please! The till is singing.",
+  ],
+  /** £100 and up. */
+  big: [
+    "🚨 BIG ORDER ALERT 🚨 Clear the counter!",
+    "🎉 Somebody's throwing a PARTY. Get the big boards out.",
+    "💰 KA-CHING KA-CHING! Mark, put the kettle on.",
+    "👑 Grazing table royalty has entered the chat.",
+    "🏆 Order of the week contender, right here.",
+    "🧀🧀🧀 Triple cheese alert. Fetch the big knife.",
+    "📣 Hold the phone. That's a serious order.",
+    "🥳 Someone's about to be the hero of their party.",
+  ],
+} as const;
+
+export function headlineFor(amount: number, rand: () => number = Math.random): string {
+  const pool = amount >= 100 ? HEADLINES.big : amount >= 20 ? HEADLINES.medium : HEADLINES.small;
+  return pool[Math.min(pool.length - 1, Math.floor(rand() * pool.length))];
+}
+
 const MAX_ITEMS_SHOWN = 6;
 const MAX_NAME = 60;
 
@@ -41,11 +83,14 @@ function shortDate(ymd: string): string {
 
 const money = (n: number) => `£${n.toFixed(2)}`;
 
-export function orderPingText(p: OrderPing): string {
-  const amount = p.total !== undefined && p.total > p.paid ? `${money(p.paid)} deposit (${money(p.total)} total)` : money(p.paid);
+/** `rand` picks the headline; tests pass a fixed one. */
+export function orderPingText(p: OrderPing, rand: () => number = Math.random): string {
+  const deposit = p.total !== undefined && p.total > p.paid;
+  const amount = deposit ? `${money(p.paid)} deposit (${money(p.total!)} total)` : money(p.paid);
   const name = oneLine(p.customerName);
   const lines = [
-    `💷 KA-CHING! NEW ${KIND_LABEL[p.kind]} — ${amount}${name ? ` — ${name}` : ""}`,
+    headlineFor(deposit ? p.total! : p.paid, rand),
+    `${amount}${name ? ` — ${name}` : ""}`,
     `${p.ref} · ${p.locationName} · ${shortDate(p.collectionDate)}`,
   ];
   if (p.items.length) {
@@ -59,7 +104,7 @@ export function orderPingText(p: OrderPing): string {
 /** Whether the ping is configured, read at call time so tests (and a redeploy) can change it. */
 export const telegramEnabled = () => !!process.env.TELEGRAM_BOT_TOKEN?.trim() && !!process.env.TELEGRAM_CHAT_ID?.trim();
 
-export async function pingPaidOrder(p: OrderPing): Promise<void> {
+export async function pingPaidOrder(p: OrderPing, rand: () => number = Math.random): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
   const chatId = process.env.TELEGRAM_CHAT_ID?.trim();
   if (!token || !chatId) return;
@@ -67,7 +112,7 @@ export async function pingPaidOrder(p: OrderPing): Promise<void> {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text: orderPingText(p), disable_web_page_preview: true }),
+      body: JSON.stringify({ chat_id: chatId, text: orderPingText(p, rand), disable_web_page_preview: true }),
       // The Stripe webhook waits on this; a slow Telegram must not hold it up for long.
       signal: AbortSignal.timeout(5000),
     });
