@@ -163,6 +163,11 @@ adminRouter.patch("/orders/:id/deposit", async (req, res) => {
   const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Order not found" });
   const next = parsed.data.depositStatus;
+  // Paid online: the money sits in Stripe. Setting it back to pending would let the
+  // customer pay a second time, so refunds go through Stripe (which syncs here).
+  if (next === "pending" && existing.depositStatus === "paid" && existing.depositIntentId?.startsWith("pi_")) {
+    return res.status(409).json({ error: "This deposit was paid online. Refund it in the Stripe dashboard instead — the order updates itself." });
+  }
   const order = await prisma.order.update({
     where: { id: req.params.id },
     data: {

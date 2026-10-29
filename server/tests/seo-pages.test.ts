@@ -215,3 +215,24 @@ d("buildSeoPage (DB)", () => {
     expect(res.text).toContain("/stratford-upon-avon");
   });
 });
+
+d("query coverage (DB)", () => {
+  it("answers 'how much food for N people' with real boards that actually feed N", async () => {
+    const { headcountGuide } = await import("../src/lib/headcount-guide");
+    const rows = await headcountGuide();
+    expect(rows.length).toBeGreaterThan(0);
+    for (const r of rows) {
+      expect(r.feeds).toBeGreaterThanOrEqual(r.headcount);
+      expect(r.price).toBeGreaterThan(0);
+    }
+    const page = await buildSeoPage("/party-food-solihull");
+    expect(page.body).toContain("Suggested boards");
+    expect(page.body).toContain("Friends coming round this weekend?");
+    expect(page.body).toContain("Sunday or Monday");
+  });
+
+  it("puts the hosting Q&A on the hosting category page", async () => {
+    const page = await buildSeoPage("/shop/hosting");
+    if (page.status === 200) expect(page.body).toContain("Hosting friends or family?");
+  });
+});

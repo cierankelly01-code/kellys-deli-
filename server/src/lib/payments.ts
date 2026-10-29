@@ -39,13 +39,14 @@ export interface DepositCheckout {
   sessionId: string;
   /** Where to send the customer to pay. null = no online payment (stub). */
   url: string | null;
+  /** true = an existing open session was handed back, not a new one. */
+  reused?: boolean;
 }
 
 export interface DepositCheckoutInput {
   orderRef: string;
   /** Deposit in pounds, from the server's own pricing. */
   amount: number;
-  customerEmail?: string | null;
   /** e.g. "Bentley Heath, Sat 14 Nov" — shown on Stripe's page. */
   summary?: string;
   /** Absolute site URL, e.g. https://www.kellysdeli.co.uk */
@@ -74,10 +75,17 @@ export async function createDepositCheckout(input: DepositCheckoutInput): Promis
     return { provider: "stub", sessionId: `stub_${input.orderRef}`, url: null };
   }
   if (input.existingSessionId?.startsWith("cs_")) {
-    const prev = await stripe().checkout.sessions.retrieve(input.existingSessionId);
-    if (prev.status === "open" && prev.url) return { provider: "stripe", sessionId: prev.id, url: prev.url };
-    if (prev.status === "complete") throw new DepositAlreadyPaidError(input.orderRef);
-    // "expired" (or no URL): fall through and start a fresh one.
+    let prev: Stripe.Checkout.Session | null = null;
+    try {
+      prev = await stripe().checkout.sessions.retrieve(input.existingSessionId);
+    } catch (e) {
+      // A session Stripe doesn't know (made in test mode before switching to live keys,
+      // or another account) must not block paying forever: start a fresh one instead.
+      if (!(e instanceof Stripe.errors.StripeInvalidRequestError)) throw e;
+    }
+    if (prev?.status === "open" && prev.url) return { provider: "stripe", sessionId: prev.id, url: prev.url, reused: true };
+    if (prev?.status === "complete") throw new DepositAlreadyPaidError(input.orderRef);
+    // "expired", unknown, or no URL: fall through and start a fresh one.
   }
   const ref = encodeURIComponent(input.orderRef);
   const session = await stripe().checkout.sessions.create({
@@ -102,12 +110,24 @@ export async function createDepositCheckout(input: DepositCheckoutInput): Promis
     client_reference_id: input.orderRef,
     metadata: { orderRef: input.orderRef, kind: "deposit" },
     payment_intent_data: { metadata: { orderRef: input.orderRef, kind: "deposit" } },
-    ...(input.customerEmail ? { customer_email: input.customerEmail } : {}),
+    // No customer_email: the order ref is a shareable link, and a Checkout page pre-filled
+    // with the customer's full email would reveal it to anyone holding the ref (the public
+    // order page deliberately masks it). Stripe asks for an email on its own page.
     success_url: `${input.siteUrl}/confirm/${ref}?paid=1`,
     cancel_url: `${input.siteUrl}/confirm/${ref}?cancelled=1`,
   });
   if (!session.url) throw new Error("Stripe returned a Checkout Session without a URL");
-  return { provider: "stripe", sessionId: session.id, url: session.url };
+  return { provider: "stripe", sessionId: session.id, url: session.url, reused: false };
+}
+
+/** Close a Checkout Session so it can't be paid (e.g. one that lost a race). Best effort. */
+export async function expireCheckout(sessionId: string): Promise<void> {
+  if (!stripeEnabled() || !sessionId.startsWith("cs_")) return;
+  try {
+    await stripe().checkout.sessions.expire(sessionId);
+  } catch (e) {
+    console.error(`[payments] could not expire ${sessionId}`, e instanceof Error ? e.message : e);
+  }
 }
 
 export interface WebhookResult {

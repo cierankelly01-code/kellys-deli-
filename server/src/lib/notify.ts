@@ -3,7 +3,7 @@
 // SMS is still a logged stub — swap sendSms for Twilio when ready.
 
 import { orderReceivedHtml, orderReceivedText, orderShopAlertHtml, orderShopAlertText, type OrderEmailLine } from "./emailTemplate";
-import { stripeEnabled } from "./env";
+import { env, stripeEnabled } from "./env";
 import {
   breadOrderReceivedHtml,
   breadOrderReceivedText,
@@ -101,6 +101,8 @@ async function sendEmail(to: string, subject: string, body: string, html?: strin
 export interface OrderNotifyInput {
   ref: string; total: number; deposit: number; collectionDate: string; locationName: string;
   boards?: OrderEmailLine[]; addOns?: OrderEmailLine[];
+  /** Override the online-deposit wording (tasting bookings are never paid online). */
+  payOnline?: boolean;
 }
 
 export async function notifyOrderReceived(t: NotifyTarget, o: OrderNotifyInput): Promise<void> {
@@ -109,8 +111,8 @@ export async function notifyOrderReceived(t: NotifyTarget, o: OrderNotifyInput):
   const sms =
     `Thanks ${t.name} — your Kelly's Deli order request ${o.ref} is in. ` +
     `Collection ${o.collectionDate} at ${o.locationName}. Total £${o.total.toFixed(2)}. ` +
-    (stripeEnabled()
-      ? `Pay the 25% deposit (£${o.deposit.toFixed(2)}) securely online from your order page to confirm your date. `
+    ((o.payOnline ?? stripeEnabled())
+      ? `Pay the 25% deposit (£${o.deposit.toFixed(2)}) securely online to confirm your date: ${env.publicUrl}/confirm/${encodeURIComponent(o.ref)} `
       : `We'll be in touch shortly to take a 25% deposit (£${o.deposit.toFixed(2)}) to confirm your order. `) +
     `The balance (£${balance.toFixed(2)}) is payable on collection.`;
 
@@ -124,7 +126,7 @@ export async function notifyOrderReceived(t: NotifyTarget, o: OrderNotifyInput):
     total: o.total,
     deposit: o.deposit,
     balance,
-    payOnline: stripeEnabled(),
+    payOnline: o.payOnline ?? stripeEnabled(),
   };
   await Promise.all([
     sendSms(t.phone, sms),
@@ -159,7 +161,7 @@ export async function notifyShopOfOrder(shopEmail: string, t: NotifyTarget, o: O
     total: o.total,
     deposit: o.deposit,
     balance,
-    payOnline: stripeEnabled(),
+    payOnline: o.payOnline ?? stripeEnabled(),
   };
   await sendEmail(shopEmail, `New order ${o.ref} — ${o.collectionDate}`, orderShopAlertText(d), orderShopAlertHtml(d));
 }

@@ -600,6 +600,11 @@ export const api = {
       body: JSON.stringify(body),
     }),
   getOrder: (ref: string) => req<OrderDTO>(`/api/orders/${ref}`),
+  /** "How much food for N people" rows for the party guide. */
+  headcountGuide: () =>
+    req<Array<{ headcount: number; boards: Array<{ id: string; name: string; qty: number; feedsEach: number }>; feeds: number; price: number }>>(
+      "/api/headcount-guide",
+    ),
   /** Open Stripe Checkout for an order's deposit (when online payment is switched on). */
   depositCheckout: (ref: string) =>
     req<{ checkoutUrl: string | null }>(`/api/orders/${encodeURIComponent(ref)}/deposit-checkout`, { method: "POST" }),

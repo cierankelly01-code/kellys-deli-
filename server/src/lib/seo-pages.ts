@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import type { Location, Platter } from "@prisma/client";
 import { prisma } from "./prisma";
 import { stripeEnabled } from "./env";
+import { headcountGuide, type GuideRow } from "./headcount-guide";
 import content from "../content/seo-content.json";
 
 /**
@@ -238,7 +239,23 @@ function frame(h1: string, inner: string, locs: Location[]): string {
   ).join("")}</nav></header><main class="seo-main"><h1>${esc(h1)}</h1>${inner}${shopsFooter(locs)}</main></div>`;
 }
 
-const whyUsHtml = () => `<section><h2>Why Kelly&#39;s Deli</h2>${list(content.whyUs.map((w) => esc(w.fact)))}</section>`;
+/** "Rated 4.7 out of 5 on Google from 47 reviews" — from the admin-maintained figures, if set. */
+async function ratingHtml(): Promise<string> {
+  const s = await settings(["reviewRating", "reviewCount"]);
+  const rating = parseFloat(s.reviewRating ?? "");
+  const count = parseInt(s.reviewCount ?? "", 10);
+  if (!Number.isFinite(rating) || !Number.isFinite(count) || count <= 0) return "";
+  return `<p>Rated ${esc(rating.toFixed(1))} out of 5 on Google from ${esc(count)} reviews.</p>`;
+}
+
+type QA = { h: string; p: string; link?: string };
+/** Answer-first Q&A for an occasion category (seo-content.json categoryQA), e.g. "Hosting friends?". */
+const categoryQAHtml = (slug: string) =>
+  ((content.categoryQA as Record<string, QA[]>)[slug] ?? [])
+    .map((q) => `<h2>${esc(q.h)}</h2><p>${esc(q.p)}${q.link ? ` ${link(q.link, "How much party food you need")}` : ""}</p>`)
+    .join("");
+
+const whyUsHtml = (rating = "") => `<section><h2>Why Kelly&#39;s Deli</h2>${rating}${list(content.whyUs.map((w) => esc(w.fact)))}</section>`;
 
 // ---------------------------------------------------------------- data
 
@@ -251,6 +268,17 @@ async function activePlatters(): Promise<Platter[]> {
 async function settings(keys: string[]): Promise<Record<string, string>> {
   const rows = await prisma.setting.findMany({ where: { key: { in: keys } } });
   return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+}
+
+/** "How much food for N people" — the recommender's suggestion and price per party size. */
+function headcountTable(rows: GuideRow[]): string {
+  if (!rows.length) return "";
+  return `<table><thead><tr><th>Guests</th><th>Suggested boards</th><th>Feeds</th><th>Price</th></tr></thead><tbody>${rows
+    .map(
+      (r) =>
+        `<tr><td>${r.headcount}</td><td>${r.boards.map((b) => `${b.qty > 1 ? `${b.qty} × ` : ""}${link(`/platter/${b.id}`, b.name)}`).join(" + ")}</td><td>up to ${r.feeds}</td><td>${esc(gbp(r.price))}</td></tr>`
+    )
+    .join("")}</tbody></table>`;
 }
 
 /** Board / feeds / price, one row per board (each size is its own row). */
@@ -294,6 +322,7 @@ export async function buildSeoPage(rawPath: string): Promise<SeoPage> {
 async function routePage(path: string, locs: Location[]): Promise<SeoPage> {
   // The payment answer follows whether online deposits (Stripe) are switched on.
   const faq = siteFaq();
+  const rating = await ratingHtml();
 
   if (path === "/") {
     const [platters, s, cats] = await Promise.all([
@@ -316,7 +345,7 @@ async function routePage(path: string, locs: Location[]): Promise<SeoPage> {
         ...cats.filter((c) => !["at-home", "hosting"].includes(c.slug)).map((c) => `${link(`/shop/${c.slug}`, c.name)}${c.tagline ? ` — ${esc(c.tagline)}` : ""}`),
       ]),
       platters.length ? `<h2>Signature boards</h2>${list(platters.map(platterLine))}` : "",
-      whyUsHtml(),
+      whyUsHtml(rating),
       `<h2>Planning a party?</h2><p>${link(content.partyGuide.path, "Party food in Solihull: what to order, how much, and when")}</p>`,
       faqHtml(faq),
     ].join("");
@@ -375,7 +404,7 @@ async function routePage(path: string, locs: Location[]): Promise<SeoPage> {
       jsonLd: [breadcrumb([["Shop", "/shop"], [c.name, path]]), faqSchema(faq)],
       body: frame(
         c.name,
-        `${c.tagline ? `<p>${esc(c.tagline)}</p>` : ""}${c.description ? `<p>${esc(c.description)}</p>` : ""}${boardTable(boards)}${faqHtml(faq)}`,
+        `${c.tagline ? `<p>${esc(c.tagline)}</p>` : ""}${c.description ? `<p>${esc(c.description)}</p>` : ""}${categoryQAHtml(c.slug)}${boardTable(boards)}${faqHtml(faq)}`,
         locs
       ),
     };
@@ -506,7 +535,7 @@ async function routePage(path: string, locs: Location[]): Promise<SeoPage> {
           link("/lunch", "Lunch"),
           link("/bread", "Bread"),
           link("/groceries", "Deli counter"),
-        ])}${whyUsHtml()}`,
+        ])}${whyUsHtml(rating)}`,
         locs
       ),
     };
@@ -514,7 +543,8 @@ async function routePage(path: string, locs: Location[]): Promise<SeoPage> {
 
   if (path === content.partyGuide.path) {
     const g = content.partyGuide;
-    const platters = (await activePlatters()).filter((p) => platterFeeds(p));
+    const [platters, guide] = await Promise.all([activePlatters().then((ps) => ps.filter((p) => platterFeeds(p))), headcountGuide()]);
+    const tableFor = (s: { table?: string }) => (s.table === "headcount" ? headcountTable(guide) : s.table === "boards" ? boardTable(platters) : "");
     return {
       status: 200,
       title: g.title,
@@ -527,6 +557,8 @@ async function routePage(path: string, locs: Location[]): Promise<SeoPage> {
           headline: g.h1,
           description: g.description,
           image: OG_IMAGE,
+          // The date the guide's words last changed (not today's date — no fake freshness).
+          dateModified: g.updatedISO,
           author: { "@id": `${SITE}/#organization` },
           publisher: { "@id": `${SITE}/#organization` },
           mainEntityOfPage: SITE + path,
@@ -536,9 +568,9 @@ async function routePage(path: string, locs: Location[]): Promise<SeoPage> {
       ],
       body: frame(
         g.h1,
-        `<p><strong>${esc(g.answer)}</strong></p>${g.sections
-          .map((s, i) => `<h2>${esc(s.h)}</h2><p>${esc(s.p)}</p>${i === 0 ? boardTable(platters) : ""}`)
-          .join("")}<h2>Occasions we cater for</h2><p>${esc(g.occasions.join(", "))}</p>${whyUsHtml()}<p>${link("/shop/hosting", "See party platters")}</p>`,
+        `<p><strong>${esc(g.answer)}</strong></p><p><small>Updated ${esc(g.updated)}. Prices and sizes below are live from our menu.</small></p>${g.sections
+          .map((s) => `<h2>${esc(s.h)}</h2><p>${esc(s.p)}</p>${tableFor(s)}`)
+          .join("")}<h2>Occasions we cater for</h2><p>${esc(g.occasions.join(", "))}</p>${whyUsHtml(rating)}<p>${link("/shop/hosting", "See party platters")}</p>`,
         locs
       ),
     };
@@ -604,7 +636,7 @@ async function routePage(path: string, locs: Location[]): Promise<SeoPage> {
         "Our story",
         `<h2>${esc(content.family.h)}</h2><p>${esc(content.family.p)}</p>` +
           [s.missionTagline, s.founderNote, s.aboutText].filter(Boolean).map((t) => `<p>${esc(t)}</p>`).join("") +
-          whyUsHtml(),
+          whyUsHtml(rating),
         locs
       ),
     };

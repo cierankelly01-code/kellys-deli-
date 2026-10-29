@@ -148,6 +148,14 @@ export default function Confirm() {
               {gbp(order.balance)} is payable on collection.
             </p>
           </>
+        ) : order.depositStatus === "refunded" ? (
+          <>
+            <h1>Your deposit has been refunded</h1>
+            <p className="confirm-copy">
+              We&apos;ve refunded your {gbp(order.deposit)} deposit for order {order.ref}. It can take a few days to reach
+              your account. Questions? Email hello@kellysdeli.co.uk.
+            </p>
+          </>
         ) : backFromStripe ? (
           <>
             <h1>{confirmTimedOut ? "We're still confirming your payment" : "Payment received — confirming…"}</h1>

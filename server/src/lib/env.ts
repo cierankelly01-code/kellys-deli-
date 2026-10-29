@@ -32,9 +32,19 @@ export const env = {
  * because a secret key without the webhook secret would charge customers while never
  * recording the payment.
  */
-export const stripeEnabled = () => env.stripeSecretKey.length > 0 && env.stripeWebhookSecret.length > 0;
+export const stripeMode = (): "live" | "test" => (/^(sk|rk)_live_/.test(env.stripeSecretKey) ? "live" : "test");
+/**
+ * Test keys on the production site would let anyone "pay" with Stripe's test card 4242,
+ * so they're refused there unless STRIPE_ALLOW_TEST_MODE=1 is set on purpose — only
+ * while testing behind the coming-soon password (docs/STRIPE.md).
+ */
+const testModeBlocked = () => env.isProd && stripeMode() === "test" && process.env.STRIPE_ALLOW_TEST_MODE !== "1";
+export const stripeEnabled = () => env.stripeSecretKey.length > 0 && env.stripeWebhookSecret.length > 0 && !testModeBlocked();
 if (env.stripeSecretKey && !env.stripeWebhookSecret) {
   console.error("[payments] STRIPE_SECRET_KEY is set without STRIPE_WEBHOOK_SECRET — online deposits stay OFF until both are set.");
+}
+if (env.stripeSecretKey && testModeBlocked()) {
+  console.error("[payments] Stripe TEST keys on the production site — online deposits stay OFF. Set STRIPE_ALLOW_TEST_MODE=1 only while testing behind the site password.");
 }
 
 // Fail fast in production if secrets are missing or weak — never run public with defaults.

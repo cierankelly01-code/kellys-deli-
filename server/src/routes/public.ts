@@ -20,8 +20,9 @@ import { priceOrder, priceLineItemOrder, REFERRAL_DISCOUNT } from "../lib/money"
 import { buildAvailability, canBook, closedWeekdaysFromHours, getDayAvailability, meetsNotice, meetsLeadTime, parseDate, formatDate } from "../lib/capacity";
 import { buildBreadAvailability, canBookBread, getBreadDayAvailability, type BreadOrderingSettings } from "../lib/bread-capacity";
 import { recommendBoards, capacity as boardCapacity, type RecBoard } from "../lib/recommender";
+import { headcountGuide } from "../lib/headcount-guide";
 import { genRef, genBreadRef, genGroceryRef, randomReferralCode } from "../lib/ref";
-import { createDepositCheckout, DepositAlreadyPaidError, type DepositCheckout } from "../lib/payments";
+import { createDepositCheckout, expireCheckout, DepositAlreadyPaidError, type DepositCheckout } from "../lib/payments";
 import rateLimit from "express-rate-limit";
 import { env, stripeEnabled } from "../lib/env";
 import {
@@ -180,6 +181,11 @@ publicRouter.get("/add-ons", async (_req, res) => {
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
   res.json(rows.map(addOnDTO));
+});
+
+// --- "How much food for N people?" table for the party guide ---
+publicRouter.get("/headcount-guide", async (_req, res) => {
+  res.json(await headcountGuide());
 });
 
 // --- "Plan My Event" recommender: a board combination for a headcount ---
@@ -923,12 +929,23 @@ publicRouter.post("/orders/:ref/deposit-checkout", depositCheckoutLimiter, async
     const checkout = await createDepositCheckout({
       orderRef: order.ref,
       amount: Number(order.deposit),
-      customerEmail: order.email,
       summary: `Collect from ${order.location.name}, ${formatDate(order.collectionOrDeliveryDate)}`,
       siteUrl: env.publicUrl,
       existingSessionId: order.depositIntentId,
     });
-    await prisma.order.update({ where: { id: order.id }, data: { depositIntentId: checkout.sessionId } });
+    // Save the session only if nothing changed while Stripe answered (compare-and-set):
+    // a payment landing meanwhile has written its pi_ (refunds match on it), and a
+    // second tab may have saved its own session. Either way this one must not win.
+    const saved = await prisma.order.updateMany({
+      where: { id: order.id, depositStatus: "pending", depositIntentId: order.depositIntentId },
+      data: { depositIntentId: checkout.sessionId },
+    });
+    if (saved.count === 0 && checkout.sessionId !== order.depositIntentId) {
+      if (!checkout.reused) await expireCheckout(checkout.sessionId);
+      const now = await prisma.order.findUnique({ where: { id: order.id }, select: { depositStatus: true } });
+      if (now?.depositStatus !== "pending") return res.status(409).json({ error: "This deposit has just been paid — refresh the page in a moment." });
+      return res.status(409).json({ error: "Your payment page is already open in another window. Please finish it there, or try again in a moment." });
+    }
     res.json({ checkoutUrl: checkout.url });
   } catch (e) {
     if (e instanceof DepositAlreadyPaidError) {
@@ -1176,7 +1193,6 @@ publicRouter.post("/orders", async (req, res) => {
       checkout = await createDepositCheckout({
         orderRef: order.ref,
         amount: pricing.deposit,
-        customerEmail: order.email,
         summary: `Collect from ${order.location.name}, ${formatDate(order.collectionOrDeliveryDate)}`,
         siteUrl: env.publicUrl,
       });
@@ -1307,6 +1323,7 @@ publicRouter.post("/bookings", async (req, res) => {
         boards: order.experience
           ? [{ name: order.experience.name, qty: 1, lineTotal: pricing.total, imageUrl: order.experience.imageUrl }]
           : [],
+        payOnline: false, // tastings aren't paid online
       },
     );
     await alertShopOfOrder(
@@ -1318,6 +1335,7 @@ publicRouter.post("/bookings", async (req, res) => {
         collectionDate: formatDate(order.collectionOrDeliveryDate),
         locationName: order.location.name,
         boards: order.experience ? [{ name: order.experience.name, qty: 1, lineTotal: pricing.total }] : [],
+        payOnline: false, // tastings aren't paid online
       },
     );
     res.status(201).json({ order: orderDTO(order), pricing });

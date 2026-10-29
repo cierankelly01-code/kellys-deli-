@@ -5,7 +5,7 @@ import express, { type Express, type Request, type Response, type NextFunction }
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import { env, stripeEnabled } from "./lib/env";
+import { env, stripeEnabled, stripeMode } from "./lib/env";
 import { publicRouter } from "./routes/public";
 import { authRouter } from "./routes/auth";
 import { adminRouter } from "./routes/admin";
@@ -153,6 +153,12 @@ export function createApp(): Express {
         }
         return res.status(200).json({ received: true, handled: false });
       }
+      // Paid online on an order the shop had already confirmed or collected (a session
+      // opened before the shop moved it on): the money is real, so it's recorded, but the
+      // shop may also have taken the deposit by phone — flag it for a human.
+      if (order.status !== "new" && order.status !== "deposit_requested") {
+        await problem(ref, `The deposit was paid online, but the order was already marked "${order.status}". If you also took the deposit another way, refund one of them.`);
+      }
       const balance = Math.max(0, Math.round((Number(order.total) - Number(order.deposit)) * 100) / 100);
       await notifyDepositPaid(
         { name: order.customerName, phone: order.phone, email: order.email },
@@ -222,7 +228,7 @@ export function createApp(): Express {
   // Whether live payments are configured. The storefront copy stays "payment-ready" until
   // this is true, so we never promise automated billing that isn't wired up.
   app.get("/api/payments/status", (_req, res) => {
-    res.json({ enabled: stripeEnabled() });
+    res.json({ enabled: stripeEnabled(), ...(stripeEnabled() ? { mode: stripeMode() } : {}) });
   });
 
   // Dynamic sitemap: static public routes + every active occasion category landing page.

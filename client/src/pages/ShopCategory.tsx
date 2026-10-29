@@ -13,6 +13,7 @@ import { CorporateEnquiryForm } from "../components/CorporateEnquiryForm";
 import { ReminderCapture } from "../components/ReminderCapture";
 import { morphNavigate } from "../lib/motion";
 import { groupVariants, cheapestVariant, type ProductGroup } from "../lib/variants";
+import { categoryQA } from "../lib/seoContent";
 
 
 function priceFeeds(g: ProductGroup): string {
@@ -86,6 +87,17 @@ export default function ShopCategory() {
       </header>
 
       {cat.description && <p className="cat-desc">{cat.description}</p>}
+
+      {/* Answer-first Q&A for this occasion ("Hosting friends?"), shared with the server render. */}
+      {categoryQA(cat.slug).map((q) => (
+        <section key={q.h} className="pg-section cat-qa" data-reveal>
+          <h2 className="section-h">{q.h}</h2>
+          <p>
+            {q.p}{" "}
+            {q.link && <Link className="u-link" to={q.link}>How much party food you need →</Link>}
+          </p>
+        </section>
+      ))}
 
       <div className="cat-trust" data-reveal>
         {counts?.reviewRating && <Stars rating={counts.reviewRating} count={counts.reviewCount} />}

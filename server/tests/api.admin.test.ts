@@ -11,7 +11,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "changeme123";
 
 // Random far-future date so integration tests never contend on capacity.
 function farDate(): string {
-  const days = 30 + Math.floor(Math.random() * 180);
+  const days = 30 + Math.floor(Math.random() * 900);
   const d = new Date(Date.now() + days * 86_400_000);
   // Both shops are shut Sunday and Monday, and a closed day is now refused: move to Tuesday.
   while (d.getUTCDay() === 0 || d.getUTCDay() === 1) d.setUTCDate(d.getUTCDate() + 1);

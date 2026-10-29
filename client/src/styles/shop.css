@@ -437,3 +437,6 @@
 .gift-intro { max-width: 60ch; margin: 4px 0 16px; }
 .gift-form { display: grid; gap: 12px; max-width: 460px; }
 .gift-form .btn { width: auto; justify-self: start; min-width: 200px; padding: 0 20px; }
+
+.why-us-rating { font-size: 1.05rem; margin: 0 0 12px; }
+.cat-qa { margin: 0 auto; max-width: 820px; padding-left: var(--space-gutter); padding-right: var(--space-gutter); }
