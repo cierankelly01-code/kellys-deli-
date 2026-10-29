@@ -581,7 +581,7 @@ async function routePage(path: string, locs: Location[]): Promise<SeoPage> {
     return {
       status: 200,
       title: "Office Catering in Solihull — Platters & Team Lunches | Kelly's Deli",
-      description: "Platters for meetings, team lunches and workplace events from Kelly's Deli in Bentley Heath, Solihull. Standing weekly or monthly orders, with invoicing where agreed.",
+      description: "Platters for meetings, team lunches and workplace events from Kelly's Deli in Bentley Heath, Solihull. Standing weekly, fortnightly or monthly orders.",
       path,
       jsonLd: [
         {
@@ -599,7 +599,7 @@ async function routePage(path: string, locs: Location[]): Promise<SeoPage> {
       ],
       body: frame(
         "Office catering",
-        `<p>Platters for meetings, team lunches and workplace gatherings across Solihull, Knowle and Dorridge, with standing weekly, fortnightly or monthly orders and invoicing where agreed. Tell us your headcount and how often, and we'll come back with a plan.</p>${faqHtml(officeFaq)}`,
+        `<p>Platters for meetings, team lunches and workplace gatherings across Solihull, Knowle and Dorridge, with standing weekly, fortnightly or monthly orders. Tell us your headcount and how often, and we'll come back with a plan.</p>${faqHtml(officeFaq)}`,
         locs
       ),
     };

@@ -50,6 +50,9 @@ html, body {
   background: var(--cream);
   color: var(--ink);
   font-family: var(--font);
+  /* Never let the browser fake a bold or italic by stretching/slanting the letters (that's
+   * what read as "warped"): index.html loads real weight ranges and italics for both fonts. */
+  font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
   overflow-x: hidden;

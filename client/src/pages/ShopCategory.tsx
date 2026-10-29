@@ -160,8 +160,8 @@ export default function ShopCategory() {
           <div className="corp-standing">
             <h2 className="section-h">A standing platter for the office</h2>
             <p className="muted">
-              Set up a regular weekly, fortnightly or monthly platter and save 10% with Subscribe &amp; Save — we&apos;ll
-              invoice monthly and confirm every delivery with you. {nextDay
+              Set up a regular weekly, fortnightly or monthly platter and save 10% with Subscribe &amp; Save. You pay for the first one when you order and we&apos;ll
+              confirm every delivery with you. {nextDay
                 ? "Regular orders are delivered the next working day."
                 : "Delivery is available for regular office orders — we'll confirm your schedule with you."}
             </p>

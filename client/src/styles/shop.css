@@ -101,8 +101,9 @@
 .main-cat-eyebrow { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #f0dcae; text-shadow: 0 1px 3px rgb(0 0 0 / 60%); }
 .main-cat-name {
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
-  font-family: var(--serif); font-weight: 400; font-style: italic;
-  font-size: clamp(1.05rem, 1.7vw, 1.4rem); letter-spacing: -0.015em; line-height: 1.1;
+  /* Upright, not italic: Fraunces italic swashes read as warped over photos on a phone. */
+  font-family: var(--serif); font-weight: 500;
+  font-size: clamp(1.05rem, 1.7vw, 1.4rem); letter-spacing: -0.005em; line-height: 1.1;
 }
 .is-feature .main-cat-name { font-size: clamp(1.5rem, 3.4vw, 2.6rem); }
 .is-feature .main-cat-eyebrow { font-size: .76rem; }
