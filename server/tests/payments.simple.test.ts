@@ -152,6 +152,17 @@ d("Bread and deli counter orders, paid in full online", () => {
     } finally { logs.mockRestore(); errors.mockRestore(); }
   });
 
+  it("still confirms to the customer when the shop handled the order before it was paid", async () => {
+    const logs = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const { order } = await place("bread", { email: "early@example.com" });
+      const id = (await prisma.breadOrder.findUnique({ where: { ref: order.ref } }))!.id;
+      await request(app).patch(`/api/admin/bread/orders/${id}/status`).set("Authorization", `Bearer ${token}`).send({ status: "confirmed" });
+      expect((await postWebhook(paidEvent(order.ref, 700))).body.handled).toBe(true);
+      expect(mailsFor(logs, order.ref).some((l) => l.includes("early@example.com") && l.includes("Paid in full"))).toBe(true);
+    } finally { logs.mockRestore(); }
+  });
+
   it("releases an unpaid order after the hold, but never one the shop has handled", async () => {
     const { releaseUnpaidOrders, UNPAID_HOLD_MINUTES } = await import("../src/lib/unpaid-orders");
     const old = new Date(Date.now() - (UNPAID_HOLD_MINUTES + 1) * 60_000);

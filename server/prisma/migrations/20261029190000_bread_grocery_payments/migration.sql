@@ -16,7 +16,7 @@ ALTER TABLE "GroceryOrder" ADD COLUMN IF NOT EXISTS "paidAt" TIMESTAMP(3);
 ALTER TABLE "GroceryOrder" ADD COLUMN IF NOT EXISTS "confirmationSentAt" TIMESTAMP(3);
 
 UPDATE "BreadOrder" SET "confirmationSentAt" = "createdAt"
-WHERE "confirmationSentAt" IS NULL AND "paymentStatus" <> 'pending';
+WHERE "confirmationSentAt" IS NULL AND "paymentStatus" <> 'pending' AND "createdAt" < NOW() - INTERVAL '10 minutes';
 
 UPDATE "GroceryOrder" SET "confirmationSentAt" = "createdAt"
-WHERE "confirmationSentAt" IS NULL AND "paymentStatus" <> 'pending';
+WHERE "confirmationSentAt" IS NULL AND "paymentStatus" <> 'pending' AND "createdAt" < NOW() - INTERVAL '10 minutes';

@@ -137,7 +137,7 @@ export function createApp(): Express {
         include: orderEmailInclude,
       });
       if (!order) {
-        console.error(`[payments:webhook] paid session for unknown order ${ref}`);
+        await problem(ref, `A payment was made online for order ${ref}, which no longer exists (deleted?). Refund it in Stripe.`);
         return res.status(200).json({ received: true, handled: false });
       }
       const owed = Math.round(Number(order.deposit) * 100);

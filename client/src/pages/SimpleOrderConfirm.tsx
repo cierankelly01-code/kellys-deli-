@@ -97,7 +97,7 @@ export default function SimpleOrderConfirm() {
               Order {order.ref} has been cancelled. If it wasn&apos;t paid in time, you&apos;re welcome to order again.
               Questions? Email hello@kellysdeli.co.uk.
             </p>
-            <Link className="btn" to={order.kind === "bread" ? "/bread" : "/groceries"}>Order again</Link>
+            <Link className="btn" to={order.kind === "bread" ? "/bread" : "/"}>Order again</Link>
           </>
         ) : backFromStripe && order.paymentStatus === "pending" ? (
           <>

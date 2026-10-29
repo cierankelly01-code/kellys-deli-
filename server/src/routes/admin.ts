@@ -614,7 +614,8 @@ adminRouter.get("/bread/bake-sheet", async (req, res) => {
   if (locationId && locations.length === 0) return res.status(404).json({ error: "Location not found" });
 
   const orders = await prisma.breadOrder.findMany({
-    where: { collectionDate: parseDate(date), status: { not: "cancelled" }, ...(locationId ? { locationId } : {}) },
+    // Orders still waiting on their online payment aren't baked: unpaid ones are released.
+    where: { collectionDate: parseDate(date), status: { not: "cancelled" }, paymentStatus: { not: "pending" }, ...(locationId ? { locationId } : {}) },
     include: { items: true },
     orderBy: { createdAt: "asc" },
   });

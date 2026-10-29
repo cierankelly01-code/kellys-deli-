@@ -20,8 +20,8 @@ export default function Terms() {
 
         <h2>Placing an order</h2>
         <p>
-          When you place an order you&apos;ll receive a confirmation with a reference number. This
-          confirms we&apos;ve received your order; your order is accepted once we confirm we can fulfil
+          When you place an order you pay for it online, and once it&apos;s paid you&apos;ll receive a
+          confirmation with a reference number. Your order is accepted once we confirm we can fulfil
           it for your chosen date and location. We may not be able to accept an order if we&apos;re fully
           booked or an item is unavailable.
         </p>

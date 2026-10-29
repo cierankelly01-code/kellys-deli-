@@ -55,9 +55,12 @@ async function shopInbox(k: SimpleKind, locationId: string): Promise<string | nu
  * confirmationSentAt first, so each order is announced once, however many callers race.
  * Never throws: the order is already saved.
  */
-export async function sendSimpleOrderEmails(k: SimpleKind, o: SimpleOrder, opts: { paid: boolean }): Promise<void> {
+export async function sendSimpleOrderEmails(k: SimpleKind, o: SimpleOrder, opts: { paid: boolean; onlyIfFirst?: boolean }): Promise<void> {
   const first = (await orders(k).updateMany({ where: { id: o.id, confirmationSentAt: null }, data: { confirmationSentAt: new Date() } })).count > 0;
-  if (!first) return;
+  // Already claimed: nothing more for an unpaid order or a catch-up send (webhook retry).
+  // A fresh payment still confirms, e.g. on an order the shop handled before it was paid
+  // (handling it stamps confirmationSentAt, but nobody has emailed the customer).
+  if (!first && (!opts.paid || opts.onlyIfFirst)) return;
   const dto = dtoOf(k, o);
   const data: BreadOrderEmailData = {
     ref: dto.ref,
@@ -188,7 +191,7 @@ export async function recordSimplePayment(k: SimpleKind, r: WebhookResult, probl
   const ref = r.paidOrderRef!;
   const o = await loadSimpleOrder(k, ref);
   if (!o) {
-    console.error(`[payments:webhook] paid session for unknown order ${ref}`);
+    await problem(ref, `£${((r.amountPaidPence ?? 0) / 100).toFixed(2)} was paid online for order ${ref}, which no longer exists (deleted?). Refund it in Stripe.`);
     return false;
   }
   const owed = Math.round(simpleOrderTotal(k, o) * 100);
@@ -212,7 +215,7 @@ export async function recordSimplePayment(k: SimpleKind, r: WebhookResult, probl
       await problem(ref, `${paidMoney} was paid online for an order set to "${o.paymentStatus}". Check it and refund if needed.`);
     } else if (!o.confirmationSentAt && o.paymentIntentId === r.intentId) {
       // Stripe retrying a payment we recorded but crashed before confirming.
-      await sendSimpleOrderEmails(k, o, { paid: true });
+      await sendSimpleOrderEmails(k, o, { paid: true, onlyIfFirst: true });
     }
     return false;
   }
