@@ -1,6 +1,7 @@
 import { asyncRouter } from "../lib/async-router";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
+import { expireCheckout } from "../lib/payments";
 import { Prisma } from "@prisma/client";
 import { env } from "../lib/env";
 import {
@@ -165,9 +166,13 @@ adminRouter.patch("/orders/:id/deposit", async (req, res) => {
   const next = parsed.data.depositStatus;
   // Paid online: the money sits in Stripe. Setting it back to pending would let the
   // customer pay a second time, so refunds go through Stripe (which syncs here).
-  if (next === "pending" && existing.depositStatus === "paid" && existing.depositIntentId?.startsWith("pi_")) {
+  // Whatever its current status (paid -> refunded -> pending would otherwise get round this).
+  if (next === "pending" && existing.depositIntentId?.startsWith("pi_")) {
     return res.status(409).json({ error: "This deposit was paid online. Refund it in the Stripe dashboard instead — the order updates itself." });
   }
+  // Taken by phone/bank: close any Stripe page the customer still has open, so they
+  // can't pay online as well.
+  if (next === "paid" && existing.depositIntentId?.startsWith("cs_")) await expireCheckout(existing.depositIntentId);
   const order = await prisma.order.update({
     where: { id: req.params.id },
     data: {

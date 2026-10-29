@@ -292,3 +292,39 @@ d("Stripe deposits — edge cases from review", () => {
     }
   });
 });
+
+d("Stripe deposits — third review", () => {
+  const adminToken = async () =>
+    (await request(app).post("/api/auth/login").send({ email: process.env.ADMIN_EMAIL ?? "owner@kellysdeli.co.uk", password: process.env.ADMIN_PASSWORD ?? "changeme123" })).body.token as string;
+
+  it("closes an open Stripe page if the deposit is marked paid while it's being reopened", async () => {
+    const { ref } = await placeOrder();
+    const stored = (await prisma.order.findUnique({ where: { ref } }))!.depositIntentId!;
+    retrieve.mockImplementationOnce(async (id: string) => {
+      await prisma.order.update({ where: { ref }, data: { depositStatus: "paid" } }); // shop took it by phone
+      return sessions.get(id)!;
+    });
+    const res = await request(app).post(`/api/orders/${ref}/deposit-checkout`);
+    expect(res.status).toBe(409);
+    expect(sessions.get(stored)!.status).toBe("expired");
+  });
+
+  it("blocks paid -> refunded -> pending on an online payment (no reopening by two clicks)", async () => {
+    const { ref, pence } = await placeOrder();
+    await postWebhook(paidEvent(ref, pence, { intent: "pi_test_two_clicks" }));
+    const token = await adminToken();
+    const id = (await prisma.order.findUnique({ where: { ref } }))!.id;
+    const patch = (depositStatus: string) => request(app).patch(`/api/admin/orders/${id}/deposit`).set("Authorization", `Bearer ${token}`).send({ depositStatus });
+    expect((await patch("refunded")).status).toBe(200);
+    expect((await patch("pending")).status).toBe(409);
+  });
+
+  it("marking a deposit paid in admin closes the customer's open Stripe page", async () => {
+    const { ref } = await placeOrder();
+    const order = (await prisma.order.findUnique({ where: { ref } }))!;
+    const token = await adminToken();
+    const res = await request(app).patch(`/api/admin/orders/${order.id}/deposit`).set("Authorization", `Bearer ${token}`).send({ depositStatus: "paid" });
+    expect(res.status).toBe(200);
+    expect(sessions.get(order.depositIntentId!)!.status).toBe("expired");
+  });
+});

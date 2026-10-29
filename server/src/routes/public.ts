@@ -940,11 +940,19 @@ publicRouter.post("/orders/:ref/deposit-checkout", depositCheckoutLimiter, async
       where: { id: order.id, depositStatus: "pending", depositIntentId: order.depositIntentId },
       data: { depositIntentId: checkout.sessionId },
     });
-    if (saved.count === 0 && checkout.sessionId !== order.depositIntentId) {
-      if (!checkout.reused) await expireCheckout(checkout.sessionId);
+    if (saved.count === 0) {
+      // Something changed while Stripe answered. If the deposit is no longer pending
+      // (paid online, or marked paid in admin), close this page — reused or new — so it
+      // can't be paid twice. Otherwise another tab saved its own session first.
       const now = await prisma.order.findUnique({ where: { id: order.id }, select: { depositStatus: true } });
-      if (now?.depositStatus !== "pending") return res.status(409).json({ error: "This deposit has just been paid — refresh the page in a moment." });
-      return res.status(409).json({ error: "Your payment page is already open in another window. Please finish it there, or try again in a moment." });
+      if (now?.depositStatus !== "pending") {
+        await expireCheckout(checkout.sessionId);
+        return res.status(409).json({ error: "This deposit has just been paid — refresh the page in a moment." });
+      }
+      if (checkout.sessionId !== order.depositIntentId) {
+        if (!checkout.reused) await expireCheckout(checkout.sessionId);
+        return res.status(409).json({ error: "Your payment page is already open in another window. Please finish it there, or try again in a moment." });
+      }
     }
     res.json({ checkoutUrl: checkout.url });
   } catch (e) {
