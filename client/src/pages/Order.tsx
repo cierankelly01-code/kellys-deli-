@@ -233,6 +233,13 @@ export default function Order() {
       // Conversion signal for ad platforms — fired once here at placement (not on the
       // confirmation page, which is also reached via bookmark). No-ops without consent.
       trackOrderRequest({ value: res.order.total, ref: res.order.ref });
+      // Online deposits on: straight to Stripe's secure page, which returns to the
+      // confirmation page. Off (or Stripe unavailable): the confirmation page as before.
+      const checkoutUrl = res.payment?.checkoutUrl;
+      if (checkoutUrl && /^https:\/\/checkout\.stripe\.com\//.test(checkoutUrl)) {
+        window.location.assign(checkoutUrl);
+        return;
+      }
       navigate(`/confirm/${res.order.ref}`);
     } catch (e: any) {
       setError(e?.message || "Couldn't place your order. Please try again.");

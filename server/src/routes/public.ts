@@ -21,13 +21,15 @@ import { buildAvailability, canBook, closedWeekdaysFromHours, getDayAvailability
 import { buildBreadAvailability, canBookBread, getBreadDayAvailability, type BreadOrderingSettings } from "../lib/bread-capacity";
 import { recommendBoards, capacity as boardCapacity, type RecBoard } from "../lib/recommender";
 import { genRef, genBreadRef, genGroceryRef, randomReferralCode } from "../lib/ref";
-import { captureDepositIntent } from "../lib/payments";
+import { createDepositCheckout, DepositAlreadyPaidError, type DepositCheckout } from "../lib/payments";
+import rateLimit from "express-rate-limit";
+import { env, stripeEnabled } from "../lib/env";
 import {
   notifyOrderReceived, notifyShopOfOrder, notifyBreadOrderReceived, notifyShopOfBreadOrder,
   notifyGroceryOrderReceived, notifyShopOfGroceryOrder, type OrderNotifyInput,
 } from "../lib/notify";
 import type { BreadEmailItem, GroceryEmailItem } from "../lib/emailTemplate";
-import { platterDTO, experienceDTO, locationDTO, orderDTO, publicOrderDTO, boardComponentDTO, boardGroupDTO, addOnDTO, categoryDTO, bundleDTO, breadProductDTO, breadOrderDTO, groceryProductDTO, groceryOrderDTO } from "../lib/serialize";
+import { platterDTO, experienceDTO, locationDTO, orderDTO, publicOrderDTO, canPayDepositOnline, boardComponentDTO, boardGroupDTO, addOnDTO, categoryDTO, bundleDTO, breadProductDTO, breadOrderDTO, groceryProductDTO, groceryOrderDTO } from "../lib/serialize";
 
 export const publicRouter = asyncRouter();
 publicRouter.use("/occasion-reminders", occasionReminderRouter);
@@ -896,6 +898,47 @@ publicRouter.get("/orders/:ref", async (req, res) => {
   res.json(publicOrderDTO(order));
 });
 
+// Pay (or retry paying) a board order's deposit online — e.g. the customer closed Stripe's
+// page, or ordered before Stripe was switched on. The order ref is the capability (the
+// same one the confirmation page uses); the amount always comes from the saved order.
+// Each tap creates (or reopens) a Stripe session, so keep it well under Stripe's own
+// account-wide rate limit even if someone loops it with a known ref.
+const depositCheckoutLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === "test",
+  message: { error: "Too many attempts — please wait a few minutes and try again." },
+});
+
+publicRouter.post("/orders/:ref/deposit-checkout", depositCheckoutLimiter, async (req, res) => {
+  if (!stripeEnabled()) return res.status(409).json({ error: "Online payment isn't switched on yet — we'll be in touch about your deposit." });
+  const order = await prisma.order.findUnique({ where: { ref: req.params.ref }, include: { location: true } });
+  if (!order || order.type === "experience") return res.status(404).json({ error: "Order not found" });
+  if (!canPayDepositOnline(order)) {
+    return res.status(409).json({ error: order.depositStatus === "paid" ? "This deposit has already been paid." : "This order's deposit can't be paid online — please get in touch." });
+  }
+  try {
+    const checkout = await createDepositCheckout({
+      orderRef: order.ref,
+      amount: Number(order.deposit),
+      customerEmail: order.email,
+      summary: `Collect from ${order.location.name}, ${formatDate(order.collectionOrDeliveryDate)}`,
+      siteUrl: env.publicUrl,
+      existingSessionId: order.depositIntentId,
+    });
+    await prisma.order.update({ where: { id: order.id }, data: { depositIntentId: checkout.sessionId } });
+    res.json({ checkoutUrl: checkout.url });
+  } catch (e) {
+    if (e instanceof DepositAlreadyPaidError) {
+      return res.status(409).json({ error: "This deposit has just been paid — refresh the page in a moment." });
+    }
+    console.error(`[payments] could not start checkout for ${order.ref}`, e);
+    res.status(502).json({ error: "We couldn't open the payment page just now. Please try again in a minute." });
+  }
+});
+
 // --- Re-order ---
 publicRouter.get("/reorder", async (req, res) => {
   const contact = String(req.query.contact ?? "").trim();
@@ -1124,10 +1167,24 @@ publicRouter.post("/orders", async (req, res) => {
       return created;
     });
 
-    // Record the (stub) deposit-intent id so a future Stripe webhook can reconcile it to
-    // this order and flip depositStatus -> paid.
-    const intent = await captureDepositIntent(pricing.deposit, order.ref);
-    await prisma.order.update({ where: { id: order.id }, data: { depositIntentId: intent.intentId } });
+    // Deposit: a Stripe Checkout Session when Stripe is configured (the client sends the
+    // customer straight to it), otherwise a stub and the old "we'll be in touch" flow.
+    // A Stripe hiccup must not lose the order: it's already saved, so fall back to the
+    // stub and the customer can pay from the confirmation page later.
+    let checkout: DepositCheckout;
+    try {
+      checkout = await createDepositCheckout({
+        orderRef: order.ref,
+        amount: pricing.deposit,
+        customerEmail: order.email,
+        summary: `Collect from ${order.location.name}, ${formatDate(order.collectionOrDeliveryDate)}`,
+        siteUrl: env.publicUrl,
+      });
+    } catch (e) {
+      console.error(`[payments] could not start checkout for ${order.ref}`, e);
+      checkout = { provider: "stub", sessionId: `stub_${order.ref}`, url: null };
+    }
+    await prisma.order.update({ where: { id: order.id }, data: { depositIntentId: checkout.sessionId } });
     await notifyOrderReceived(
       { name: order.customerName, phone: order.phone, email: order.email },
       {
@@ -1163,7 +1220,7 @@ publicRouter.post("/orders", async (req, res) => {
         addOns: order.addOns.map((a) => ({ name: a.name, qty: a.quantity, lineTotal: Number(a.unitPrice) * a.quantity })),
       },
     );
-    res.status(201).json({ order: orderDTO(order), pricing, freebie });
+    res.status(201).json({ order: orderDTO(order), pricing, freebie, payment: { checkoutUrl: checkout.url } });
   } catch (err) {
     if (err instanceof CapacityError) return res.status(409).json({ error: "That date is fully booked at this location" });
     console.error("[orders] create failed", err);
@@ -1237,7 +1294,8 @@ publicRouter.post("/bookings", async (req, res) => {
       return created;
     });
 
-    await captureDepositIntent(pricing.deposit, order.ref);
+    // Tastings are still "coming soon" (not bookable), so their deposit stays offline
+    // ("we'll be in touch") — no Stripe Checkout here yet.
     await notifyOrderReceived(
       { name: order.customerName, phone: order.phone, email: order.email },
       {

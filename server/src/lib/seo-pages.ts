@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import type { Location, Platter } from "@prisma/client";
 import { prisma } from "./prisma";
+import { stripeEnabled } from "./env";
 import content from "../content/seo-content.json";
 
 /**
@@ -192,6 +193,10 @@ function breadcrumb(trail: Array<[string, string]>) {
   };
 }
 
+/** Site FAQ with each answer's online-payment variant when Stripe is on (the visible <Faq /> does the same). */
+export const siteFaq = (): Array<{ q: string; a: string }> =>
+  content.faq.map((f) => ({ q: f.q, a: stripeEnabled() && "aOnline" in f && f.aOnline ? (f.aOnline as string) : f.a }));
+
 // Same questions the visible <Faq /> renders on these pages (one source in seo-content.json).
 const faqSchema = (items: Array<{ q: string; a: string }>) => ({
   "@context": "https://schema.org",
@@ -287,7 +292,8 @@ export async function buildSeoPage(rawPath: string): Promise<SeoPage> {
 }
 
 async function routePage(path: string, locs: Location[]): Promise<SeoPage> {
-  const faq = content.faq;
+  // The payment answer follows whether online deposits (Stripe) are switched on.
+  const faq = siteFaq();
 
   if (path === "/") {
     const [platters, s, cats] = await Promise.all([

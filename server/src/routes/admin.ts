@@ -152,6 +152,28 @@ adminRouter.patch("/orders/:id/status", async (req, res) => {
   res.json({ ...orderDTO(order), cost: orderCost(order), profit: profitOf(toStatInput(order)) });
 });
 
+// --- Mark a deposit paid / refunded / pending by hand ---
+// For deposits taken by phone or bank transfer, refunds done in Stripe, or a mistake.
+// Marking it paid stops the order's page offering online payment, so nobody pays twice.
+const depositStatusSchema = z.object({ depositStatus: z.enum(["pending", "paid", "refunded"]) });
+
+adminRouter.patch("/orders/:id/deposit", async (req, res) => {
+  const parsed = depositStatusSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid deposit status" });
+  const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: "Order not found" });
+  const next = parsed.data.depositStatus;
+  const order = await prisma.order.update({
+    where: { id: req.params.id },
+    data: {
+      depositStatus: next,
+      depositPaidAt: next === "paid" ? existing.depositPaidAt ?? new Date() : next === "pending" ? null : existing.depositPaidAt,
+    },
+    include: { ...ORDER_INCLUDE, customer: true },
+  });
+  res.json({ ...orderDTO(order), cost: orderCost(order), profit: profitOf(toStatInput(order)) });
+});
+
 // --- Kitchen prep sheet (platter + gift orders only; experiences aren't kitchen-prepped) ---
 adminRouter.get("/prep-sheet", async (req, res) => {
   const { locationId, date } = req.query as Record<string, string | undefined>;

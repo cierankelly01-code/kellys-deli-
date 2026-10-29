@@ -27,8 +27,15 @@ export const env = {
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
 };
 
-/** True once Stripe keys are configured — the app runs identically with it false. */
-export const stripeEnabled = () => env.stripeSecretKey.length > 0;
+/**
+ * True once BOTH Stripe values are set — the app runs identically with it false. Both,
+ * because a secret key without the webhook secret would charge customers while never
+ * recording the payment.
+ */
+export const stripeEnabled = () => env.stripeSecretKey.length > 0 && env.stripeWebhookSecret.length > 0;
+if (env.stripeSecretKey && !env.stripeWebhookSecret) {
+  console.error("[payments] STRIPE_SECRET_KEY is set without STRIPE_WEBHOOK_SECRET — online deposits stay OFF until both are set.");
+}
 
 // Fail fast in production if secrets are missing or weak — never run public with defaults.
 if (isProd) {

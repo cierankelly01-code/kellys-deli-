@@ -3,6 +3,7 @@
 // SMS is still a logged stub — swap sendSms for Twilio when ready.
 
 import { orderReceivedHtml, orderReceivedText, orderShopAlertHtml, orderShopAlertText, type OrderEmailLine } from "./emailTemplate";
+import { stripeEnabled } from "./env";
 import {
   breadOrderReceivedHtml,
   breadOrderReceivedText,
@@ -108,7 +109,9 @@ export async function notifyOrderReceived(t: NotifyTarget, o: OrderNotifyInput):
   const sms =
     `Thanks ${t.name} — your Kelly's Deli order request ${o.ref} is in. ` +
     `Collection ${o.collectionDate} at ${o.locationName}. Total £${o.total.toFixed(2)}. ` +
-    `We'll contact you shortly with a secure payment link for a 25% deposit (£${o.deposit.toFixed(2)}) to confirm your order. ` +
+    (stripeEnabled()
+      ? `Pay the 25% deposit (£${o.deposit.toFixed(2)}) securely online from your order page to confirm your date. `
+      : `We'll be in touch shortly to take a 25% deposit (£${o.deposit.toFixed(2)}) to confirm your order. `) +
     `The balance (£${balance.toFixed(2)}) is payable on collection.`;
 
   const data = {
@@ -121,6 +124,7 @@ export async function notifyOrderReceived(t: NotifyTarget, o: OrderNotifyInput):
     total: o.total,
     deposit: o.deposit,
     balance,
+    payOnline: stripeEnabled(),
   };
   await Promise.all([
     sendSms(t.phone, sms),
@@ -155,6 +159,7 @@ export async function notifyShopOfOrder(shopEmail: string, t: NotifyTarget, o: O
     total: o.total,
     deposit: o.deposit,
     balance,
+    payOnline: stripeEnabled(),
   };
   await sendEmail(shopEmail, `New order ${o.ref} — ${o.collectionDate}`, orderShopAlertText(d), orderShopAlertHtml(d));
 }
@@ -185,4 +190,35 @@ export async function notifyReferralOffer(t: NotifyTarget, referralCode: string,
     `Know an office that needs lunch? Share your code ${referralCode} (${shareLink}) — ` +
     `you both get £15 off your next order.`;
   await Promise.all([sendSms(t.phone, msg), sendEmail(t.email, "Get £15 off — refer a friend", msg)]);
+}
+
+/** Sent from the Stripe webhook once a board order's deposit is paid online. */
+export async function notifyDepositPaid(
+  t: NotifyTarget,
+  o: { ref: string; deposit: number; balance: number; collectionDate: string; locationName: string },
+  shopEmail: string | null,
+): Promise<void> {
+  const msg =
+    `Thanks ${t.name} — we've received your £${o.deposit.toFixed(2)} deposit for Kelly's Deli order ${o.ref}. ` +
+    `Your collection on ${o.collectionDate} at ${o.locationName} is confirmed. The balance (£${o.balance.toFixed(2)}) is payable on collection.`;
+  await Promise.all([
+    sendSms(t.phone, msg),
+    sendEmail(t.email, `Deposit received — order ${o.ref} confirmed`, msg),
+    shopEmail
+      ? sendEmail(shopEmail, `Deposit paid online — ${o.ref}`, `${t.name} paid the £${o.deposit.toFixed(2)} deposit for ${o.ref} by card (Stripe). Collection ${o.collectionDate} at ${o.locationName}. Don't take the deposit again.`)
+      : Promise.resolve(),
+  ]);
+}
+
+/**
+ * Sent to the shop when Stripe took money we couldn't simply mark as a paid deposit
+ * (paid twice, paid on a cancelled order, wrong amount). A person needs to look at it,
+ * usually to refund from the Stripe dashboard.
+ */
+export async function notifyShopPaymentProblem(shopEmail: string, ref: string, problem: string): Promise<void> {
+  await sendEmail(
+    shopEmail,
+    `ACTION NEEDED: payment problem on order ${ref}`,
+    `${problem}\n\nCheck the payment in the Stripe dashboard (Payments, search ${ref}) and refund it if it shouldn't stand.`,
+  );
 }

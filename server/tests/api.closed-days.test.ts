@@ -24,7 +24,10 @@ d("board collection on closed days", () => {
     const tuesday = new Date(Date.parse(sunday) + 2 * 86_400_000).toISOString().slice(0, 10);
     expect(byDate[sunday]).toBe(false);
     expect(byDate[monday]).toBe(false);
-    expect(byDate[tuesday]).toBe(true);
+    // Tuesday is a trading day. (It may be fully booked by other tests' orders, so check
+    // it isn't shut rather than that it still has room.)
+    const tue = (res.body.days as Array<{ date: string; reason?: string }>).find((x) => x.date === tuesday);
+    expect(tue?.reason).not.toBe("shop_closed");
   });
 
   it("refuses an order for a day the shop is shut, and says why", async () => {

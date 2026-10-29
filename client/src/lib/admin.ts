@@ -371,6 +371,11 @@ export const adminApi = {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
+  setDepositStatus: (id: string, depositStatus: "pending" | "paid" | "refunded") =>
+    authedReq<AdminOrder>(`/api/admin/orders/${id}/deposit`, {
+      method: "PATCH",
+      body: JSON.stringify({ depositStatus }),
+    }),
   prepSheet: (locationId: string, date: string) =>
     authedReq<PrepSheetResponse>(`/api/admin/prep-sheet?locationId=${locationId}&date=${date}`),
   stats: () => authedReq<StatsResponse>(`/api/admin/stats`),

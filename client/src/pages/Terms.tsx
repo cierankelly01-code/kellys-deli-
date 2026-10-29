@@ -36,7 +36,11 @@ export default function Terms() {
         <ul>
           <li>Prices are shown on the website and include VAT where applicable.</li>
           <li>A deposit is taken to secure your order; the balance is due on collection or delivery.</li>
-          <li>Until online card payment is enabled, deposits and balances are arranged directly with us.</li>
+          <li>
+            Where online payment is offered at checkout, the deposit is paid by card through our payment provider,
+            Stripe; we never see or store your card details. Otherwise, deposits are arranged directly with us.
+            Balances are paid on collection.
+          </li>
         </ul>
 
         <h2>Changes, cancellations and refunds</h2>

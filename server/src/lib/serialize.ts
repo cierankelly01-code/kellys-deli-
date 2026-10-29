@@ -33,6 +33,7 @@ import type {
   GrocerySettings,
 } from "@prisma/client";
 import { formatDate } from "./capacity";
+import { stripeEnabled } from "./env";
 import { toMoney } from "./money";
 
 const num = (d: unknown): number | null => (d == null ? null : Number(d));
@@ -383,7 +384,21 @@ export function publicOrderDTO(
     // stays hidden the day delivery ships. The gift recipient/message are intentionally
     // shown on the buyer's own confirmation page and are left as-is.
     deliveryAddress: null,
+    // Whether the confirmation page may offer "Pay £X deposit" (see canPayDepositOnline).
+    canPayOnline: stripeEnabled() && canPayDepositOnline(o),
   };
+}
+
+/**
+ * A deposit can be paid online only while the order is still waiting on it: unpaid, not
+ * yet confirmed/collected/cancelled by the shop, and not in the past. Orders whose deposit
+ * the shop took by phone or bank (marked confirmed, or marked paid in admin) are never
+ * offered online payment, so nobody is asked to pay twice.
+ */
+export function canPayDepositOnline(o: Pick<Order, "type" | "status" | "depositStatus" | "collectionOrDeliveryDate">): boolean {
+  if (o.type === "experience" || o.depositStatus !== "pending") return false;
+  if (o.status !== "new" && o.status !== "deposit_requested") return false;
+  return formatDate(o.collectionOrDeliveryDate) >= formatDate(new Date());
 }
 
 // --- Bread pre-ordering ---

@@ -42,6 +42,15 @@ export default function Orders() {
 
   useEffect(() => { load(); }, [load]);
 
+  async function changeDeposit(id: string, next: "pending" | "paid" | "refunded") {
+    try {
+      const updated = await adminApi.setDepositStatus(id, next);
+      setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }
+
   async function changeStatus(id: string, next: string) {
     try {
       const updated = await adminApi.setStatus(id, next);
@@ -104,7 +113,16 @@ export default function Orders() {
               <div className="spread order-foot">
                 <span>
                   Total <strong>{gbp(o.total)}</strong> · deposit due (25%) {gbp(o.deposit)}{" "}
-                  <span className={`pill ${o.depositStatus === "paid" ? "" : "warn"}`}>{o.depositStatus}</span>
+                  <select
+                    className={`pill ${o.depositStatus === "paid" ? "" : "warn"}`}
+                    aria-label={`Deposit status for ${o.ref}`}
+                    value={o.depositStatus}
+                    onChange={(e) => changeDeposit(o.id, e.target.value as "pending" | "paid" | "refunded")}
+                  >
+                    <option value="pending">pending</option>
+                    <option value="paid">paid</option>
+                    <option value="refunded">refunded</option>
+                  </select>
                   {" "}· balance {gbp(o.balance)}
                 </span>
                 <span className="profit">profit <strong className="pos">{gbp(o.profit)}</strong></span>

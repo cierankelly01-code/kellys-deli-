@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, type OrderDTO } from "../lib/api";
 import { gbp, formatDateLong } from "../lib/format";
 import { Header } from "../components/Header";
@@ -72,14 +72,48 @@ function downloadIcs(order: OrderDTO): void {
 
 export default function Confirm() {
   const { ref } = useParams();
+  const [params] = useSearchParams();
   const [order, setOrder] = useState<OrderDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmTimedOut, setConfirmTimedOut] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+  const [paying, setPaying] = useState(false);
+  const backFromStripe = params.get("paid") === "1";
+  const cancelledAtStripe = params.get("cancelled") === "1";
   usePageTitle("Order confirmed");
 
   useEffect(() => {
     if (!ref) return;
     api.getOrder(ref).then(setOrder).catch((e) => setError(e.message));
   }, [ref]);
+
+  // Back from Stripe: the webhook usually lands within a second or two. Re-check a few
+  // times rather than telling the customer "pending" for a deposit they've just paid.
+  useEffect(() => {
+    if (!ref || !backFromStripe || !order || order.depositStatus !== "pending") return;
+    let tries = 0;
+    const t = setInterval(() => {
+      tries += 1;
+      api.getOrder(ref).then((o) => { setOrder(o); if (o.depositStatus !== "pending") clearInterval(t); }).catch(() => {});
+      if (tries >= 10) { clearInterval(t); setConfirmTimedOut(true); }
+    }, 2000);
+    return () => clearInterval(t);
+  }, [ref, backFromStripe, order?.depositStatus]);
+
+  async function payDeposit() {
+    if (!ref) return;
+    setPaying(true);
+    setPayError(null);
+    try {
+      const { checkoutUrl } = await api.depositCheckout(ref);
+      if (checkoutUrl && /^https:\/\/checkout\.stripe\.com\//.test(checkoutUrl)) window.location.assign(checkoutUrl);
+      else setPayError("Online payment isn't available right now — we'll be in touch about your deposit.");
+    } catch (e: any) {
+      setPayError(e?.message || "We couldn't open the payment page. Please try again.");
+    } finally {
+      setPaying(false);
+    }
+  }
 
   if (error) {
     return (
@@ -106,11 +140,45 @@ export default function Confirm() {
       <Header />
       <div className="confirm-hero center">
         <div className="tick">✓</div>
-        <h1>Your order request is in!</h1>
-        <p className="confirm-copy">
-          Thanks — your order request is in. We&apos;ll contact you shortly with a secure payment link for a 25% deposit
-          to confirm your order. The balance is payable on collection.
-        </p>
+        {order.depositStatus === "paid" ? (
+          <>
+            <h1>Deposit paid — you&apos;re booked in!</h1>
+            <p className="confirm-copy">
+              Thanks — we&apos;ve got your {gbp(order.deposit)} deposit and your date is confirmed. The balance of{" "}
+              {gbp(order.balance)} is payable on collection.
+            </p>
+          </>
+        ) : backFromStripe ? (
+          <>
+            <h1>{confirmTimedOut ? "We're still confirming your payment" : "Payment received — confirming…"}</h1>
+            <p className="confirm-copy" role="status">
+              {confirmTimedOut
+                ? `This is taking longer than usual. Please don't pay again — we'll email you as soon as it's confirmed. Questions? Email hello@kellysdeli.co.uk quoting ${order.ref}.`
+                : "Thanks — we're just confirming your payment with Stripe. This page updates by itself in a few seconds."}
+            </p>
+          </>
+        ) : order.canPayOnline ? (
+          <>
+            <h1>Your order request is in!</h1>
+            <p className="confirm-copy">
+              Pay your 25% deposit securely online to confirm your date. The balance is payable on collection.
+            </p>
+            {cancelledAtStripe && <p className="notice warn">Your payment wasn&apos;t completed. You can try again below.</p>}
+            <button className="btn" onClick={payDeposit} disabled={paying}>
+              {paying ? "Opening secure payment…" : `Pay ${gbp(order.deposit)} deposit`}
+            </button>
+            <p className="muted small">Card payment by Stripe. We never see your card details.</p>
+            {payError && <p className="notice danger" role="alert">{payError}</p>}
+          </>
+        ) : (
+          <>
+            <h1>Your order request is in!</h1>
+            <p className="confirm-copy">
+              Thanks — your order request is in. We&apos;ll be in touch to take a 25% deposit to confirm your order.
+              The balance is payable on collection.
+            </p>
+          </>
+        )}
         <div className="ref-badge">Order reference<strong>{order.ref}</strong></div>
         <p className="muted save-hint">Screenshot or bookmark this page — your order lives at this link.</p>
         <button className="btn btn-secondary cal-btn" onClick={() => downloadIcs(order)}>
@@ -137,7 +205,7 @@ export default function Confirm() {
         <div className="review-row"><span className="muted">Total</span><span style={{ fontWeight: 700 }}>{gbp(order.total)}</span></div>
         <div className="review-row accent">
           <span className="muted">Deposit due (25%)</span>
-          <span style={{ fontWeight: 700 }}>{gbp(order.deposit)} <span className="pill warn">{order.depositStatus}</span></span>
+          <span style={{ fontWeight: 700 }}>{gbp(order.deposit)} <span className={`pill ${order.depositStatus === "paid" ? "good" : "warn"}`}>{order.depositStatus}</span></span>
         </div>
         <div className="review-row"><span className="muted">Balance on collection</span><span>{gbp(order.balance)}</span></div>
       </div>

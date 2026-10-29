@@ -62,7 +62,12 @@ export interface OrderEmailData {
    * own confirmation never echoes these back at them. */
   customerPhone?: string | null;
   customerEmail?: string | null;
+  /** Online deposits (Stripe) are on: the customer pays from their order page, not by a
+   * link we send. Wording in both emails follows this so neither says the wrong thing. */
+  payOnline?: boolean;
 }
+
+const orderPage = (ref: string) => `${SITE}/confirm/${encodeURIComponent(ref)}`;
 
 /** Outer shell: background, 600px card, wordmark, footer. */
 export function layout(inner: string, preheader: string): string {
@@ -178,7 +183,7 @@ export function orderReceivedHtml(d: OrderEmailData): string {
       <div style="border-top:1px solid ${C.line};padding-top:10px;"></div>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
         ${totalsRow("Order total", money(d.total), { strong: true })}
-        ${totalsRow("Deposit to confirm", money(d.deposit), { note: "25% — we'll send a secure payment link" })}
+        ${totalsRow("Deposit to confirm", money(d.deposit), { note: d.payOnline ? "25% — pay securely online" : "25% — we'll be in touch to take it" })}
         ${totalsRow("Balance on collection", money(d.balance))}
       </table>
     </td></tr>
@@ -195,7 +200,11 @@ export function orderReceivedHtml(d: OrderEmailData): string {
     <tr><td style="padding:22px 28px 4px;">
       <p style="margin:0 0 8px;font-family:${SANS};font-size:15px;font-weight:600;color:${C.ink};">What happens next</p>
       <p style="margin:0 0 6px;font-family:${SANS};font-size:15px;line-height:1.7;color:${C.inkSoft};">
-        We&#39;ll be in touch shortly with a secure link for the ${money(d.deposit)} deposit. Once that&#39;s paid your date is confirmed and locked in.
+        ${
+          d.payOnline
+            ? `If you haven&#39;t already, pay the ${money(d.deposit)} deposit securely online from <a href="${esc(orderPage(d.ref))}" style="color:${C.ink};">your order page</a>. Once that&#39;s paid your date is confirmed and locked in.`
+            : `We&#39;ll be in touch shortly to take the ${money(d.deposit)} deposit. Once that&#39;s paid your date is confirmed and locked in.`
+        }
       </p>
       <p style="margin:0 0 22px;font-family:${SANS};font-size:15px;line-height:1.7;color:${C.inkSoft};">
         Anything to change — more people, fewer, a dietary need — just reply to this email. We&#39;d rather sort it now than on the day.
@@ -232,8 +241,9 @@ export function orderReceivedText(d: OrderEmailData): string {
     ``,
     `Collection: ${d.collectionDate} — ${d.locationName}`,
     ``,
-    `What happens next: we'll be in touch shortly with a secure link for the`,
-    `${money(d.deposit)} deposit. Once that's paid your date is confirmed.`,
+    ...(d.payOnline
+      ? [`What happens next: if you haven't already, pay the ${money(d.deposit)} deposit`, `securely online at ${orderPage(d.ref)} — once that's paid your date is confirmed.`]
+      : [`What happens next: we'll be in touch shortly to take the`, `${money(d.deposit)} deposit. Once that's paid your date is confirmed.`]),
     ``,
     `Anything to change — more people, fewer, a dietary need — just reply to`,
     `this email.`,
@@ -578,7 +588,9 @@ export function orderShopAlertText(d: OrderEmailData): string {
     lines,
     ``,
     `Total: ${money(d.total)}`,
-    `Deposit to collect (25%): ${money(d.deposit)}`,
+    d.payOnline
+      ? `Deposit (25%): ${money(d.deposit)} — customer pays online (Stripe); admin shows when it's paid. Don't take it twice.`
+      : `Deposit to collect (25%): ${money(d.deposit)}`,
     `Balance on collection: ${money(d.balance)}`,
     ``,
     `Manage this order: ${SITE}/admin/orders`,
@@ -608,7 +620,9 @@ export function orderShopAlertHtml(d: OrderEmailData): string {
       <div style="border-top:1px solid ${C.line};padding-top:10px;"></div>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
         ${totalsRow("Total", money(d.total))}
-        ${totalsRow("Deposit to collect", money(d.deposit), { strong: true })}
+        ${d.payOnline
+          ? totalsRow("Deposit (paid online)", money(d.deposit), { strong: true, note: "Customer pays by Stripe — admin shows when it's paid. Don't take it twice." })
+          : totalsRow("Deposit to collect", money(d.deposit), { strong: true })}
         ${totalsRow("Balance on collection", money(d.balance))}
       </table>
       <p style="margin:18px 0 0;font-family:${SANS};font-size:14px;color:${C.inkSoft};">

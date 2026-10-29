@@ -325,6 +325,8 @@ export interface OrderDTO {
   balance: number;
   depositStatus: string;
   depositPaidAt: string | null;
+  /** Public order lookup only: the deposit can be paid online right now. */
+  canPayOnline?: boolean;
   isSubscription: boolean;
   subscriptionFrequency: SubscriptionFrequency | null;
   subscriptionDiscount: number | null;
@@ -588,7 +590,7 @@ export const api = {
     return req<AvailabilityResponse>(`/api/experiences/availability?${q.toString()}`);
   },
   createOrder: (body: CreateOrderInput) =>
-    req<{ order: OrderDTO; pricing: Pricing; freebie: string | null }>("/api/orders", {
+    req<{ order: OrderDTO; pricing: Pricing; freebie: string | null; payment?: { checkoutUrl: string | null } }>("/api/orders", {
       method: "POST",
       body: JSON.stringify(body),
     }),
@@ -598,6 +600,9 @@ export const api = {
       body: JSON.stringify(body),
     }),
   getOrder: (ref: string) => req<OrderDTO>(`/api/orders/${ref}`),
+  /** Open Stripe Checkout for an order's deposit (when online payment is switched on). */
+  depositCheckout: (ref: string) =>
+    req<{ checkoutUrl: string | null }>(`/api/orders/${encodeURIComponent(ref)}/deposit-checkout`, { method: "POST" }),
   reorder: (contact: string) => req<ReorderResult>(`/api/reorder?contact=${encodeURIComponent(contact)}`),
   // Validate a referral code against the buyer's contact before promising the discount.
   checkReferral: (code: string, phone: string, email: string) => {

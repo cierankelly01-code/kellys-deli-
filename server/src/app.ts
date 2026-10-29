@@ -15,6 +15,8 @@ import { emailMode } from "./lib/notify";
 import { prisma } from "./lib/prisma";
 import { parseWebhook } from "./lib/payments";
 import { seoHtmlHandler } from "./lib/seo-pages";
+import { notifyDepositPaid, notifyShopPaymentProblem } from "./lib/notify";
+import { formatDate } from "./lib/capacity";
 
 const SITE = "https://www.kellysdeli.co.uk";
 
@@ -95,22 +97,73 @@ export function createApp(): Express {
   app.use(cors({ origin: env.clientOrigins, credentials: true }));
 
   // Stripe webhook — MUST see the raw body (signature verification), so it's mounted
-  // before express.json(). No-ops with 200 until Stripe is configured; when live, it
-  // reconciles a succeeded payment intent to its order and marks the deposit paid.
+  // before express.json() and before the coming-soon gate. No-ops with 200 until Stripe
+  // is configured. When live: a verified, paid Checkout Session marks that order's deposit
+  // paid — once (only from "pending"), and only if Stripe collected exactly what the order
+  // owes. A mismatch is logged and left pending for the owner to look at.
   app.post("/api/payments/webhook", express.raw({ type: "*/*", limit: "1mb" }), async (req, res) => {
     if (!stripeEnabled()) return res.status(200).json({ received: true, note: "payments not configured" });
+    let result;
     try {
-      const result = parseWebhook(req.body as Buffer, req.header("stripe-signature"));
-      if (result.handled && result.paidOrderRef) {
-        await prisma.order.updateMany({
-          where: { ref: result.paidOrderRef, depositStatus: "pending" },
-          data: { depositStatus: "paid", depositPaidAt: new Date(), depositIntentId: result.intentId ?? undefined },
-        });
-      }
-      res.status(200).json({ received: true, handled: result.handled });
+      result = parseWebhook(req.body as Buffer, req.header("stripe-signature"));
     } catch (e) {
-      console.error("[payments:webhook] failed", e);
-      res.status(400).json({ error: "Webhook error" });
+      console.error("[payments:webhook] rejected:", e instanceof Error ? e.message : e);
+      return res.status(400).json({ error: "Webhook error" });
+    }
+    if (!result.handled) return res.status(200).json({ received: true, handled: false });
+    const shopEmail = async () => (await prisma.setting.findUnique({ where: { key: "orderNotifyEmail" } }))?.value?.trim() || null;
+    const problem = async (ref: string, msg: string) => {
+      console.error(`[payments:webhook] ${ref}: ${msg}`);
+      const to = await shopEmail();
+      if (to) await notifyShopPaymentProblem(to, ref, msg).catch((err) => console.error("[payments:webhook] problem alert failed", err));
+    };
+    try {
+      // A full refund made in the Stripe dashboard shows on the order too.
+      if (result.refundedIntentId) {
+        const r = await prisma.order.updateMany({ where: { depositIntentId: result.refundedIntentId, depositStatus: "paid" }, data: { depositStatus: "refunded" } });
+        return res.status(200).json({ received: true, handled: r.count > 0 });
+      }
+      const ref = result.paidOrderRef!;
+      const order = await prisma.order.findUnique({
+        where: { ref },
+        include: { location: true },
+      });
+      if (!order) {
+        console.error(`[payments:webhook] paid session for unknown order ${ref}`);
+        return res.status(200).json({ received: true, handled: false });
+      }
+      const owed = Math.round(Number(order.deposit) * 100);
+      if (result.amountPaidPence !== owed) {
+        await problem(ref, `Stripe collected £${((result.amountPaidPence ?? 0) / 100).toFixed(2)} but the order's deposit is £${(owed / 100).toFixed(2)}. Left as pending.`);
+        return res.status(200).json({ received: true, handled: false });
+      }
+      if (order.status === "cancelled") {
+        await problem(ref, `A £${(owed / 100).toFixed(2)} deposit was paid online for an order that is CANCELLED. It has not been marked paid.`);
+        return res.status(200).json({ received: true, handled: false });
+      }
+      const r = await prisma.order.updateMany({
+        where: { id: order.id, depositStatus: "pending" },
+        data: { depositStatus: "paid", depositPaidAt: new Date(), depositIntentId: result.intentId ?? undefined },
+      });
+      if (r.count === 0) {
+        // Already paid. The same payment arriving twice (Stripe retries) is harmless; a
+        // DIFFERENT payment means the customer has been charged twice.
+        if (order.depositIntentId && result.intentId && order.depositIntentId !== result.intentId) {
+          await problem(ref, `This order's deposit was paid TWICE (payments ${order.depositIntentId} and ${result.intentId}). Refund one of them.`);
+        }
+        return res.status(200).json({ received: true, handled: false });
+      }
+      const balance = Math.max(0, Math.round((Number(order.total) - Number(order.deposit)) * 100) / 100);
+      await notifyDepositPaid(
+        { name: order.customerName, phone: order.phone, email: order.email },
+        { ref, deposit: Number(order.deposit), balance, collectionDate: formatDate(order.collectionOrDeliveryDate), locationName: order.location.name },
+        await shopEmail(),
+      ).catch((err) => console.error("[payments:webhook] deposit-paid notice failed", err));
+      res.status(200).json({ received: true, handled: true });
+    } catch (e) {
+      // 500 so Stripe retries: the payment is real, we just failed to record it.
+      console.error("[payments:webhook] failed to record payment", e);
+      res.status(500).json({ error: "Could not record payment" });
     }
   });
 
